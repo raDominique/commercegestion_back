@@ -3,6 +3,8 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { UploadService } from 'src/shared/upload/upload.service';
+import { AppService } from 'src/app.service';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -10,6 +12,10 @@ describe('AppController (e2e)', () => {
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
+      providers: [
+        AppService,
+        UploadService,
+      ],
     }).compile();
 
     app = moduleFixture.createNestApplication();

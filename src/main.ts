@@ -10,6 +10,7 @@ async function bootstrap() {
   const port = configService.get<number>('PORT') ?? 3000;
   const logger = new LoggerService('Bootstrap');
 
+
   // Swagger configuration
   setupSwagger(app);
   await app.listen(port);

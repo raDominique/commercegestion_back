@@ -25,7 +25,6 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserType } from './users.schema';
-import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 
 @ApiTags('Users')
 @Controller('users')
