@@ -11,21 +11,21 @@ import { UsersModule as UsersModuleV2 } from './v2/users/users.module';
         AppModuleV2,
         RouterModule.register([
             {
-                path: 'api/v1',
+                path: 'v1',
                 module: AppModuleV1,
                 children: [
                     {
-                        path: 'users',
+                        path: '',
                         module: UsersModule,
                     },
                 ],
             },
             {
-                path: 'api/v2',
+                path: 'v2',
                 module: AppModuleV2,
                 children: [
                     {
-                        path: 'users',
+                        path: '',
                         module: UsersModuleV2,
                     },
                 ],
