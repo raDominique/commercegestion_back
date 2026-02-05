@@ -2,9 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
-import { UploadService } from 'src/shared/upload/upload.service';
-import { AppService } from 'src/app.service';
+import { AppModule } from '../src/v1/app.module';
+import { UploadService } from 'src/v1/shared/upload/upload.service';
+import { AppService } from 'src/v1/app.service';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;

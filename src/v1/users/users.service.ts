@@ -10,7 +10,7 @@ import { User, UserDocument, UserType } from './users.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LoggerService } from 'src/common/logger/logger.service';
-import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
+import { PaginationResult } from 'src/v1/shared/interfaces/pagination.interface';
 
 @Injectable()
 export class UsersService {

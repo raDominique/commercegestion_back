@@ -1,20 +1,36 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { ConfigModule } from '@nestjs/config';
-import { UsersModule } from './users/users.module';
-import { DatabaseModule } from './database/database.module';
-import { UploadModule } from './shared/upload/upload.module';
-import { UploadService } from './shared/upload/upload.service';
+import { RouterModule } from '@nestjs/core';
+import { AppModuleV1 } from './v1/app.module';
+import { AppModuleV2 } from './v2/app.module';
+import { UsersModule } from './v1/users/users.module';
+import { UsersModule as UsersModuleV2 } from './v2/users/users.module';
 
 @Module({
-  imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
-    DatabaseModule,
-    UsersModule,
-    UploadModule,
-  ],
-  controllers: [AppController],
-  providers: [AppService, UploadService],
+    imports: [
+        AppModuleV1,
+        AppModuleV2,
+        RouterModule.register([
+            {
+                path: 'api/v1',
+                module: AppModuleV1,
+                children: [
+                    {
+                        path: 'users',
+                        module: UsersModule,
+                    },
+                ],
+            },
+            {
+                path: 'api/v2',
+                module: AppModuleV2,
+                children: [
+                    {
+                        path: 'users',
+                        module: UsersModuleV2,
+                    },
+                ],
+            },
+        ]),
+    ],
 })
 export class AppModule {}
