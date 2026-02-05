@@ -38,8 +38,21 @@ export class AuditService {
           : undefined,
       userId: isValidObjectId(params.userId)
         ? new Types.ObjectId(params.userId)
-        : null, // null si l'ID n'est pas valide (ex: tentative de login avec utilisateur inexistant)
+        : null,
     });
     return log.save();
+  }
+
+  async findLogsByUserId(userId: string) {
+    // Helper pour vérifier si une chaîne est un ObjectId valide
+    const isValidObjectId = (id: string): boolean => /^[0-9a-f]{24}$/i.test(id);
+
+    const userObjectId = isValidObjectId(userId)
+      ? new Types.ObjectId(userId)
+      : null;
+    if (!userObjectId) {
+      throw new Error('Invalid userId');
+    }
+    return this.auditModel.find({ userId: userObjectId }).exec();
   }
 }

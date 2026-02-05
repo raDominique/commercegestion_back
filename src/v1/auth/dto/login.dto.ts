@@ -4,7 +4,7 @@ import { IsEmail, IsString, MinLength } from 'class-validator';
 export class LoginDto {
   @IsEmail({}, { message: 'Format de courriel invalide' })
   @ApiProperty({
-    example: 'utilisateur@exemple.com',
+    example: 'user@1example.com',
     description: 'Adresse e-mail de l\'utilisateur',
   })
   email: string;
@@ -12,7 +12,7 @@ export class LoginDto {
   @IsString()
   @MinLength(6, { message: 'Le mot de passe doit contenir au moins 6 caractères' })
   @ApiProperty({
-    example: 'motDePasseFort123',
+    example: 'strongPassword123',
     description: 'Mot de passe de l\'utilisateur',
     minLength: 6,
   })
