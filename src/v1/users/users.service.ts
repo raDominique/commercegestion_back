@@ -26,23 +26,23 @@ export class UsersService {
   async create(dto: CreateUserDto): Promise<PaginationResult<User>> {
     try {
       const exists = await this.userModel.findOne({
-        email: dto.email,
+        userEmail: dto.userEmail,
         deletedAt: null,
       });
       if (exists) {
         this.logger.warn(
           this.context,
-          `Attempt to create duplicate email: ${dto.email}`,
+          `Attempt to create duplicate email: ${dto.userEmail}`,
         );
         throw new BadRequestException('Email already exists');
       }
 
       const user = new this.userModel({
         ...dto,
-        userType: UserType.BUYER,
-        isVerified: false,
-        isActive: false,
-        balance: 0,
+        userType: dto.userType || 'Particulier',
+        userValidated: false,
+        userEmailVerified: false,
+        userTotalSolde: 0,
       });
 
       const createdUser = await user.save();
@@ -121,20 +121,20 @@ export class UsersService {
    * Recherche un utilisateur par email ET inclut le mot de passe
    * Utilisé uniquement pour l'authentification
    */
-  async findByEmailWithPassword(email: string): Promise<User | null> {
+  async findByEmailWithPassword(userEmail: string): Promise<User | null> {
     try {
       const user = await this.userModel
-        .findOne({ email: email.toLowerCase(), deletedAt: null })
-        .select('+password') // Inclure le mot de passe
+        .findOne({ userEmail: userEmail.toLowerCase(), deletedAt: null })
+        .select('+userPassword') // Inclure le mot de passe
         .exec();
 
       if (user) {
-        this.logger.log(this.context, `User found by email: ${email}`);
+        this.logger.log(this.context, `User found by email: ${userEmail}`);
       }
 
       return user;
     } catch (error) {
-      this.logger.error(this.context, `Failed to find user by email: ${email}`, error.stack);
+      this.logger.error(this.context, `Failed to find user by email: ${userEmail}`, error.stack);
       throw new InternalServerErrorException('Failed to find user');
     }
   }
@@ -184,7 +184,7 @@ export class UsersService {
     }
 
     user.deletedAt = new Date();
-    user.isActive = false;
+    user.userValidated = false;
     await user.save();
 
     this.logger.log(this.context, `User soft-deleted: ${id}`);
@@ -206,7 +206,7 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    if (user.isVerified) {
+    if (user.userEmailVerified) {
       this.logger.warn(
         this.context,
         `Verify failed: user already verified: ${userId}`,
@@ -214,7 +214,7 @@ export class UsersService {
       throw new BadRequestException('Account already verified');
     }
 
-    user.isVerified = true;
+    user.userEmailVerified = true;
     await user.save();
     this.logger.log(this.context, `User verified: ${userId}`);
 
@@ -232,7 +232,7 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    if (!user.isVerified) {
+    if (!user.userEmailVerified) {
       this.logger.warn(
         this.context,
         `Activate failed: user not verified: ${userId}`,
@@ -242,7 +242,7 @@ export class UsersService {
       );
     }
 
-    if (user.isActive) {
+    if (user.userValidated) {
       this.logger.warn(
         this.context,
         `Activate failed: account already active: ${userId}`,
@@ -250,7 +250,7 @@ export class UsersService {
       throw new BadRequestException('Account already active');
     }
 
-    user.isActive = true;
+    user.userValidated = true;
     await user.save();
     this.logger.log(this.context, `User activated: ${userId}`);
 

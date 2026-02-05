@@ -26,9 +26,9 @@ export class AuthService {
   ) {}
 
   /** Login utilisateur */
-  async login(email: string, password: string, req: Request) {
+  async login(userEmail: string, userPassword: string, req: Request) {
     // Récupérer l'utilisateur avec son mot de passe pour vérification
-    const user = await this.usersService.findByEmailWithPassword(email);
+    const user = await this.usersService.findByEmailWithPassword(userEmail);
 
     // Cas 1: Utilisateur n'existe pas
     if (!user) {
@@ -37,19 +37,19 @@ export class AuthService {
     }
 
     // Cas 2: Utilisateur n'est pas vérifié ET n'est pas actif
-    if (!user.isVerified && !user.isActive) {
+    if (!user.userEmailVerified && !user.userValidated) {
       await this.logAudit(user._id.toString(), AuditAction.LOGIN, req);
       throw new UnauthorizedException(AuthErrorMessage.ACCOUNT_NOT_VERIFIED);
     }
 
     // Cas 3: Utilisateur est vérifié mais n'est pas actif
-    if (user.isVerified && !user.isActive) {
+    if (user.userEmailVerified && !user.userValidated) {
       await this.logAudit(user._id.toString(), AuditAction.LOGIN, req);
       throw new UnauthorizedException(AuthErrorMessage.ACCOUNT_INACTIVE);
     }
 
     // Cas 4: Mot de passe incorrect
-    const match = await bcrypt.compare(password, user.password);
+    const match = await bcrypt.compare(userPassword, user.userPassword);
     if (!match) {
       await this.logAudit(user._id.toString(), AuditAction.LOGIN, req);
       throw new UnauthorizedException(AuthErrorMessage.INVALID_CREDENTIALS);
@@ -58,7 +58,7 @@ export class AuthService {
     // ✅ Succès: Générer les tokens
     const payload = {
       sub: user._id.toString(),
-      email: user.email,
+      userEmail: user.userEmail,
       userType: user.userType,
     };
     const accessToken = this.jwtService.sign(payload, {
@@ -113,7 +113,7 @@ export class AuthService {
 
     const payload = {
       sub: user._id.toString(),
-      email: user.email,
+      userEmail: user.userEmail,
       userType: user.userType,
     };
     const accessToken = this.jwtService.sign(payload, {

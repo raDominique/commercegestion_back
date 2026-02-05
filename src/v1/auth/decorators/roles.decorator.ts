@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import { UserType } from '../../users/users.schema';
+import { UserAccess } from '../../users/users.schema';
 
 /**
  * Décorateur pour spécifier les rôles autorisés pour une route
@@ -17,5 +17,5 @@ import { UserType } from '../../users/users.schema';
  * @Roles(UserType.SELLER, UserType.ADMIN)
  * getData() { ... }
  */
-export const Roles = (...roles: UserType[]) =>
+export const Roles = (...roles: UserAccess[]) =>
   SetMetadata('roles', roles);

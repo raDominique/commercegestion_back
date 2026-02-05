@@ -2,7 +2,7 @@ import { UseGuards, applyDecorators } from '@nestjs/common';
 import { JwtGuard } from '../guards/jwt.guard';
 import { RoleGuard } from '../guards/role.guard';
 import { ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
-import { UserType } from '../../users/users.schema';
+import { UserAccess } from '../../users/users.schema';
 import { Roles } from './roles.decorator';
 
 /**
@@ -19,7 +19,7 @@ import { Roles } from './roles.decorator';
  * @AuthRole(UserType.SELLER, UserType.ADMIN)
  * getData(@Req() req) { ... }
  */
-export function AuthRole(...roles: UserType[]) {
+export function AuthRole(...roles: UserAccess[]) {
   return applyDecorators(
     Roles(...roles),
     UseGuards(JwtGuard, RoleGuard),

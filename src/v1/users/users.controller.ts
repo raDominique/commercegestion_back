@@ -24,7 +24,7 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User, UserType } from './users.schema';
+import { User, UserAccess, UserType } from './users.schema';
 import { Auth, AuthRole } from '../auth';
 
 @ApiTags('Users')
@@ -128,7 +128,7 @@ export class UsersController {
   @ApiNotFoundResponse({
     description: 'User not found',
   })
-  @AuthRole(UserType.ADMIN)
+  @AuthRole(UserAccess.ADMIN)
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);
   }
@@ -181,7 +181,7 @@ export class UsersController {
   @ApiNotFoundResponse({
     description: 'User not found',
   })
-  @AuthRole(UserType.ADMIN)
+  @AuthRole(UserAccess.ADMIN)
   activateAccount(@Param('id') id: string) {
     return this.usersService.activateAccount(id);
   }
