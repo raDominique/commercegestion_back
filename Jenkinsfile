@@ -11,7 +11,9 @@ pipeline {
 
         MONGO_URI  = credentials('MONGO_URI_ETOKISANA')
         JWT_SECRET = credentials('JWT_SECRET')
-        JWT_EXPIRES = "7d"
+        JWT_EXPIRES_IN="15m"
+        JWT_REFRESH_SECRET=credentials('JWT_SECRET')
+        JWT_REFRESH_EXPIRES_IN="7d"
     }
 
     stages {
@@ -43,7 +45,9 @@ pipeline {
                     -e PORT=$PORT \
                     -e MONGO_URI=$MONGO_URI \
                     -e JWT_SECRET=$JWT_SECRET \
-                    -e JWT_EXPIRES=$JWT_EXPIRES \
+                    -e JWT_EXPIRES_IN=$JWT_EXPIRES_IN \
+                    -e JWT_REFRESH_SECRET=$JWT_REFRESH_SECRET \
+                    -e JWT_REFRESH_EXPIRES_IN=$JWT_REFRESH_EXPIRES_IN \
                     --log-driver json-file \
                     --log-opt max-size=10m \
                     --log-opt max-file=5 \

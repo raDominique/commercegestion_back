@@ -4,6 +4,7 @@ import { AppModuleV1 } from './v1/app.module';
 import { AppModuleV2 } from './v2/app.module';
 import { UsersModule } from './v1/users/users.module';
 import { UsersModule as UsersModuleV2 } from './v2/users/users.module';
+import { AuthModule } from './v1/auth/auth.module';
 
 @Module({
     imports: [
@@ -18,6 +19,10 @@ import { UsersModule as UsersModuleV2 } from './v2/users/users.module';
                         path: '',
                         module: UsersModule,
                     },
+                    {
+                        path: '',
+                        module: AuthModule
+                    }
                 ],
             },
             {

@@ -14,6 +14,10 @@ export enum UserType {
 
 @Schema({ timestamps: true })
 export class User {
+
+  readonly _id?: any;
+
+
   @Prop({ required: true, unique: true, lowercase: true, index: true })
   email: string;
 

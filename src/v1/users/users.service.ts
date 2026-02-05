@@ -116,6 +116,29 @@ export class UsersService {
     }
   }
 
+  // ========================= FIND BY EMAIL WITH PASSWORD (FOR AUTH) =========================
+  /**
+   * Recherche un utilisateur par email ET inclut le mot de passe
+   * Utilisé uniquement pour l'authentification
+   */
+  async findByEmailWithPassword(email: string): Promise<User | null> {
+    try {
+      const user = await this.userModel
+        .findOne({ email: email.toLowerCase(), deletedAt: null })
+        .select('+password') // Inclure le mot de passe
+        .exec();
+
+      if (user) {
+        this.logger.log(this.context, `User found by email: ${email}`);
+      }
+
+      return user;
+    } catch (error) {
+      this.logger.error(this.context, `Failed to find user by email: ${email}`, error.stack);
+      throw new InternalServerErrorException('Failed to find user');
+    }
+  }
+
   // ========================= UPDATE =========================
   async update(
     id: string,
