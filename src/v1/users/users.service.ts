@@ -262,36 +262,84 @@ export class UsersService {
   }
 
   // ========================= UPDATE =========================
+  // ========================= UPDATE =========================
   async update(
     id: string,
     dto: UpdateUserDto,
+    files: {
+      avatar?: Express.Multer.File;
+      logo?: Express.Multer.File;
+      carteStat?: Express.Multer.File;
+      documents?: Express.Multer.File[];
+      carteFiscal?: Express.Multer.File[];
+    },
   ): Promise<PaginationResult<User>> {
-    try {
-      const user = await this.userModel.findOne({ _id: id, deletedAt: null });
-      if (!user) {
-        this.logger.warn(
-          this.context,
-          `Attempt to update non-existing user: ${id}`,
-        );
-        throw new NotFoundException('User not found');
-      }
+    // Passe tous les fichiers à updateWithFiles
+    return this.updateWithFiles(
+      id,
+      dto,
+      files.avatar,
+      files.documents,
+      dto.documentType,
+      files.logo,
+      files.carteStat,
+      files.carteFiscal,
+    );
+  }
 
-      Object.assign(user, dto);
-      await user.save();
-      this.logger.log(this.context, `User updated: ${id}`);
+  // ========================= UPDATE USER WITH FILES =========================
+  async updateWithFiles(
+    id: string,
+    dto: UpdateUserDto,
+    avatar?: Express.Multer.File,
+    documents?: Express.Multer.File[],
+    documentType?: string,
+    logo?: Express.Multer.File,
+    carteStat?: Express.Multer.File,
+    carteFiscal?: Express.Multer.File[],
+  ): Promise<PaginationResult<User>> {
+    const user = await this.userModel.findOne({ _id: id, deletedAt: null });
+    if (!user) throw new NotFoundException('User not found');
 
-      return this.findOne(id);
-    } catch (error) {
-      this.logger.error(
-        this.context,
-        `Failed to update user: ${id}`,
-        error.stack,
+    // Gestion de l'avatar
+    if (avatar)
+      user.userImage = await this.uploadService.saveFile(avatar, 'avatars');
+
+    // Gestion du logo
+    if (logo) user.logo = await this.uploadService.saveFile(logo, 'logos');
+
+    // Gestion carteStat
+    if (carteStat)
+      user.carteStat = await this.uploadService.saveFile(
+        carteStat,
+        'carteStat',
       );
-      if (error instanceof MongooseError.CastError) {
-        throw new BadRequestException('Invalid user id');
-      }
-      throw error;
+
+    // Gestion documents
+    if (documents?.length) {
+      const savedDocs: string[] = [];
+      for (const file of documents)
+        savedDocs.push(await this.uploadService.saveFile(file, 'documents'));
+      user.identityDocument = savedDocs;
+      if (documentType) user.documentType = documentType;
     }
+
+    // Gestion carteFiscal
+    if (carteFiscal?.length) {
+      const savedCF: string[] = [];
+      for (const file of carteFiscal)
+        savedCF.push(await this.uploadService.saveFile(file, 'carteFiscal'));
+      user.carteFiscal = savedCF;
+    }
+
+    // Mise à jour des autres champs du DTO
+    Object.keys(dto).forEach((key) => {
+      if (dto[key] !== undefined) user[key] = dto[key];
+    });
+
+    await user.save();
+    this.logger.log(this.context, `User updated: ${id}`);
+    return this.findOne(id);
   }
 
   // ========================= SOFT DELETE =========================
