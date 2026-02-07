@@ -33,9 +33,9 @@ export class MailService {
           appName: this.appName,
         },
       });
-      console.log(`✅ Email de vérification envoyé à ${to}`);
+      console.log(`Email de vérification envoyé à ${to}`);
     } catch (error) {
-      console.error(`❌ Erreur envoi email de vérification à ${to}:`, error);
+      console.error(` Erreur envoi email de vérification à ${to}:`, error);
       throw error;
     }
   }
@@ -50,16 +50,16 @@ export class MailService {
       await this.mailerService.sendMail({
         to,
         subject: `Votre compte est en cours de vérification - ${this.appName}`,
-        template: 'account-pending', // Correspond au fichier account-pending.hbs
+        template: 'account-pending',
         context: {
           name,
           appName: this.appName,
-          supportLink: `${this.configService.get<string>('BASE_URL')}/support`,
+          supportLink: `${this.configService.get<string>('APP_URL')}/support`,
         },
       });
-      console.log(`✅ Email compte en attente envoyé à ${to}`);
+      console.log(`Email compte en attente envoyé à ${to}`);
     } catch (error) {
-      console.error(`❌ Erreur envoi email compte en attente à ${to}:`, error);
+      console.error(` Erreur envoi email compte en attente à ${to}:`, error);
       throw error;
     }
   }
@@ -80,8 +80,8 @@ export class MailService {
     try {
       await this.mailerService.sendMail({
         to,
-        subject: `🆕 Nouvel utilisateur enregistré - ${this.appName}`,
-        template: 'admin-new-user', // Correspond au fichier admin-new-user.hbs
+        subject: `Nouvel utilisateur enregistré - ${this.appName}`,
+        template: 'admin-new-user',
         context: {
           username,
           email,
@@ -91,16 +91,16 @@ export class MailService {
             ? registrationDate.toLocaleString('fr-FR')
             : new Date().toLocaleString('fr-FR'),
           ipAddress: ipAddress || 'Non disponible',
-          adminPanelLink: `${this.configService.get<string>('BASE_URL')}/admin/users/${userId}`,
-          usersListLink: `${this.configService.get<string>('BASE_URL')}/admin/users`,
-          totalUsers: '---', // À remplacer par les vraies stats si nécessaire
+          adminPanelLink: `${this.configService.get<string>('APP_URL')}/admin/users/${userId}`,
+          usersListLink: `${this.configService.get<string>('APP_URL')}/admin/users`,
+          totalUsers: '---',
           pendingUsers: '---',
           todaySignups: '---',
         },
       });
-      console.log(`✅ Email notification admin envoyé à ${to}`);
+      console.log(`Email notification admin envoyé à ${to}`);
     } catch (error) {
-      console.error(`❌ Erreur envoi email notification admin à ${to}:`, error);
+      console.error(`Erreur envoi email notification admin à ${to}:`, error);
       // Ne pas throw pour ne pas bloquer l'inscription si l'email admin échoue
     }
   }
@@ -118,18 +118,18 @@ export class MailService {
       await this.mailerService.sendMail({
         to,
         subject: `🎉 Votre compte est maintenant actif - ${this.appName}`,
-        template: 'account-activated', // Correspond au fichier account-activated.hbs
+        template: 'account-activated',
         context: {
           name,
           loginLink:
-            loginLink || `${this.configService.get<string>('BASE_URL')}/login`,
-          supportLink: `${this.configService.get<string>('BASE_URL')}/support`,
+            loginLink || `${this.configService.get<string>('FRONT_URL')}/login`,
+          supportLink: `${this.configService.get<string>('FRONT_URL')}/support`,
           appName: this.appName,
         },
       });
-      console.log(`✅ Email compte activé envoyé à ${to}`);
+      console.log(`Email compte activé envoyé à ${to}`);
     } catch (error) {
-      console.error(`❌ Erreur envoi email compte activé à ${to}:`, error);
+      console.error(` Erreur envoi email compte activé à ${to}:`, error);
       throw error;
     }
   }
@@ -147,17 +147,17 @@ export class MailService {
       await this.mailerService.sendMail({
         to,
         subject: `Votre compte a été désactivé - ${this.appName}`,
-        template: 'account-deactivated', // À créer si nécessaire
+        template: 'account-deactivated',
         context: {
           name,
           reason: reason || 'Non spécifiée',
-          supportLink: `${this.configService.get<string>('BASE_URL')}/support`,
+          supportLink: `${this.configService.get<string>('APP_URL')}/support`,
           appName: this.appName,
         },
       });
-      console.log(`✅ Email compte désactivé envoyé à ${to}`);
+      console.log(`Email compte désactivé envoyé à ${to}`);
     } catch (error) {
-      console.error(`❌ Erreur envoi email compte désactivé à ${to}:`, error);
+      console.error(` Erreur envoi email compte désactivé à ${to}:`, error);
     }
   }
 
@@ -174,16 +174,16 @@ export class MailService {
       await this.mailerService.sendMail({
         to,
         subject: `Votre profil a été mis à jour - ${this.appName}`,
-        template: 'profile-updated', // À créer si nécessaire
+        template: 'profile-updated',
         context: {
           name,
           changes: changes.join(', '),
           appName: this.appName,
         },
       });
-      console.log(`✅ Email mise à jour profil envoyé à ${to}`);
+      console.log(`Email mise à jour profil envoyé à ${to}`);
     } catch (error) {
-      console.error(`❌ Erreur envoi email mise à jour profil à ${to}:`, error);
+      console.error(`Erreur envoi email mise à jour profil à ${to}:`, error);
     }
   }
 
@@ -207,9 +207,9 @@ export class MailService {
           appName: this.appName,
         },
       });
-      console.log(`✅ Email personnalisé envoyé à ${to}`);
+      console.log(`Email personnalisé envoyé à ${to}`);
     } catch (error) {
-      console.error(`❌ Erreur envoi email personnalisé à ${to}:`, error);
+      console.error(`Erreur envoi email personnalisé à ${to}:`, error);
       throw error;
     }
   }

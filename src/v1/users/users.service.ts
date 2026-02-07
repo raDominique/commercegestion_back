@@ -39,7 +39,7 @@ export class UsersService {
     private readonly mailService: MailService,
   ) {
     this.baseUrl =
-      this.configService.get<string>('BASE_URL') || 'http://localhost:3000';
+      this.configService.get<string>('APP_URL') || 'http://localhost:3000';
     this.adminEmail =
       this.configService.get<string>('ADMIN_EMAIL') ||
       'admin@example.com';
@@ -137,7 +137,7 @@ export class UsersService {
       await session.commitTransaction();
       await session.endSession();
 
-      this.logger.log(this.context, `✅ Utilisateur créé: ${user.userEmail}`);
+      this.logger.log(this.context, ` Utilisateur créé: ${user.userEmail}`);
 
       // ---------------- Génération token sécurisé ----------------
       const token = randomBytes(32).toString('hex'); // 64 caractères
@@ -152,24 +152,24 @@ export class UsersService {
 
       const verificationLink = `${this.baseUrl}/api/v1/users/verify?token=${token}`;
 
-      // ---------------- 📧 EMAIL 1: Vérification du compte (utilisateur) ----------------
+      // ----------------  EMAIL 1: Vérification du compte (utilisateur) ----------------
       try {
         await this.mailService.verificationAccountUser(
           user.userEmail,
           user.userName ?? user.managerName ?? 'Utilisateur',
           verificationLink,
         );
-        this.logger.log(this.context, `📧 Email de vérification envoyé à ${user.userEmail}`);
+        this.logger.log(this.context, ` Email de vérification envoyé à ${user.userEmail}`);
       } catch (mailError) {
         this.logger.error(
           this.context,
-          `⚠️ Erreur envoi email de vérification à ${user.userEmail}`,
+          ` Erreur envoi email de vérification à ${user.userEmail}`,
           mailError.stack,
         );
         // On ne bloque pas l'inscription si l'email échoue
       }
 
-      // ---------------- 📧 EMAIL 2: Notification admin nouveau user ----------------
+      // ----------------  EMAIL 2: Notification admin nouveau user ----------------
       try {
         await this.mailService.notificationAdminNouveauUser(
           this.adminEmail,
@@ -178,16 +178,15 @@ export class UsersService {
           user.userId,
           user.userType,
           user.createdAt,
-          // ipAddress peut être passé via le DTO si nécessaire
         );
-        this.logger.log(this.context, `📧 Notification admin envoyée pour ${user.userEmail}`);
+        this.logger.log(this.context, ` Notification admin envoyée pour ${user.userEmail}`);
       } catch (mailError) {
         this.logger.error(
           this.context,
-          `⚠️ Erreur envoi notification admin`,
+          ` Erreur envoi notification admin`,
           mailError.stack,
         );
-        // On ne bloque pas l'inscription
+        // On ne bloque pas l'inscription si l'email échoue
       }
 
       return user;
@@ -196,7 +195,11 @@ export class UsersService {
       try {
         await session.abortTransaction();
       } catch (e) {
-        // si commit déjà fait, ignorer
+        this.logger.error(
+          this.context,
+          'Failed to abort transaction',
+          e.stack,
+        );
       } finally {
         session.endSession();
       }
@@ -241,19 +244,19 @@ export class UsersService {
     // Supprimer le token après utilisation
     await tokenDoc.deleteOne();
 
-    this.logger.log(this.context, `✅ Email vérifié pour ${user.userEmail}`);
+    this.logger.log(this.context, ` Email vérifié pour ${user.userEmail}`);
 
-    // ---------------- 📧 EMAIL 3: Compte en attente de vérification admin (utilisateur) ----------------
+    // ----------------  EMAIL 3: Compte en attente de vérification admin (utilisateur) ----------------
     try {
       await this.mailService.notificationCompteAverifier(
         user.userEmail,
         user.userName ?? user.managerName ?? 'Utilisateur',
       );
-      this.logger.log(this.context, `📧 Email "compte en attente" envoyé à ${user.userEmail}`);
+      this.logger.log(this.context, ` Email "compte en attente" envoyé à ${user.userEmail}`);
     } catch (mailError) {
       this.logger.error(
         this.context,
-        `⚠️ Erreur envoi email "compte en attente"`,
+        ` Erreur envoi email "compte en attente"`,
         mailError.stack,
       );
       // On ne bloque pas la vérification
@@ -341,20 +344,20 @@ export class UsersService {
     user.userValidated = false;
     await user.save();
 
-    this.logger.log(this.context, `🗑️ Utilisateur supprimé (soft delete): ${user.userEmail}`);
+    this.logger.log(this.context, ` Utilisateur supprimé (soft delete): ${user.userEmail}`);
 
-    // ---------------- 📧 EMAIL OPTIONNEL: Notification compte désactivé ----------------
+    // ----------------  EMAIL OPTIONNEL: Notification compte désactivé ----------------
     try {
       await this.mailService.notificationAccountDeactivated(
         user.userEmail,
         user.userName ?? user.managerName ?? 'Utilisateur',
         'Suppression du compte',
       );
-      this.logger.log(this.context, `📧 Email désactivation envoyé à ${user.userEmail}`);
+      this.logger.log(this.context, ` Email désactivation envoyé à ${user.userEmail}`);
     } catch (mailError) {
       this.logger.error(
         this.context,
-        `⚠️ Erreur envoi email désactivation`,
+        ` Erreur envoi email désactivation`,
         mailError.stack,
       );
     }
@@ -382,9 +385,9 @@ export class UsersService {
     user.userValidated = true;
     await user.save();
 
-    this.logger.log(this.context, `✅ Compte activé: ${user.userEmail}`);
+    this.logger.log(this.context, ` Compte activé: ${user.userEmail}`);
 
-    // ---------------- 📧 EMAIL 4: Compte activé (utilisateur) ----------------
+    // ----------------  EMAIL 4: Compte activé (utilisateur) ----------------
     try {
       const loginLink = `${this.baseUrl}/login`;
       await this.mailService.notificationAccountUserActive(
@@ -392,11 +395,11 @@ export class UsersService {
         user.userName ?? user.managerName ?? 'Utilisateur',
         loginLink,
       );
-      this.logger.log(this.context, `📧 Email activation envoyé à ${user.userEmail}`);
+      this.logger.log(this.context, ` Email activation envoyé à ${user.userEmail}`);
     } catch (mailError) {
       this.logger.error(
         this.context,
-        `⚠️ Erreur envoi email activation`,
+        ` Erreur envoi email activation`,
         mailError.stack,
       );
       // On ne bloque pas l'activation
@@ -521,9 +524,9 @@ export class UsersService {
       });
 
       await user.save();
-      this.logger.log(this.context, `🔄 Utilisateur mis à jour: ${user.userEmail}`);
+      this.logger.log(this.context, ` Utilisateur mis à jour: ${user.userEmail}`);
 
-      // ---------------- 📧 EMAIL OPTIONNEL: Notification mise à jour profil ----------------
+      // ----------------  EMAIL OPTIONNEL: Notification mise à jour profil ----------------
       if (changes.length > 0) {
         try {
           await this.mailService.notificationProfileUpdated(
@@ -531,11 +534,11 @@ export class UsersService {
             user.userName ?? user.managerName ?? 'Utilisateur',
             changes,
           );
-          this.logger.log(this.context, `📧 Email mise à jour profil envoyé à ${user.userEmail}`);
+          this.logger.log(this.context, ` Email mise à jour profil envoyé à ${user.userEmail}`);
         } catch (mailError) {
           this.logger.error(
             this.context,
-            `⚠️ Erreur envoi email mise à jour profil`,
+            ` Erreur envoi email mise à jour profil`,
             mailError.stack,
           );
           // On ne bloque pas la mise à jour
