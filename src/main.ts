@@ -6,6 +6,8 @@ import { AppModule } from './app.module';
 import { AppModuleV1 } from './v1/app.module';
 import { AppModuleV2 } from './v2/app.module';
 import { VersioningType } from '@nestjs/common';
+import { join } from 'path';
+import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -24,14 +26,15 @@ async function bootstrap() {
     { module: AppModuleV2, version: 'v2', path: 'v2' },
   ]);
 
+  // Servir les fichiers statiques
+  app.use('/upload', express.static(join(process.cwd(), 'upload')));
+
   // Start the application
   await app.listen(port);
-  
+
   // Log information
   logger.log('Bootstrap', `Application démarrée sur le port: ${port}`);
   logger.log('Bootstrap', `Swagger UI: http://localhost:${port}/swagger`);
-  logger.log('Bootstrap', `Swagger JSON v1: http://localhost:${port}/docs/v1-json`);
-  logger.log('Bootstrap', `Swagger JSON v2: http://localhost:${port}/docs/v2-json`);
 }
 
 bootstrap();

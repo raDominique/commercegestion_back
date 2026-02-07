@@ -9,6 +9,8 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,37 +20,107 @@ import {
   ApiBody,
   ApiBadRequestResponse,
   ApiNotFoundResponse,
-  ApiCreatedResponse,
   ApiQuery,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserAccess, UserType } from './users.schema';
 import { Auth, AuthRole } from '../auth';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { multerMemoryConfig } from 'src/shared/upload/multer.memory';
 
 @ApiTags('Users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // ========================= CREATE =========================
+  // ========================= CREATE USER + FILES =========================
   @Post()
-  @ApiOperation({
-    summary: 'Create a new user',
-    description:
-      'Creates a new user account. By default, the user is created as BUYER, inactive and not verified.',
+  @ApiOperation({ summary: 'Create user with avatar and documents' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: [
+        'userNickName',
+        'userName',
+        'userFirstname',
+        'userEmail',
+        'userPassword',
+      ],
+      properties: {
+        userNickName: { type: 'string', example: 'jacquinot' },
+        userName: { type: 'string', example: 'RANDRIANOMENJANAHARY' },
+        userFirstname: { type: 'string', example: 'Jacquinot' },
+        userEmail: { type: 'string', example: 'jacquinot@gmail.com' },
+        userPassword: { type: 'string', example: 'StrongPassword123' },
+        userPhone: { type: 'string', example: '+261340179345' },
+        userType: {
+          type: 'string',
+          enum: ['Particulier', 'Professionnel', 'Entreprise'],
+        },
+        userAddress: { type: 'string', example: 'Andrainjato, Fianarantsoa' },
+        userMainLat: { type: 'number', example: -18.92772195 },
+        userMainLng: { type: 'number', example: 47.55809783 },
+        identityCardNumber: { type: 'string', example: '303' },
+        documentType: {
+          type: 'string',
+          enum: ['cin', 'passport', 'permis-de-conduire'],
+          example: 'cin',
+        },
+        managerName: { type: 'string', example: 'Manager' },
+        managerEmail: { type: 'string', example: 'manager@example.com' },
+        raisonSocial: { type: 'string', example: 'RANDRIAN SARL' },
+        nif: { type: 'string', example: '12345678901' },
+        rcs: { type: 'string', example: 'MG2024001234' },
+        parrain1ID: { type: 'string', example: 'userId1' },
+        parrain2ID: { type: 'string', example: 'userId2' },
+        avatar: { type: 'string', format: 'binary' },
+        logo: { type: 'string', format: 'binary' },
+        carteStat: { type: 'string', format: 'binary' },
+        documents: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+        },
+        carteFiscal: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+        },
+      },
+    },
   })
-  @ApiBody({ type: CreateUserDto })
-  @ApiCreatedResponse({
-    description: 'User successfully created',
-    type: User,
-  })
-  @ApiBadRequestResponse({
-    description: 'Email already exists or invalid payload',
-  })
-  create(@Body() dto: CreateUserDto) {
-    return this.usersService.create(dto);
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'avatar', maxCount: 1 },
+        { name: 'logo', maxCount: 1 },
+        { name: 'carteStat', maxCount: 1 },
+        { name: 'documents', maxCount: 5 },
+        { name: 'carteFiscal', maxCount: 5 },
+      ],
+      multerMemoryConfig,
+    ),
+  )
+  async create(
+    @Body() dto: CreateUserDto,
+    @UploadedFiles()
+    files: {
+      avatar?: Express.Multer.File[];
+      logo?: Express.Multer.File[];
+      carteStat?: Express.Multer.File[];
+      documents?: Express.Multer.File[];
+      carteFiscal?: Express.Multer.File[];
+    },
+  ) {
+    return this.usersService.createWithFiles(dto, {
+      avatar: files.avatar?.[0],
+      logo: files.logo?.[0],
+      carteStat: files.carteStat?.[0],
+      documents: files.documents,
+      carteFiscal: files.carteFiscal,
+    });
   }
 
   // ========================= FIND ALL =========================
@@ -260,8 +332,10 @@ export class UsersController {
     // Transformer les query strings en types corrects
     const filter = {
       userType,
-      isActive: isActive === undefined ? undefined : String(isActive) === 'true',
-      isVerified: isVerified === undefined ? undefined : String(isVerified) === 'true',
+      isActive:
+        isActive === undefined ? undefined : String(isActive) === 'true',
+      isVerified:
+        isVerified === undefined ? undefined : String(isVerified) === 'true',
     };
     return this.usersService.findAllPaginated(
       Number(page),

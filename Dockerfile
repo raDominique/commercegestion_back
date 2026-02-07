@@ -13,7 +13,6 @@ RUN npm ci --legacy-peer-deps
 COPY . .
 RUN npm run build
 
-
 # =========================
 # Stage 2: Runtime (PROD)
 # =========================
@@ -31,9 +30,14 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 
-# Supprimer les devDependencies en prod
-RUN npm prune --omit=dev \
+# Créer le dossier upload et donner les permissions
+RUN mkdir -p /app/upload \
+ && chown -R app:app /app/upload \
+ && chmod -R 775 /app/upload \
  && chown -R app:app /app
+
+# Supprimer les devDependencies en prod
+RUN npm prune --omit=dev
 
 USER app
 

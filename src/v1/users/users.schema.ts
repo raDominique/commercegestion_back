@@ -19,7 +19,7 @@ export enum UserAccess {
 export enum DocumentType {
   CIN = 'cin',
   PASSPORT = 'passport',
-  RCCM = 'rccm',
+  PERMIS_DE_CONDUIRE = 'permis-de-conduire',
 }
 
 @Schema({ timestamps: true })
@@ -74,7 +74,7 @@ export class User {
   @Prop({ unique: true, sparse: true })
   userId: string; // Custom user ID
 
-  @Prop({ default: 'default.jpg' })
+  @Prop()
   userImage: string;
 
   @Prop()
