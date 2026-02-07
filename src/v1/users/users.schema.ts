@@ -74,7 +74,7 @@ export class User {
   @Prop({ unique: true, sparse: true })
   userId: string; // Custom user ID
 
-  @Prop({ default: 'default.jpg' })
+  @Prop()
   userImage: string;
 
   @Prop()

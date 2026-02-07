@@ -8,19 +8,20 @@ import * as crypto from 'crypto';
 export class UploadService {
   private readonly logger = new Logger('UploadService');
 
+  private readonly publicPath = path.join(process.cwd(), 'upload');
+
   /**
    * Sauvegarde un fichier (image compressée si image)
    * @param file Express.Multer.File
    * @param destFolder dossier de destination
-   * @returns chemin complet du fichier sauvegardé
+   * @returns URL publique du fichier sauvegardé
    */
   async saveFile(file: Express.Multer.File, destFolder = 'uploads'): Promise<string> {
     try {
-      // Place le fichier dans 'upload/destFolder'
-      const folderPath = path.join(process.cwd(), 'upload', destFolder);
+      const folderPath = path.join(this.publicPath, destFolder);
       if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
 
-      // Génération d'un nom unique et sécurisé, éviter les doublons
+      // Nom unique
       const fileExt = path.extname(file.originalname);
       let safeName: string;
       let filePath: string;
@@ -31,18 +32,18 @@ export class UploadService {
       } while (fs.existsSync(filePath));
 
       if (file.mimetype.startsWith('image/')) {
-        // Compression et resize de l'image
         await sharp(file.buffer)
           .resize({ width: 1024 })
           .jpeg({ quality: 80 })
           .toFile(filePath);
       } else {
-        // Sauvegarde brute pour les autres fichiers
         fs.writeFileSync(filePath, file.buffer);
       }
 
       this.logger.log(`File saved: ${filePath}`);
-      return filePath;
+
+      // Retourner l’URL publique
+      return `/upload/${destFolder}/${safeName}`;
     } catch (err) {
       this.logger.error('Failed to save file', err.stack);
       throw err;

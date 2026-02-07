@@ -119,8 +119,8 @@ export class UsersService {
       // ---------------- Upload fichiers ----------------
       const avatarPath = files.avatar
         ? await this.uploadService.saveFile(files.avatar, 'avatars')
-        : 'default.jpg';
-      uploadedFiles.push(avatarPath);
+        : undefined;
+      if (avatarPath) uploadedFiles.push(avatarPath);
 
       const logoPath = files.logo
         ? await this.uploadService.saveFile(files.logo, 'logos')
