@@ -10,6 +10,7 @@ pipeline {
         NODE_ENV   = "production"
 
         MONGO_URI  = credentials('MONGO_URI_ETOKISANA')
+        // JWT Configuration
         JWT_SECRET = credentials('JWT_SECRET')
         JWT_EXPIRES_IN="15m"
         JWT_REFRESH_SECRET=credentials('JWT_SECRET')
@@ -21,13 +22,13 @@ pipeline {
         SMTP_USER=credentials('SMTP_USER_HIQAODY')
         SMTP_PASS=credentials('SMTP_PASS_HIQAODY')
         SMTP_FROM=credentials('SMTP_USER_HIQAODY')
-        # Application Configuration
+        // Application Configuration
         APP_NAME = "CommerceGestion"
         APP_URL = "https://api-etokisana.tsirylab.com"
-        # Admin Email
+        // Admin Email
         ADMIN_EMAIL = "randrianomenjanaharyjacquinot@gmail.com"
 
-        # CORS Configuration
+        // CORS Configuration
         CORS_ALLOWLIST = "http://localhost:3000,http://localhost:4200"
         FRONTEND_URL = "http://localhost:3000"
     }
