@@ -19,7 +19,7 @@ export enum UserAccess {
 export enum DocumentType {
   CIN = 'cin',
   PASSPORT = 'passport',
-  RCCM = 'rccm',
+  PERMIS_DE_CONDUIRE = 'permis-de-conduire',
 }
 
 @Schema({ timestamps: true })

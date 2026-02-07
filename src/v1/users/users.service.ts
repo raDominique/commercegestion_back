@@ -11,6 +11,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LoggerService } from 'src/common/logger/logger.service';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
+import { UploadService } from 'src/shared/upload/upload.service';
 
 @Injectable()
 export class UsersService {
@@ -20,6 +21,7 @@ export class UsersService {
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
     private readonly logger: LoggerService,
+    private readonly uploadService: UploadService,
   ) {}
 
   // ========================= CREATE USER =========================
@@ -67,6 +69,61 @@ export class UsersService {
       this.logger.error(this.context, 'Failed to create user', error.stack);
       throw new InternalServerErrorException('Failed to create user');
     }
+  }
+
+  // ========================= CREATE USER WITH FILES =========================
+  async createWithFiles(
+    dto: CreateUserDto,
+    avatar?: Express.Multer.File,
+    documents?: Express.Multer.File[],
+    documentType?: string,
+  ) {
+    // ------------------ CHECK EMAIL ------------------
+    const exists = await this.userModel.findOne({
+      userEmail: dto.userEmail,
+      deletedAt: null,
+    });
+    if (exists) {
+      throw new BadRequestException('Email already exists');
+    }
+
+    // ------------------ CREATE USER ------------------
+    const user = new this.userModel({
+      ...dto,
+      userType: dto.userType || UserType.PARTICULIER,
+      userValidated: false,
+      userEmailVerified: false,
+      userTotalSolde: 0,
+    });
+
+    // ------------------ AVATAR ------------------
+    if (avatar) {
+      const avatarPath = await this.uploadService.saveFile(avatar, 'avatars');
+      user.userImage = avatarPath;
+    }
+
+    // ------------------ DOCUMENTS ------------------
+    if (documents && documents.length > 0) {
+      const savedDocs: string[] = [];
+
+      for (const file of documents) {
+        const filePath = await this.uploadService.saveFile(file, 'documents');
+        savedDocs.push(filePath);
+      }
+
+      user.identityDocument = savedDocs;
+      user.documentType = documentType;
+    }
+
+    await user.save();
+
+    this.logger.log(this.context, `User created with files: ${user._id}`);
+
+    return {
+      status: 'success',
+      message: 'User created successfully',
+      data: [user],
+    };
   }
 
   // ========================= FIND ALL =========================
@@ -134,7 +191,11 @@ export class UsersService {
 
       return user;
     } catch (error) {
-      this.logger.error(this.context, `Failed to find user by email: ${userEmail}`, error.stack);
+      this.logger.error(
+        this.context,
+        `Failed to find user by email: ${userEmail}`,
+        error.stack,
+      );
       throw new InternalServerErrorException('Failed to find user');
     }
   }
@@ -257,7 +318,6 @@ export class UsersService {
     return this.findOne(userId);
   }
 
-
   // ========================= FIND ALL PAGINATED + SEARCH + SORT + FILTER =========================
   async findAllPaginated(
     page = 1,
@@ -265,7 +325,11 @@ export class UsersService {
     search?: string,
     sortBy = 'createdAt',
     order: 'asc' | 'desc' = 'desc',
-    filter?: Partial<{ userType: UserType; isActive: boolean; isVerified: boolean }>,
+    filter?: Partial<{
+      userType: UserType;
+      isActive: boolean;
+      isVerified: boolean;
+    }>,
   ): Promise<PaginationResult<User>> {
     try {
       const query: any = { deletedAt: null };
@@ -273,8 +337,10 @@ export class UsersService {
       // ------------------ FILTRE ------------------
       if (filter) {
         if (filter.userType) query.userType = filter.userType;
-        if (typeof filter.isActive === 'boolean') query.isActive = filter.isActive;
-        if (typeof filter.isVerified === 'boolean') query.isVerified = filter.isVerified;
+        if (typeof filter.isActive === 'boolean')
+          query.isActive = filter.isActive;
+        if (typeof filter.isVerified === 'boolean')
+          query.isVerified = filter.isVerified;
       }
 
       // ------------------ RECHERCHE ------------------
@@ -297,7 +363,12 @@ export class UsersService {
 
       // ------------------ EXECUTE ------------------
       const [data, total] = await Promise.all([
-        this.userModel.find(query).select('-password').sort(sortQuery).skip(skip).limit(limit),
+        this.userModel
+          .find(query)
+          .select('-password')
+          .sort(sortQuery)
+          .skip(skip)
+          .limit(limit),
         this.userModel.countDocuments(query),
       ]);
 

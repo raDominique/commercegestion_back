@@ -9,6 +9,9 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UploadedFile,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,35 +23,96 @@ import {
   ApiNotFoundResponse,
   ApiCreatedResponse,
   ApiQuery,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserAccess, UserType } from './users.schema';
 import { Auth, AuthRole } from '../auth';
+import { FileFieldsInterceptor, FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { multerMemoryConfig } from 'src/shared/upload/multer.memory';
 
 @ApiTags('Users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // ========================= CREATE =========================
+  // ========================= CREATE USER + FILES =========================
   @Post()
-  @ApiOperation({
-    summary: 'Create a new user',
-    description:
-      'Creates a new user account. By default, the user is created as BUYER, inactive and not verified.',
+  @ApiOperation({ summary: 'Create user with avatar and documents' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: [
+        'userNickName',
+        'userName',
+        'userFirstname',
+        'userEmail',
+        'userPassword',
+      ],
+      properties: {
+        // -------- USER FIELDS --------
+        userNickName: { type: 'string', example: 'jacquinot' },
+        userName: { type: 'string', example: 'RANDRIANOMENJANAHARY' },
+        userFirstname: { type: 'string', example: 'Jacquinot' },
+        userEmail: { type: 'string', example: 'jacquinot@gmail.com' },
+        userPassword: { type: 'string', example: 'StrongPassword123' },
+        userPhone: { type: 'string', example: '+261340179345' },
+        userType: {
+          type: 'string',
+          enum: ['Particulier', 'Professionnel', 'Entreprise'],
+        },
+        userAddress: { type: 'string', example: 'Andrainjato, Fianarantsoa' },
+
+        // -------- FILES --------
+        avatar: {
+          type: 'string',
+          format: 'binary',
+        },
+        documents: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+        },
+        documentType: {
+          type: 'string',
+          enum: ['cin', 'passport', 'permis-de-conduire'],
+          example: 'cin',
+        },
+      },
+    },
   })
-  @ApiBody({ type: CreateUserDto })
-  @ApiCreatedResponse({
-    description: 'User successfully created',
-    type: User,
-  })
-  @ApiBadRequestResponse({
-    description: 'Email already exists or invalid payload',
-  })
-  create(@Body() dto: CreateUserDto) {
-    return this.usersService.create(dto);
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'avatar', maxCount: 1 },
+        { name: 'documents', maxCount: 5 },
+      ],
+      multerMemoryConfig,
+    ),
+  )
+  async create(
+    @Body() dto: CreateUserDto,
+    @UploadedFiles()
+    files: {
+      avatar?: Express.Multer.File[];
+      documents?: Express.Multer.File[];
+    },
+    @Body('documentType') documentType?: string,
+  ) {
+    const avatar = files?.avatar?.[0];
+    const documents = files?.documents;
+
+    return this.usersService.createWithFiles(
+      dto,
+      avatar,
+      documents,
+      documentType,
+    );
   }
 
   // ========================= FIND ALL =========================
@@ -260,8 +324,10 @@ export class UsersController {
     // Transformer les query strings en types corrects
     const filter = {
       userType,
-      isActive: isActive === undefined ? undefined : String(isActive) === 'true',
-      isVerified: isVerified === undefined ? undefined : String(isVerified) === 'true',
+      isActive:
+        isActive === undefined ? undefined : String(isActive) === 'true',
+      isVerified:
+        isVerified === undefined ? undefined : String(isVerified) === 'true',
     };
     return this.usersService.findAllPaginated(
       Number(page),
