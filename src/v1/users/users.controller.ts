@@ -9,7 +9,6 @@ import {
   Query,
   HttpCode,
   HttpStatus,
-  UploadedFile,
   UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
@@ -21,7 +20,6 @@ import {
   ApiBody,
   ApiBadRequestResponse,
   ApiNotFoundResponse,
-  ApiCreatedResponse,
   ApiQuery,
   ApiConsumes,
 } from '@nestjs/swagger';
@@ -30,7 +28,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserAccess, UserType } from './users.schema';
 import { Auth, AuthRole } from '../auth';
-import { FileFieldsInterceptor, FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { multerMemoryConfig } from 'src/shared/upload/multer.memory';
 
 @ApiTags('Users')
@@ -53,7 +51,6 @@ export class UsersController {
         'userPassword',
       ],
       properties: {
-        // -------- USER FIELDS --------
         userNickName: { type: 'string', example: 'jacquinot' },
         userName: { type: 'string', example: 'RANDRIANOMENJANAHARY' },
         userFirstname: { type: 'string', example: 'Jacquinot' },
@@ -65,23 +62,31 @@ export class UsersController {
           enum: ['Particulier', 'Professionnel', 'Entreprise'],
         },
         userAddress: { type: 'string', example: 'Andrainjato, Fianarantsoa' },
-
-        // -------- FILES --------
-        avatar: {
-          type: 'string',
-          format: 'binary',
-        },
-        documents: {
-          type: 'array',
-          items: {
-            type: 'string',
-            format: 'binary',
-          },
-        },
+        userMainLat: { type: 'number', example: -18.92772195 },
+        userMainLng: { type: 'number', example: 47.55809783 },
+        identityCardNumber: { type: 'string', example: '303' },
         documentType: {
           type: 'string',
           enum: ['cin', 'passport', 'permis-de-conduire'],
           example: 'cin',
+        },
+        managerName: { type: 'string', example: 'Manager' },
+        managerEmail: { type: 'string', example: 'manager@example.com' },
+        raisonSocial: { type: 'string', example: 'RANDRIAN SARL' },
+        nif: { type: 'string', example: '12345678901' },
+        rcs: { type: 'string', example: 'MG2024001234' },
+        parrain1ID: { type: 'string', example: 'userId1' },
+        parrain2ID: { type: 'string', example: 'userId2' },
+        avatar: { type: 'string', format: 'binary' },
+        logo: { type: 'string', format: 'binary' },
+        carteStat: { type: 'string', format: 'binary' },
+        documents: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+        },
+        carteFiscal: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
         },
       },
     },
@@ -90,7 +95,10 @@ export class UsersController {
     FileFieldsInterceptor(
       [
         { name: 'avatar', maxCount: 1 },
+        { name: 'logo', maxCount: 1 },
+        { name: 'carteStat', maxCount: 1 },
         { name: 'documents', maxCount: 5 },
+        { name: 'carteFiscal', maxCount: 5 },
       ],
       multerMemoryConfig,
     ),
@@ -100,19 +108,19 @@ export class UsersController {
     @UploadedFiles()
     files: {
       avatar?: Express.Multer.File[];
+      logo?: Express.Multer.File[];
+      carteStat?: Express.Multer.File[];
       documents?: Express.Multer.File[];
+      carteFiscal?: Express.Multer.File[];
     },
-    @Body('documentType') documentType?: string,
   ) {
-    const avatar = files?.avatar?.[0];
-    const documents = files?.documents;
-
-    return this.usersService.createWithFiles(
-      dto,
-      avatar,
-      documents,
-      documentType,
-    );
+    return this.usersService.createWithFiles(dto, {
+      avatar: files.avatar?.[0],
+      logo: files.logo?.[0],
+      carteStat: files.carteStat?.[0],
+      documents: files.documents,
+      carteFiscal: files.carteFiscal,
+    });
   }
 
   // ========================= FIND ALL =========================

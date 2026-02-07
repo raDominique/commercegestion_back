@@ -1,155 +1,121 @@
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  MinLength,
+  ValidateIf,
+  IsNumber,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUserDto {
-  // ==================== IDENTITÉ PERSONNELLE ====================
-  @ApiProperty({
-    example: 'jacquinot',
-    description: "Le surnom/pseudo de l'utilisateur",
-  })
+  // ==================== IDENTITÉ ====================
+  @ApiProperty({ example: 'jacquinot' })
   @IsString()
   userNickName: string;
 
-  @ApiProperty({
-    example: 'RANDRIANOMENJANAHARY',
-    description: 'Nom de famille',
-  })
+  @ApiProperty({ example: 'RANDRIANOMENJANAHARY' })
   @IsString()
   userName: string;
 
-  @ApiProperty({
-    example: 'Jacquinot',
-    description: 'Prénom',
-  })
+  @ApiProperty({ example: 'Jacquinot' })
   @IsString()
   userFirstname: string;
 
-  @ApiProperty({
-    example: 'randrianomenjanaharyjacquinot@gmail.com',
-    description: "L'adresse email de l'utilisateur. Doit être unique et valide.",
-  })
+  @ApiProperty({ example: 'jacquinot@gmail.com' })
   @IsEmail()
   userEmail: string;
 
-  @ApiProperty({
-    example: 'strongPassword123',
-    description: "Le mot de passe de l'utilisateur. Minimum 8 caractères.",
-  })
+  @ApiProperty({ example: 'StrongPassword123' })
   @IsString()
   @MinLength(8)
   userPassword: string;
 
-  @ApiPropertyOptional({
-    example: '+261 34 01 793 45',
-    description: "Numéro de téléphone de l'utilisateur (optionnel).",
-  })
+  @ApiPropertyOptional({ example: '+261340179345' })
   @IsOptional()
   @IsString()
   userPhone?: string;
 
   @ApiPropertyOptional({
-    example: 'Particulier',
-    description: "Type d'utilisateur: 'Particulier', 'Professionnel', ou 'Entreprise'",
+    example: 'Entreprise',
+    enum: ['Particulier', 'Professionnel', 'Entreprise'],
   })
   @IsOptional()
   @IsString()
   userType?: string;
 
-  @ApiPropertyOptional({
-    example: 'Andrainjato Fianarantsoa',
-    description: "Adresse de l'utilisateur (optionnel).",
-  })
+  @ApiPropertyOptional({ example: 'Andrainjato, Fianarantsoa' })
   @IsOptional()
   @IsString()
   userAddress?: string;
 
-  // ==================== LOCALISATION ====================
-  @ApiPropertyOptional({
-    example: -18.927721950160368,
-    description: 'Latitude de la localisation principale',
-  })
+  @ApiPropertyOptional({ example: 48.8566 })
   @IsOptional()
+  @IsNumber()
   userMainLat?: number;
 
-  @ApiPropertyOptional({
-    example: 47.55809783935547,
-    description: 'Longitude de la localisation principale',
-  })
+  @ApiPropertyOptional({ example: 2.3522 })
   @IsOptional()
+  @IsNumber()
   userMainLng?: number;
 
-  // ==================== PROFIL ====================
-  @ApiPropertyOptional({
-    example: '0rxoxd1x',
-    description: 'ID utilisateur personnalisé (optionnel)',
-  })
-  @IsOptional()
-  @IsString()
-  userId?: string;
-
-  @ApiPropertyOptional({
-    example: '2002-10-14',
-    description: 'Date de naissance (optionnel)',
-  })
-  @IsOptional()
-  userDateOfBirth?: Date;
-
-  // ==================== DOCUMENTS D'IDENTITÉ ====================
-  @ApiPropertyOptional({
-    example: '303',
-    description: 'Numéro de carte d\'identité (optionnel)',
-  })
+  // ==================== DOCUMENTS ====================
+  @ApiPropertyOptional({ example: '303' })
   @IsOptional()
   @IsString()
   identityCardNumber?: string;
 
   @ApiPropertyOptional({
     example: 'cin',
-    description: "Type de document: 'cin', 'passport', 'rccm'",
+    enum: ['cin', 'passport', 'permis-de-conduire'],
   })
   @IsOptional()
   @IsString()
   documentType?: string;
 
-  // ==================== INFORMATIONS PROFESSIONNELLES ====================
-  @ApiPropertyOptional({
-    example: 'RANDRIAN SARL',
-    description: 'Raison sociale (optionnel)',
-  })
+  // ==================== PROFESSIONNEL ====================
+  @ApiPropertyOptional({ example: 'RANDRIAN SARL' })
   @IsOptional()
   @IsString()
   raisonSocial?: string;
 
-  @ApiPropertyOptional({
-    example: '12345678901',
-    description: 'Numéro NIF (optionnel)',
-  })
+  @ApiPropertyOptional({ example: '12345678901' })
   @IsOptional()
   @IsString()
   nif?: string;
 
-  @ApiPropertyOptional({
-    example: 'MG2024001234',
-    description: 'Numéro RCS (optionnel)',
-  })
+  @ApiPropertyOptional({ example: 'MG2024001234' })
   @IsOptional()
   @IsString()
   rcs?: string;
 
-  @ApiPropertyOptional({
-    example: 'Manager',
-    description: 'Nom du gérant (optionnel)',
-  })
+  @ApiPropertyOptional({ example: 'Entreprise' })
   @IsOptional()
   @IsString()
+  type?: string;
+
+  // ------------------ Manager obligatoire si Entreprise ------------------
+  @ApiPropertyOptional({ example: 'Manager' })
+  @ValidateIf((o) => o.userType === 'Entreprise')
+  @IsString({ message: 'managerName est obligatoire pour les entreprises' })
   managerName?: string;
 
-  @ApiPropertyOptional({
-    example: 'manager@example.com',
-    description: 'Email du gérant (optionnel)',
-  })
-  @IsOptional()
-  @IsEmail()
+  @ApiPropertyOptional({ example: 'manager@example.com' })
+  @ValidateIf((o) => o.userType === 'Entreprise')
+  @IsEmail(
+    {},
+    { message: 'managerEmail doit être un email valide pour les entreprises' },
+  )
   managerEmail?: string;
-}
 
+  // ==================== PARRAINAGE ====================
+  @ApiPropertyOptional({ example: 'userId1' })
+  @IsOptional()
+  @IsString()
+  parrain1ID?: string;
+
+  @ApiPropertyOptional({ example: 'userId2' })
+  @IsOptional()
+  @IsString()
+  parrain2ID?: string;
+}

@@ -3,15 +3,19 @@ import {
   NotFoundException,
   BadRequestException,
   InternalServerErrorException,
+  ConflictException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Error as MongooseError } from 'mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { Connection, Model, Error as MongooseError } from 'mongoose';
 import { User, UserDocument, UserType } from './users.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LoggerService } from 'src/common/logger/logger.service';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { UploadService } from 'src/shared/upload/upload.service';
+import { randomUUID } from 'crypto';
+import { validateDocumentMime } from './users.helper';
+import * as fs from 'fs';
 
 @Injectable()
 export class UsersService {
@@ -22,6 +26,8 @@ export class UsersService {
     private readonly userModel: Model<UserDocument>,
     private readonly logger: LoggerService,
     private readonly uploadService: UploadService,
+    @InjectConnection()
+    private readonly connection: Connection,
   ) {}
 
   // ========================= CREATE USER =========================
@@ -74,56 +80,111 @@ export class UsersService {
   // ========================= CREATE USER WITH FILES =========================
   async createWithFiles(
     dto: CreateUserDto,
-    avatar?: Express.Multer.File,
-    documents?: Express.Multer.File[],
-    documentType?: string,
-  ) {
-    // ------------------ CHECK EMAIL ------------------
-    const exists = await this.userModel.findOne({
-      userEmail: dto.userEmail,
-      deletedAt: null,
-    });
-    if (exists) {
-      throw new BadRequestException('Email already exists');
-    }
+    files: {
+      avatar?: Express.Multer.File;
+      logo?: Express.Multer.File;
+      carteStat?: Express.Multer.File;
+      documents?: Express.Multer.File[];
+      carteFiscal?: Express.Multer.File[];
+    },
+  ): Promise<User> {
+    const session = await this.connection.startSession();
+    const uploadedFiles: string[] = [];
 
-    // ------------------ CREATE USER ------------------
-    const user = new this.userModel({
-      ...dto,
-      userType: dto.userType || UserType.PARTICULIER,
-      userValidated: false,
-      userEmailVerified: false,
-      userTotalSolde: 0,
-    });
+    try {
+      session.startTransaction();
 
-    // ------------------ AVATAR ------------------
-    if (avatar) {
-      const avatarPath = await this.uploadService.saveFile(avatar, 'avatars');
-      user.userImage = avatarPath;
-    }
+      // ---------------- Email unique ----------------
+      const exists = await this.userModel.findOne(
+        { userEmail: dto.userEmail.toLowerCase(), deletedAt: null },
+        null,
+        { session },
+      );
+      if (exists) throw new ConflictException('Email déjà utilisé');
 
-    // ------------------ DOCUMENTS ------------------
-    if (documents && documents.length > 0) {
-      const savedDocs: string[] = [];
-
-      for (const file of documents) {
-        const filePath = await this.uploadService.saveFile(file, 'documents');
-        savedDocs.push(filePath);
+      // ---------------- Validation entreprise ----------------
+      if (dto.userType === 'Entreprise') {
+        if (!dto.managerName || !dto.managerEmail)
+          throw new BadRequestException(
+            'managerName et managerEmail obligatoires pour les entreprises',
+          );
       }
 
-      user.identityDocument = savedDocs;
-      user.documentType = documentType;
+      // ---------------- Validation MIME ----------------
+      if (files.documents?.length)
+        validateDocumentMime(files.documents, dto.documentType);
+      if (files.carteFiscal?.length)
+        validateDocumentMime(files.carteFiscal, 'carte-fiscale');
+
+      // ---------------- Upload fichiers ----------------
+      const avatarPath = files.avatar
+        ? await this.uploadService.saveFile(files.avatar, 'avatars')
+        : 'default.jpg';
+      uploadedFiles.push(avatarPath);
+
+      const logoPath = files.logo
+        ? await this.uploadService.saveFile(files.logo, 'logos')
+        : undefined;
+      if (logoPath) uploadedFiles.push(logoPath);
+
+      const carteStatPath = files.carteStat
+        ? await this.uploadService.saveFile(files.carteStat, 'carteStat')
+        : undefined;
+      if (carteStatPath) uploadedFiles.push(carteStatPath);
+
+      const documentPaths: string[] = [];
+      for (const doc of files.documents ?? []) {
+        const p = await this.uploadService.saveFile(doc, 'documents');
+        uploadedFiles.push(p);
+        documentPaths.push(p);
+      }
+
+      const carteFiscalPaths: string[] = [];
+      for (const cf of files.carteFiscal ?? []) {
+        const p = await this.uploadService.saveFile(cf, 'carteFiscal');
+        uploadedFiles.push(p);
+        carteFiscalPaths.push(p);
+      }
+
+      // ---------------- Création user ----------------
+      const user = new this.userModel({
+        ...dto,
+        userEmail: dto.userEmail.toLowerCase(),
+        userType: dto.userType ?? 'Particulier',
+        userAccess: 'Utilisateur',
+        userImage: avatarPath,
+        userId: randomUUID(),
+        identityDocument: documentPaths,
+        logo: logoPath,
+        carteStat: carteStatPath,
+        carteFiscal: carteFiscalPaths,
+      });
+
+      await user.save({ session });
+      await session.commitTransaction();
+
+      return user;
+    } catch (err) {
+      await session.abortTransaction();
+
+      // ---------------- Rollback fichiers uploadés ----------------
+      for (const f of uploadedFiles) {
+        if (fs.existsSync(f)) fs.unlinkSync(f);
+      }
+
+      // Log complet pour debug
+      console.error('Erreur création utilisateur:', err);
+
+      // Relance exception avec type approprié
+      throw err instanceof BadRequestException ||
+        err instanceof ConflictException
+        ? err
+        : new InternalServerErrorException(
+            err.message || 'Création utilisateur échouée',
+          );
+    } finally {
+      session.endSession();
     }
-
-    await user.save();
-
-    this.logger.log(this.context, `User created with files: ${user._id}`);
-
-    return {
-      status: 'success',
-      message: 'User created successfully',
-      data: [user],
-    };
   }
 
   // ========================= FIND ALL =========================
