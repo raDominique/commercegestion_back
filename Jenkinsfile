@@ -56,32 +56,33 @@ pipeline {
                 sh '''
                 docker run -d \
                     --restart unless-stopped \
-                    --name $CONTAINER \
-                    -p $PORT:$PORT \
-                    -e NODE_ENV=$NODE_ENV \
-                    -e PORT=$PORT \
-                    -e MONGO_URI=$MONGO_URI \
-                    -e JWT_SECRET=$JWT_SECRET \
-                    -e JWT_EXPIRES_IN=$JWT_EXPIRES_IN \
-                    -e JWT_REFRESH_SECRET=$JWT_REFRESH_SECRET \
-                    -e JWT_REFRESH_EXPIRES_IN=$JWT_REFRESH_EXPIRES_IN \
-                    -e SMTP_HOST=$SMTP_HOST \
-                    -e SMTP_PORT=$SMTP_PORT \
-                    -e SMTP_USER=$SMTP_USER \
-                    -e SMTP_PASS=$SMTP_PASS \
-                    -e SMTP_FROM=$SMTP_FROM \
-                    -e APP_NAME=$APP_NAME \
-                    -e APP_URL=$APP_URL \
-                    -e ADMIN_EMAIL=$ADMIN_EMAIL \
-                    -e CORS_ALLOWLIST=$CORS_ALLOWLIST \
-                    -e FRONTEND_URL=$FRONTEND_URL \
+                    --name "$CONTAINER" \
+                    -p "$PORT:$PORT" \
+                    -e NODE_ENV="$NODE_ENV" \
+                    -e PORT="$PORT" \
+                    -e MONGO_URI="$MONGO_URI" \
+                    -e JWT_SECRET="$JWT_SECRET" \
+                    -e JWT_EXPIRES_IN="$JWT_EXPIRES_IN" \
+                    -e JWT_REFRESH_SECRET="$JWT_REFRESH_SECRET" \
+                    -e JWT_REFRESH_EXPIRES_IN="$JWT_REFRESH_EXPIRES_IN" \
+                    -e SMTP_HOST="$SMTP_HOST" \
+                    -e SMTP_PORT="$SMTP_PORT" \
+                    -e SMTP_USER="$SMTP_USER" \
+                    -e SMTP_PASS="$SMTP_PASS" \
+                    -e SMTP_FROM="$SMTP_FROM" \
+                    -e APP_NAME="$APP_NAME" \
+                    -e APP_URL="$APP_URL" \
+                    -e ADMIN_EMAIL="$ADMIN_EMAIL" \
+                    -e CORS_ALLOWLIST="$CORS_ALLOWLIST" \
+                    -e FRONTEND_URL="$FRONTEND_URL" \
                     --log-driver json-file \
                     --log-opt max-size=10m \
                     --log-opt max-file=5 \
-                    $IMAGE_NAME:$IMAGE_TAG
+                    "$IMAGE_NAME:$IMAGE_TAG"
                 '''
             }
         }
+
     }
 
     post {
