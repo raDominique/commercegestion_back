@@ -125,9 +125,15 @@ export class User {
   @Prop()
   parrain2ID?: string;
 
-  // ==================== SOFT DELETE ====================
-  @Prop()
+  // ==================== SOFT DELETE CREATE UPDATE ====================
+  @Prop({ default: null })
   deletedAt?: Date;
+
+  @Prop({ default: null })
+  createdAt?: Date;
+
+  @Prop({ default: null })
+  updatedAt?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
@@ -149,7 +155,4 @@ UserSchema.index(
   { unique: true, partialFilterExpression: { deletedAt: null } },
 );
 
-UserSchema.index(
-  { userId: 1 },
-  { unique: true, sparse: true },
-);
+UserSchema.index({ userId: 1 }, { unique: true, sparse: true });

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nouvel utilisateur enregistré</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f4f7fa;
+            padding: 20px;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .notification-icon {
+            width: 70px;
+            height: 70px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 35px;
+        }
+        
+        .header h1 {
+            color: #ffffff;
+            font-size: 26px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 15px;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .info-card {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+        
+        .info-row {
+            display: flex;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #475569;
+            min-width: 120px;
+            font-size: 14px;
+        }
+        
+        .info-value {
+            color: #1e293b;
+            font-size: 14px;
+            word-break: break-word;
+        }
+        
+        .timestamp {
+            background-color: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        
+        .timestamp p {
+            font-size: 14px;
+            color: #475569;
+        }
+        
+        .timestamp strong {
+            color: #1e293b;
+        }
+        
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .action-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 14px 35px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            margin: 0 8px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+        
+        .action-button.secondary {
+            background: #ffffff;
+            color: #3b82f6;
+            border: 2px solid #3b82f6;
+            box-shadow: none;
+        }
+        
+        .action-button.secondary:hover {
+            background: #f0f9ff;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .stat-item {
+            flex: 1;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #3b82f6;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .footer {
+            background-color: #f7fafc;
+            padding: 25px 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .footer p {
+            font-size: 13px;
+            color: #718096;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                border-radius: 0;
+            }
+            
+            .header, .content, .footer {
+                padding: 30px 20px;
+            }
+            
+            .info-row {
+                flex-direction: column;
+            }
+            
+            .info-label {
+                margin-bottom: 5px;
+            }
+            
+            .stats {
+                flex-direction: column;
+            }
+            
+            .action-button {
+                display: block;
+                margin: 8px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="notification-icon">👤</div>
+            <h1>Nouvel utilisateur enregistré</h1>
+            <p>Notification système - Nouvel enregistrement</p>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <div class="info-card">
+                <div class="info-row">
+                    <span class="info-label">Nom d'utilisateur :</span>
+                    <span class="info-value">{{username}}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Adresse email :</span>
+                    <span class="info-value">{{email}}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Statut :</span>
+                    <span class="info-value">En attente de vérification</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">ID utilisateur :</span>
+                    <span class="info-value">{{userId}}</span>
+                </div>
+            </div>
+            
+            <div class="timestamp">
+                <p><strong>Date d'inscription :</strong> {{registrationDate}}</p>
+                <p><strong>Adresse IP :</strong> {{ipAddress}}</p>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-number">{{totalUsers}}</div>
+                    <div class="stat-label">Total utilisateurs</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">{{pendingUsers}}</div>
+                    <div class="stat-label">En attente</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">{{todaySignups}}</div>
+                    <div class="stat-label">Aujourd'hui</div>
+                </div>
+            </div>
+            
+            <div class="button-container">
+                <a href="{{adminPanelLink}}" class="action-button">Voir le profil</a>
+                <a href="{{usersListLink}}" class="action-button secondary">Liste des utilisateurs</a>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>Ceci est une notification automatique du système</p>
+            <p style="margin-top: 10px; font-size: 12px; color: #a0aec0;">
+                Panel Administrateur - © 2026 Votre Entreprise
+            </p>
+        </div>
+    </div>
+</body>
+</html>

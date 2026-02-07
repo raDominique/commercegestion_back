@@ -164,14 +164,59 @@ export class UsersController {
   // ========================= UPDATE =========================
   @Patch('update/:id')
   @ApiOperation({
-    summary: 'Update a user',
-    description: 'Updates user information (partial update).',
+    summary: 'Update a user (with files)',
+    description:
+      'Updates user information and allows updating avatar/documents.',
   })
+  @ApiConsumes('multipart/form-data')
   @ApiParam({
     name: 'id',
     description: 'User MongoDB ObjectId',
   })
-  @ApiBody({ type: UpdateUserDto })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        userNickName: { type: 'string', example: 'jacquinot' },
+        userName: { type: 'string', example: 'RANDRIANOMENJANAHARY' },
+        userFirstname: { type: 'string', example: 'Jacquinot' },
+        userEmail: { type: 'string', example: 'jacquinot@gmail.com' },
+        userPassword: { type: 'string', example: 'StrongPassword123' },
+        userPhone: { type: 'string', example: '+261340179345' },
+        userType: {
+          type: 'string',
+          enum: ['Particulier', 'Professionnel', 'Entreprise'],
+        },
+        userAddress: { type: 'string', example: 'Andrainjato, Fianarantsoa' },
+        userMainLat: { type: 'number', example: -18.92772195 },
+        userMainLng: { type: 'number', example: 47.55809783 },
+        identityCardNumber: { type: 'string', example: '303' },
+        documentType: {
+          type: 'string',
+          enum: ['cin', 'passport', 'permis-de-conduire'],
+          example: 'cin',
+        },
+        managerName: { type: 'string', example: 'Manager' },
+        managerEmail: { type: 'string', example: 'manager@example.com' },
+        raisonSocial: { type: 'string', example: 'RANDRIAN SARL' },
+        nif: { type: 'string', example: '12345678901' },
+        rcs: { type: 'string', example: 'MG2024001234' },
+        parrain1ID: { type: 'string', example: 'userId1' },
+        parrain2ID: { type: 'string', example: 'userId2' },
+        avatar: { type: 'string', format: 'binary' },
+        logo: { type: 'string', format: 'binary' },
+        carteStat: { type: 'string', format: 'binary' },
+        documents: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+        },
+        carteFiscal: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+        },
+      },
+    },
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'User updated successfully',
@@ -181,8 +226,43 @@ export class UsersController {
     description: 'User not found',
   })
   @Auth()
-  update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
-    return this.usersService.update(id, dto);
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'avatar', maxCount: 1 },
+        { name: 'documents', maxCount: 5 },
+        { name: 'logo', maxCount: 1 },
+        { name: 'carteStat', maxCount: 1 },
+        { name: 'carteFiscal', maxCount: 5 },
+      ],
+      multerMemoryConfig,
+    ),
+  )
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+    @UploadedFiles()
+    files: {
+      avatar?: Express.Multer.File[];
+      logo?: Express.Multer.File[];
+      carteStat?: Express.Multer.File[];
+      documents?: Express.Multer.File[];
+      carteFiscal?: Express.Multer.File[];
+    },
+  ) {
+    return this.usersService.update(
+      id,
+      {
+        ...dto,
+      },
+      {
+        avatar: files.avatar?.[0],
+        logo: files.logo?.[0],
+        carteStat: files.carteStat?.[0],
+        documents: files.documents,
+        carteFiscal: files.carteFiscal,
+      },
+    );
   }
 
   // ========================= DELETE (SOFT) =========================
@@ -205,30 +285,30 @@ export class UsersController {
     return this.usersService.remove(id);
   }
 
-  // ========================= VERIFY ACCOUNT =========================
-  @Patch('verify/:id')
+  // ========================= VERIFY ACCOUNT SECURISE =========================
+  @Get('verify')
   @ApiOperation({
-    summary: 'Verify user account',
-    description:
-      'Marks the user account as verified. Required before activation.',
+    summary: 'Verify user account via token',
+    description: 'Marks the user account as verified using a secure token.',
   })
-  @ApiParam({
-    name: 'id',
-    description: 'User MongoDB ObjectId',
+  @ApiQuery({
+    name: 'token',
+    required: true,
+    description: 'Verification token sent by email',
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'User account verified',
+    description: 'User account verified successfully',
     type: User,
   })
   @ApiBadRequestResponse({
-    description: 'Account already verified',
+    description: 'Token invalide ou expiré',
   })
   @ApiNotFoundResponse({
-    description: 'User not found',
+    description: 'Utilisateur non trouvé',
   })
-  verifyAccount(@Param('id') id: string) {
-    return this.usersService.verifyAccount(id);
+  async verifyAccount(@Query('token') token: string) {
+    return this.usersService.verifyAccountToken(token);
   }
 
   // ========================= ACTIVATE ACCOUNT =========================

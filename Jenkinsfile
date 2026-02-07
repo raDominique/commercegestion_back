@@ -14,6 +14,22 @@ pipeline {
         JWT_EXPIRES_IN="15m"
         JWT_REFRESH_SECRET=credentials('JWT_SECRET')
         JWT_REFRESH_EXPIRES_IN="7d"
+
+        // SMTP Configuration
+        SMTP_HOST=credentials('SMTP_HOST_HIQAODY')
+        SMTP_PORT=credentials('SMTP_PORT_HIQAODY')
+        SMTP_USER=credentials('SMTP_USER_HIQAODY')
+        SMTP_PASS=credentials('SMTP_PASS_HIQAODY')
+        SMTP_FROM=credentials('SMTP_USER_HIQAODY')
+        # Application Configuration
+        APP_NAME = "CommerceGestion"
+        APP_URL = "https://api-etokisana.tsirylab.com"
+        # Admin Email
+        ADMIN_EMAIL = "randrianomenjanaharyjacquinot@gmail.com"
+
+        # CORS Configuration
+        CORS_ALLOWLIST = "http://localhost:3000,http://localhost:4200"
+        FRONTEND_URL = "http://localhost:3000"
     }
 
     stages {
@@ -48,6 +64,16 @@ pipeline {
                     -e JWT_EXPIRES_IN=$JWT_EXPIRES_IN \
                     -e JWT_REFRESH_SECRET=$JWT_REFRESH_SECRET \
                     -e JWT_REFRESH_EXPIRES_IN=$JWT_REFRESH_EXPIRES_IN \
+                    -e SMTP_HOST=$SMTP_HOST \
+                    -e SMTP_PORT=$SMTP_PORT \
+                    -e SMTP_USER=$SMTP_USER \
+                    -e SMTP_PASS=$SMTP_PASS \
+                    -e SMTP_FROM=$SMTP_FROM \
+                    -e APP_NAME=$APP_NAME \
+                    -e APP_URL=$APP_URL \
+                    -e ADMIN_EMAIL=$ADMIN_EMAIL \
+                    -e CORS_ALLOWLIST=$CORS_ALLOWLIST \
+                    -e FRONTEND_URL=$FRONTEND_URL \
                     --log-driver json-file \
                     --log-opt max-size=10m \
                     --log-opt max-file=5 \
