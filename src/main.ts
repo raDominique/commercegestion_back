@@ -19,6 +19,36 @@ async function bootstrap() {
     type: VersioningType.URI,
   });
 
+  // Cors configuration
+  const allowlist =
+    configService.get<string>('CORS_ALLOWLIST')?.split(',') || [];
+  if (allowlist.length > 0) {
+    app.enableCors({
+      origin: (origin, callback) => {
+        if (!origin || allowlist.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+      allowedHeaders: 'Content-Type, Accept',
+    });
+    logger.log(
+      'Bootstrap',
+      `CORS configuré avec allowlist: ${allowlist.join(', ')}`,
+    );
+  } else {
+    app.enableCors({
+      origin: '*',
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+      allowedHeaders: 'Content-Type, Accept',
+    });
+    logger.warn(
+      'Bootstrap',
+      'CORS configuré pour autoriser toutes les origines (pas de allowlist définie)',
+    );
+  }
   app.setGlobalPrefix('api');
   // Configure Swagger for both versions
   setupSwagger(app, [
