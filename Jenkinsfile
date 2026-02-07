@@ -29,7 +29,7 @@ pipeline {
         ADMIN_EMAIL = "randrianomenjanaharyjacquinot@gmail.com"
 
         // CORS Configuration
-        CORS_ALLOWLIST = "http://localhost:3000,http://localhost:4200"
+        CORS_ALLOWLIST = "http://localhost:3000,https://api-etokisana.tsirylab.com"
         FRONTEND_URL = "http://localhost:3000"
     }
 
