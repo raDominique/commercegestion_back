@@ -5,51 +5,127 @@ import * as bcrypt from 'bcrypt';
 export type UserDocument = User & Document;
 
 export enum UserType {
-  BUYER = 'BUYER',
-  SELLER = 'SELLER',
-  CARRIER = 'CARRIER',
-  WAREHOUSE_MANAGER = 'WAREHOUSE_MANAGER',
-  ADMIN = 'ADMIN',
+  PARTICULIER = 'Particulier',
+  PROFESSIONNEL = 'Professionnel',
+  ENTREPRISE = 'Entreprise',
+}
+
+export enum UserAccess {
+  UTILISATEUR = 'Utilisateur',
+  MODERATEUR = 'Moderateur',
+  ADMIN = 'Admin',
+}
+
+export enum DocumentType {
+  CIN = 'cin',
+  PASSPORT = 'passport',
+  RCCM = 'rccm',
 }
 
 @Schema({ timestamps: true })
 export class User {
-  @Prop({ required: true, unique: true, lowercase: true, index: true })
-  email: string;
+  readonly _id?: any;
+
+  // ==================== IDENTITÉ PERSONNELLE ====================
+  @Prop({ required: true })
+  userNickName: string;
+
+  @Prop({ required: true })
+  userName: string;
+
+  @Prop({ required: true })
+  userFirstname: string;
 
   @Prop({ required: true, select: false })
-  password: string;
+  userPassword: string;
 
-  @Prop({
-    enum: UserType,
-    default: UserType.BUYER,
-  })
-  userType: UserType;
+  @Prop({ required: true, unique: true, lowercase: true, index: true })
+  userEmail: string;
 
   @Prop()
-  companyName: string;
+  userPhone: string;
+
+  @Prop({ default: 'Particulier' })
+  userType: string; // 'Particulier', 'Professionnel', 'Entreprise'
+
+  @Prop({ default: 'Utilisateur' })
+  userAccess: string; // 'Utilisateur', 'Moderateur', 'Admin'
+
+  @Prop({ default: 0 })
+  userTotalSolde: number;
 
   @Prop()
-  contactPerson: string;
-
-  @Prop()
-  phone: string;
-
-  @Prop()
-  address: string;
-
-  @Prop()
-  taxId: string;
+  userAddress: string;
 
   @Prop({ default: false })
-  isVerified: boolean;
+  userValidated: boolean;
 
   @Prop({ default: false })
-  isActive: boolean;
+  userEmailVerified: boolean;
 
-  @Prop({ type: Number, default: 0 })
-  balance: number;
+  // ==================== LOCALISATION ====================
+  @Prop()
+  userMainLat?: number;
 
+  @Prop()
+  userMainLng?: number;
+
+  // ==================== PROFILE ====================
+  @Prop({ unique: true, sparse: true })
+  userId: string; // Custom user ID
+
+  @Prop({ default: 'default.jpg' })
+  userImage: string;
+
+  @Prop()
+  userDateOfBirth?: Date;
+
+  // ==================== DOCUMENTS D'IDENTITÉ ====================
+  @Prop()
+  identityCardNumber?: string;
+
+  @Prop({ type: [String], default: [] })
+  identityDocument?: string[]; // Array of file names
+
+  @Prop()
+  documentType?: string; // 'cin', 'passport', etc.
+
+  // ==================== INFORMATIONS PROFESSIONNELLES ====================
+  @Prop()
+  raisonSocial?: string;
+
+  @Prop()
+  nif?: string;
+
+  @Prop()
+  rcs?: string;
+
+  @Prop()
+  type?: string;
+
+  @Prop()
+  managerName?: string;
+
+  @Prop()
+  managerEmail?: string;
+
+  @Prop()
+  logo?: string;
+
+  @Prop()
+  carteStat?: string;
+
+  @Prop({ type: [String], default: [] })
+  carteFiscal?: string[]; // Array of file names
+
+  // ==================== PARRAINAGE ====================
+  @Prop()
+  parrain1ID?: string;
+
+  @Prop()
+  parrain2ID?: string;
+
+  // ==================== SOFT DELETE ====================
   @Prop()
   deletedAt?: Date;
 }
@@ -60,16 +136,20 @@ export const UserSchema = SchemaFactory.createForClass(User);
  * Hash password avant sauvegarde
  */
 UserSchema.pre<UserDocument>('save', async function () {
-  if (!this.isModified('password')) return;
+  if (!this.isModified('userPassword')) return;
   const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  this.userPassword = await bcrypt.hash(this.userPassword, salt);
 });
-
 
 /**
  * Index partiel (soft delete friendly)
  */
 UserSchema.index(
-  { email: 1 },
+  { userEmail: 1 },
   { unique: true, partialFilterExpression: { deletedAt: null } },
+);
+
+UserSchema.index(
+  { userId: 1 },
+  { unique: true, sparse: true },
 );

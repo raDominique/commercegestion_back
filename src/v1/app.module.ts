@@ -7,6 +7,7 @@ import { DatabaseModule } from '../database/database.module';
 import { UploadModule } from '../shared/upload/upload.module';
 import { UploadService } from '../shared/upload/upload.service';
 import { AuthModule } from './auth/auth.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { AuthModule } from './auth/auth.module';
     UsersModule,
     UploadModule,
     AuthModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [AppService, UploadService],

@@ -15,6 +15,7 @@ export function setupSwagger(app: INestApplication, versions: SwaggerVersionConf
     .setTitle('API commercegestion v1')
     .setDescription('Documentation de l\'API commercegestion v1')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
 
   const documentV1 = SwaggerModule.createDocument(app, configV1, {
@@ -27,6 +28,7 @@ export function setupSwagger(app: INestApplication, versions: SwaggerVersionConf
     .setTitle('API commercegestion v2')
     .setDescription('Documentation de l\'API commercegestion v2')
     .setVersion('2.0')
+    .addBearerAuth()
     .build();
 
   const documentV2 = SwaggerModule.createDocument(app, configV2, {
