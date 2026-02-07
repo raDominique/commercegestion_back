@@ -6,6 +6,7 @@ import { UsersModule } from './v1/users/users.module';
 import { UsersModule as UsersModuleV2 } from './v2/users/users.module';
 import { AuthModule } from './v1/auth/auth.module';
 import { AuditModule } from './v1/audit/audit.module';
+import { MailModule } from './shared/mail/mail.module';
 
 @Module({
     imports: [
@@ -41,6 +42,7 @@ import { AuditModule } from './v1/audit/audit.module';
                 ],
             },
         ]),
+        MailModule,
     ],
 })
 export class AppModule {}

@@ -9,75 +9,38 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, Model, Error as MongooseError } from 'mongoose';
 import { User, UserDocument, UserType } from './users.schema';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { LoggerService } from 'src/common/logger/logger.service';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { UploadService } from 'src/shared/upload/upload.service';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomBytes } from 'crypto';
 import { validateDocumentMime } from './users.helper';
 import * as fs from 'fs';
+import { MailService } from 'src/shared/mail/mail.service';
+import { UserVerificationToken } from './user-verification.schema';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class UsersService {
   private readonly context = 'UsersService';
-
+  private readonly baseUrl: string;
   constructor(
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    @InjectModel(UserVerificationToken.name)
+    private readonly verificationTokenModel: Model<UserVerificationToken>,
+    private readonly configService: ConfigService,
     private readonly logger: LoggerService,
     private readonly uploadService: UploadService,
     @InjectConnection()
     private readonly connection: Connection,
-  ) {}
-
-  // ========================= CREATE USER =========================
-  async create(dto: CreateUserDto): Promise<PaginationResult<User>> {
-    try {
-      const exists = await this.userModel.findOne({
-        userEmail: dto.userEmail,
-        deletedAt: null,
-      });
-      if (exists) {
-        this.logger.warn(
-          this.context,
-          `Attempt to create duplicate email: ${dto.userEmail}`,
-        );
-        throw new BadRequestException('Email already exists');
-      }
-
-      const user = new this.userModel({
-        ...dto,
-        userType: dto.userType || 'Particulier',
-        userValidated: false,
-        userEmailVerified: false,
-        userTotalSolde: 0,
-      });
-
-      const createdUser = await user.save();
-      this.logger.log(this.context, `User created: ${createdUser._id}`);
-
-      return {
-        status: 'success',
-        message: 'User created successfully',
-        data: [createdUser],
-      };
-    } catch (error) {
-      if (error instanceof BadRequestException) throw error;
-
-      if (error?.code === 11000) {
-        this.logger.warn(
-          this.context,
-          `Duplicate key error: ${JSON.stringify(error.keyValue)}`,
-        );
-        throw new BadRequestException('Email already exists');
-      }
-
-      this.logger.error(this.context, 'Failed to create user', error.stack);
-      throw new InternalServerErrorException('Failed to create user');
-    }
+    private readonly mailService: MailService,
+  ) {
+    this.baseUrl =
+      this.configService.get<string>('BASE_URL') || 'http://localhost:3000';
   }
 
-  // ========================= CREATE USER WITH FILES =========================
+  // ========================= CREATE USER WITH FILES & MAIL =========================
   async createWithFiles(
     dto: CreateUserDto,
     files: {
@@ -158,53 +121,96 @@ export class UsersService {
         logo: logoPath,
         carteStat: carteStatPath,
         carteFiscal: carteFiscalPaths,
+        userValidated: false,
+        userEmailVerified: false,
+        userTotalSolde: 0,
       });
 
       await user.save({ session });
+
+      // ---------------- Commit transaction ----------------
       await session.commitTransaction();
+      await session.endSession();
+
+      // ---------------- Génération token sécurisé ----------------
+      const token = randomBytes(32).toString('hex'); // 64 caractères
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24); // 24h
+
+      await this.verificationTokenModel.create({
+        userId: user._id,
+        token,
+        expiresAt,
+      });
+
+      const verificationLink = `${this.baseUrl}/api/v1/users/verify?token=${token}`;
+
+      // ---------------- Envoi mail utilisateur ----------------
+      await this.mailService.verificationAccountUser(
+        user.userEmail,
+        user.userName ?? user.managerName ?? 'Utilisateur',
+        verificationLink,
+      );
+
+      // ---------------- Notification admin ----------------
+      await this.mailService.notificationAdminNouveauUser(
+        'randrianomenjanaharyjacquinot@gmail.com',
+        user.userName ?? user.managerName ?? 'Utilisateur',
+        user.userEmail,
+      );
 
       return user;
     } catch (err) {
-      await session.abortTransaction();
+      // ---------------- Rollback transaction si non commit ----------------
+      try {
+        await session.abortTransaction();
+      } catch (e) {
+        // si commit déjà fait, ignorer
+      } finally {
+        session.endSession();
+      }
 
       // ---------------- Rollback fichiers uploadés ----------------
       for (const f of uploadedFiles) {
         if (fs.existsSync(f)) fs.unlinkSync(f);
       }
 
-      // Log complet pour debug
       console.error('Erreur création utilisateur:', err);
 
-      // Relance exception avec type approprié
       throw err instanceof BadRequestException ||
         err instanceof ConflictException
         ? err
         : new InternalServerErrorException(
             err.message || 'Création utilisateur échouée',
           );
-    } finally {
-      session.endSession();
     }
   }
 
-  // ========================= FIND ALL =========================
-  async findAll(): Promise<PaginationResult<User>> {
-    try {
-      const users = await this.userModel
-        .find({ deletedAt: null })
-        .select('-password')
-        .exec();
-      this.logger.log(this.context, `Fetched all users: count=${users.length}`);
+  // ========================= Vérification sécurisée du compte =========================
+  async verifyAccountToken(token: string): Promise<PaginationResult<User>> {
+    const tokenDoc = await this.verificationTokenModel.findOne({ token });
+    if (!tokenDoc) throw new BadRequestException('Token invalide ou expiré');
 
-      return {
-        status: 'success',
-        message: 'Users fetched successfully',
-        data: users,
-      };
-    } catch (error) {
-      this.logger.error(this.context, 'Failed to fetch users', error.stack);
-      throw new InternalServerErrorException('Failed to fetch users');
-    }
+    if (tokenDoc.expiresAt < new Date())
+      throw new BadRequestException('Token expiré');
+
+    const user = await this.userModel.findById(tokenDoc.userId);
+    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+
+    if (user.userEmailVerified)
+      throw new BadRequestException('Compte déjà vérifié');
+
+    user.userEmailVerified = true;
+    await user.save();
+
+    // Supprimer le token après utilisation
+    await tokenDoc.deleteOne();
+
+    return {
+      status: 'success',
+      message: 'Compte vérifié avec succès',
+      data: [user],
+    };
   }
 
   // ========================= FIND ONE =========================
@@ -215,22 +221,34 @@ export class UsersService {
         .select('-password')
         .exec();
 
-      if (!user) {
-        this.logger.warn(this.context, `User not found: ${id}`);
-        throw new NotFoundException('User not found');
-      }
+      if (!user) throw new NotFoundException('User not found');
 
-      this.logger.log(this.context, `User fetched: ${id}`);
       return {
         status: 'success',
         message: 'User fetched successfully',
         data: [user],
       };
     } catch (error) {
-      if (error instanceof MongooseError.CastError) {
+      if (error instanceof MongooseError.CastError)
         throw new BadRequestException('Invalid user id');
-      }
       throw error;
+    }
+  }
+
+  // ========================= FIND ALL =========================
+  async findAll(): Promise<PaginationResult<User>> {
+    try {
+      const users = await this.userModel
+        .find({ deletedAt: null })
+        .select('-password')
+        .exec();
+      return {
+        status: 'success',
+        message: 'Users fetched successfully',
+        data: users,
+      };
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to fetch users');
     }
   }
 
@@ -261,8 +279,42 @@ export class UsersService {
     }
   }
 
-  // ========================= UPDATE =========================
-  // ========================= UPDATE =========================
+  // ========================= SOFT DELETE =========================
+  async remove(id: string): Promise<PaginationResult<null>> {
+    const user = await this.userModel.findOne({ _id: id, deletedAt: null });
+    if (!user) throw new NotFoundException('User not found');
+
+    user.deletedAt = new Date();
+    user.userValidated = false;
+    await user.save();
+
+    return {
+      status: 'success',
+      message: 'User deleted successfully',
+      data: null,
+    };
+  }
+
+  // ========================= ACTIVATE ACCOUNT =========================
+  async activateAccount(userId: string): Promise<PaginationResult<User>> {
+    const user = await this.userModel.findOne({ _id: userId, deletedAt: null });
+    if (!user) throw new NotFoundException('User not found');
+
+    if (!user.userEmailVerified)
+      throw new BadRequestException(
+        'Account must be verified before activation',
+      );
+
+    if (user.userValidated)
+      throw new BadRequestException('Account already active');
+
+    user.userValidated = true;
+    await user.save();
+
+    return this.findOne(userId);
+  }
+
+  // ========================= UPDATE USER =========================
   async update(
     id: string,
     dto: UpdateUserDto,
@@ -274,7 +326,6 @@ export class UsersService {
       carteFiscal?: Express.Multer.File[];
     },
   ): Promise<PaginationResult<User>> {
-    // Passe tous les fichiers à updateWithFiles
     return this.updateWithFiles(
       id,
       dto,
@@ -301,130 +352,93 @@ export class UsersService {
     const user = await this.userModel.findOne({ _id: id, deletedAt: null });
     if (!user) throw new NotFoundException('User not found');
 
-    // Gestion de l'avatar
-    if (avatar)
-      user.userImage = await this.uploadService.saveFile(avatar, 'avatars');
+    const uploadedFiles: string[] = [];
 
-    // Gestion du logo
-    if (logo) user.logo = await this.uploadService.saveFile(logo, 'logos');
+    try {
+      // ---------------- Gestion de l'avatar ----------------
+      if (avatar) {
+        if (user.userImage && fs.existsSync(user.userImage))
+          fs.unlinkSync(user.userImage);
+        user.userImage = await this.uploadService.saveFile(avatar, 'avatars');
+        uploadedFiles.push(user.userImage);
+      }
 
-    // Gestion carteStat
-    if (carteStat)
-      user.carteStat = await this.uploadService.saveFile(
-        carteStat,
-        'carteStat',
-      );
+      // ---------------- Gestion du logo ----------------
+      if (logo) {
+        if (user.logo && fs.existsSync(user.logo)) fs.unlinkSync(user.logo);
+        user.logo = await this.uploadService.saveFile(logo, 'logos');
+        uploadedFiles.push(user.logo);
+      }
 
-    // Gestion documents
-    if (documents?.length) {
-      const savedDocs: string[] = [];
-      for (const file of documents)
-        savedDocs.push(await this.uploadService.saveFile(file, 'documents'));
-      user.identityDocument = savedDocs;
-      if (documentType) user.documentType = documentType;
-    }
+      // ---------------- Gestion carteStat ----------------
+      if (carteStat) {
+        if (user.carteStat && fs.existsSync(user.carteStat))
+          fs.unlinkSync(user.carteStat);
+        user.carteStat = await this.uploadService.saveFile(
+          carteStat,
+          'carteStat',
+        );
+        uploadedFiles.push(user.carteStat);
+      }
 
-    // Gestion carteFiscal
-    if (carteFiscal?.length) {
-      const savedCF: string[] = [];
-      for (const file of carteFiscal)
-        savedCF.push(await this.uploadService.saveFile(file, 'carteFiscal'));
-      user.carteFiscal = savedCF;
-    }
+      // ---------------- Gestion documents ----------------
+      if (documents?.length) {
+        // Supprime anciens documents
+        for (const docPath of user.identityDocument ?? []) {
+          if (fs.existsSync(docPath)) fs.unlinkSync(docPath);
+        }
 
-    // Mise à jour des autres champs du DTO
-    Object.keys(dto).forEach((key) => {
-      if (dto[key] !== undefined) user[key] = dto[key];
-    });
+        const savedDocs: string[] = [];
+        for (const file of documents) {
+          const path = await this.uploadService.saveFile(file, 'documents');
+          savedDocs.push(path);
+          uploadedFiles.push(path);
+        }
 
-    await user.save();
-    this.logger.log(this.context, `User updated: ${id}`);
-    return this.findOne(id);
-  }
+        user.identityDocument = savedDocs;
+        if (documentType) user.documentType = documentType;
+      }
 
-  // ========================= SOFT DELETE =========================
-  async remove(id: string): Promise<PaginationResult<null>> {
-    const user = await this.userModel.findOne({ _id: id, deletedAt: null });
-    if (!user) {
-      this.logger.warn(
+      // ---------------- Gestion carteFiscal ----------------
+      if (carteFiscal?.length) {
+        // Supprime anciens fichiers
+        for (const cfPath of user.carteFiscal ?? []) {
+          if (fs.existsSync(cfPath)) fs.unlinkSync(cfPath);
+        }
+
+        const savedCF: string[] = [];
+        for (const file of carteFiscal) {
+          const path = await this.uploadService.saveFile(file, 'carteFiscal');
+          savedCF.push(path);
+          uploadedFiles.push(path);
+        }
+        user.carteFiscal = savedCF;
+      }
+
+      // ---------------- Mise à jour des autres champs du DTO ----------------
+      Object.keys(dto).forEach((key) => {
+        if (dto[key] !== undefined) user[key] = dto[key];
+      });
+
+      await user.save();
+      this.logger.log(this.context, `User updated: ${id}`);
+      return this.findOne(id);
+    } catch (err) {
+      // ---------------- Rollback fichiers uploadés en cas d'erreur ----------------
+      for (const f of uploadedFiles) {
+        if (fs.existsSync(f)) fs.unlinkSync(f);
+      }
+
+      this.logger.error(
         this.context,
-        `Attempt to delete non-existing user: ${id}`,
+        `Failed to update user: ${id}`,
+        err.stack,
       );
-      throw new NotFoundException('User not found');
+      throw err instanceof BadRequestException ||
+        err instanceof ConflictException
+        ? err
+        : new InternalServerErrorException('Failed to update user');
     }
-
-    user.deletedAt = new Date();
-    user.userValidated = false;
-    await user.save();
-
-    this.logger.log(this.context, `User soft-deleted: ${id}`);
-    return {
-      status: 'success',
-      message: 'User deleted successfully',
-      data: null,
-    };
-  }
-
-  // ========================= VERIFY ACCOUNT =========================
-  async verifyAccount(userId: string): Promise<PaginationResult<User>> {
-    const user = await this.userModel.findOne({ _id: userId, deletedAt: null });
-    if (!user) {
-      this.logger.warn(
-        this.context,
-        `Verify failed: user not found: ${userId}`,
-      );
-      throw new NotFoundException('User not found');
-    }
-
-    if (user.userEmailVerified) {
-      this.logger.warn(
-        this.context,
-        `Verify failed: user already verified: ${userId}`,
-      );
-      throw new BadRequestException('Account already verified');
-    }
-
-    user.userEmailVerified = true;
-    await user.save();
-    this.logger.log(this.context, `User verified: ${userId}`);
-
-    return this.findOne(userId);
-  }
-
-  // ========================= ACTIVATE ACCOUNT =========================
-  async activateAccount(userId: string): Promise<PaginationResult<User>> {
-    const user = await this.userModel.findOne({ _id: userId, deletedAt: null });
-    if (!user) {
-      this.logger.warn(
-        this.context,
-        `Activate failed: user not found: ${userId}`,
-      );
-      throw new NotFoundException('User not found');
-    }
-
-    if (!user.userEmailVerified) {
-      this.logger.warn(
-        this.context,
-        `Activate failed: user not verified: ${userId}`,
-      );
-      throw new BadRequestException(
-        'Account must be verified before activation',
-      );
-    }
-
-    if (user.userValidated) {
-      this.logger.warn(
-        this.context,
-        `Activate failed: account already active: ${userId}`,
-      );
-      throw new BadRequestException('Account already active');
-    }
-
-    user.userValidated = true;
-    await user.save();
-    this.logger.log(this.context, `User activated: ${userId}`);
-
-    return this.findOne(userId);
   }
 
   // ========================= FIND ALL PAGINATED + SEARCH + SORT + FILTER =========================

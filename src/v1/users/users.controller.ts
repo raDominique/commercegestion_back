@@ -285,30 +285,30 @@ export class UsersController {
     return this.usersService.remove(id);
   }
 
-  // ========================= VERIFY ACCOUNT =========================
-  @Patch('verify/:id')
+  // ========================= VERIFY ACCOUNT SECURISE =========================
+  @Get('verify')
   @ApiOperation({
-    summary: 'Verify user account',
-    description:
-      'Marks the user account as verified. Required before activation.',
+    summary: 'Verify user account via token',
+    description: 'Marks the user account as verified using a secure token.',
   })
-  @ApiParam({
-    name: 'id',
-    description: 'User MongoDB ObjectId',
+  @ApiQuery({
+    name: 'token',
+    required: true,
+    description: 'Verification token sent by email',
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'User account verified',
+    description: 'User account verified successfully',
     type: User,
   })
   @ApiBadRequestResponse({
-    description: 'Account already verified',
+    description: 'Token invalide ou expiré',
   })
   @ApiNotFoundResponse({
-    description: 'User not found',
+    description: 'Utilisateur non trouvé',
   })
-  verifyAccount(@Param('id') id: string) {
-    return this.usersService.verifyAccount(id);
+  async verifyAccount(@Query('token') token: string) {
+    return this.usersService.verifyAccountToken(token);
   }
 
   // ========================= ACTIVATE ACCOUNT =========================
