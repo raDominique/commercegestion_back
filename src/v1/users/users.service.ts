@@ -24,6 +24,8 @@ import { ConfigService } from '@nestjs/config';
 export class UsersService {
   private readonly context = 'UsersService';
   private readonly baseUrl: string;
+  private readonly adminEmail: string;
+
   constructor(
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
@@ -38,6 +40,9 @@ export class UsersService {
   ) {
     this.baseUrl =
       this.configService.get<string>('BASE_URL') || 'http://localhost:3000';
+    this.adminEmail =
+      this.configService.get<string>('ADMIN_EMAIL') ||
+      'admin@example.com';
   }
 
   // ========================= CREATE USER WITH FILES & MAIL =========================
@@ -132,6 +137,8 @@ export class UsersService {
       await session.commitTransaction();
       await session.endSession();
 
+      this.logger.log(this.context, `✅ Utilisateur créé: ${user.userEmail}`);
+
       // ---------------- Génération token sécurisé ----------------
       const token = randomBytes(32).toString('hex'); // 64 caractères
       const expiresAt = new Date();
@@ -145,19 +152,43 @@ export class UsersService {
 
       const verificationLink = `${this.baseUrl}/api/v1/users/verify?token=${token}`;
 
-      // ---------------- Envoi mail utilisateur ----------------
-      await this.mailService.verificationAccountUser(
-        user.userEmail,
-        user.userName ?? user.managerName ?? 'Utilisateur',
-        verificationLink,
-      );
+      // ---------------- 📧 EMAIL 1: Vérification du compte (utilisateur) ----------------
+      try {
+        await this.mailService.verificationAccountUser(
+          user.userEmail,
+          user.userName ?? user.managerName ?? 'Utilisateur',
+          verificationLink,
+        );
+        this.logger.log(this.context, `📧 Email de vérification envoyé à ${user.userEmail}`);
+      } catch (mailError) {
+        this.logger.error(
+          this.context,
+          `⚠️ Erreur envoi email de vérification à ${user.userEmail}`,
+          mailError.stack,
+        );
+        // On ne bloque pas l'inscription si l'email échoue
+      }
 
-      // ---------------- Notification admin ----------------
-      await this.mailService.notificationAdminNouveauUser(
-        'randrianomenjanaharyjacquinot@gmail.com',
-        user.userName ?? user.managerName ?? 'Utilisateur',
-        user.userEmail,
-      );
+      // ---------------- 📧 EMAIL 2: Notification admin nouveau user ----------------
+      try {
+        await this.mailService.notificationAdminNouveauUser(
+          this.adminEmail,
+          user.userName ?? user.managerName ?? 'Utilisateur',
+          user.userEmail,
+          user.userId,
+          user.userType,
+          user.createdAt,
+          // ipAddress peut être passé via le DTO si nécessaire
+        );
+        this.logger.log(this.context, `📧 Notification admin envoyée pour ${user.userEmail}`);
+      } catch (mailError) {
+        this.logger.error(
+          this.context,
+          `⚠️ Erreur envoi notification admin`,
+          mailError.stack,
+        );
+        // On ne bloque pas l'inscription
+      }
 
       return user;
     } catch (err) {
@@ -175,7 +206,11 @@ export class UsersService {
         if (fs.existsSync(f)) fs.unlinkSync(f);
       }
 
-      console.error('Erreur création utilisateur:', err);
+      this.logger.error(
+        this.context,
+        'Erreur création utilisateur',
+        err.stack,
+      );
 
       throw err instanceof BadRequestException ||
         err instanceof ConflictException
@@ -206,9 +241,27 @@ export class UsersService {
     // Supprimer le token après utilisation
     await tokenDoc.deleteOne();
 
+    this.logger.log(this.context, `✅ Email vérifié pour ${user.userEmail}`);
+
+    // ---------------- 📧 EMAIL 3: Compte en attente de vérification admin (utilisateur) ----------------
+    try {
+      await this.mailService.notificationCompteAverifier(
+        user.userEmail,
+        user.userName ?? user.managerName ?? 'Utilisateur',
+      );
+      this.logger.log(this.context, `📧 Email "compte en attente" envoyé à ${user.userEmail}`);
+    } catch (mailError) {
+      this.logger.error(
+        this.context,
+        `⚠️ Erreur envoi email "compte en attente"`,
+        mailError.stack,
+      );
+      // On ne bloque pas la vérification
+    }
+
     return {
       status: 'success',
-      message: 'Compte vérifié avec succès',
+      message: 'Compte vérifié avec succès. En attente de validation par un administrateur.',
       data: [user],
     };
   }
@@ -288,6 +341,24 @@ export class UsersService {
     user.userValidated = false;
     await user.save();
 
+    this.logger.log(this.context, `🗑️ Utilisateur supprimé (soft delete): ${user.userEmail}`);
+
+    // ---------------- 📧 EMAIL OPTIONNEL: Notification compte désactivé ----------------
+    try {
+      await this.mailService.notificationAccountDeactivated(
+        user.userEmail,
+        user.userName ?? user.managerName ?? 'Utilisateur',
+        'Suppression du compte',
+      );
+      this.logger.log(this.context, `📧 Email désactivation envoyé à ${user.userEmail}`);
+    } catch (mailError) {
+      this.logger.error(
+        this.context,
+        `⚠️ Erreur envoi email désactivation`,
+        mailError.stack,
+      );
+    }
+
     return {
       status: 'success',
       message: 'User deleted successfully',
@@ -310,6 +381,26 @@ export class UsersService {
 
     user.userValidated = true;
     await user.save();
+
+    this.logger.log(this.context, `✅ Compte activé: ${user.userEmail}`);
+
+    // ---------------- 📧 EMAIL 4: Compte activé (utilisateur) ----------------
+    try {
+      const loginLink = `${this.baseUrl}/login`;
+      await this.mailService.notificationAccountUserActive(
+        user.userEmail,
+        user.userName ?? user.managerName ?? 'Utilisateur',
+        loginLink,
+      );
+      this.logger.log(this.context, `📧 Email activation envoyé à ${user.userEmail}`);
+    } catch (mailError) {
+      this.logger.error(
+        this.context,
+        `⚠️ Erreur envoi email activation`,
+        mailError.stack,
+      );
+      // On ne bloque pas l'activation
+    }
 
     return this.findOne(userId);
   }
@@ -353,6 +444,7 @@ export class UsersService {
     if (!user) throw new NotFoundException('User not found');
 
     const uploadedFiles: string[] = [];
+    const changes: string[] = [];
 
     try {
       // ---------------- Gestion de l'avatar ----------------
@@ -361,6 +453,7 @@ export class UsersService {
           fs.unlinkSync(user.userImage);
         user.userImage = await this.uploadService.saveFile(avatar, 'avatars');
         uploadedFiles.push(user.userImage);
+        changes.push('Photo de profil');
       }
 
       // ---------------- Gestion du logo ----------------
@@ -368,6 +461,7 @@ export class UsersService {
         if (user.logo && fs.existsSync(user.logo)) fs.unlinkSync(user.logo);
         user.logo = await this.uploadService.saveFile(logo, 'logos');
         uploadedFiles.push(user.logo);
+        changes.push('Logo');
       }
 
       // ---------------- Gestion carteStat ----------------
@@ -379,6 +473,7 @@ export class UsersService {
           'carteStat',
         );
         uploadedFiles.push(user.carteStat);
+        changes.push('Carte statistique');
       }
 
       // ---------------- Gestion documents ----------------
@@ -397,6 +492,7 @@ export class UsersService {
 
         user.identityDocument = savedDocs;
         if (documentType) user.documentType = documentType;
+        changes.push('Documents d\'identité');
       }
 
       // ---------------- Gestion carteFiscal ----------------
@@ -413,15 +509,39 @@ export class UsersService {
           uploadedFiles.push(path);
         }
         user.carteFiscal = savedCF;
+        changes.push('Carte fiscale');
       }
 
       // ---------------- Mise à jour des autres champs du DTO ----------------
       Object.keys(dto).forEach((key) => {
-        if (dto[key] !== undefined) user[key] = dto[key];
+        if (dto[key] !== undefined && user[key] !== dto[key]) {
+          user[key] = dto[key];
+          changes.push(key);
+        }
       });
 
       await user.save();
-      this.logger.log(this.context, `User updated: ${id}`);
+      this.logger.log(this.context, `🔄 Utilisateur mis à jour: ${user.userEmail}`);
+
+      // ---------------- 📧 EMAIL OPTIONNEL: Notification mise à jour profil ----------------
+      if (changes.length > 0) {
+        try {
+          await this.mailService.notificationProfileUpdated(
+            user.userEmail,
+            user.userName ?? user.managerName ?? 'Utilisateur',
+            changes,
+          );
+          this.logger.log(this.context, `📧 Email mise à jour profil envoyé à ${user.userEmail}`);
+        } catch (mailError) {
+          this.logger.error(
+            this.context,
+            `⚠️ Erreur envoi email mise à jour profil`,
+            mailError.stack,
+          );
+          // On ne bloque pas la mise à jour
+        }
+      }
+
       return this.findOne(id);
     } catch (err) {
       // ---------------- Rollback fichiers uploadés en cas d'erreur ----------------
