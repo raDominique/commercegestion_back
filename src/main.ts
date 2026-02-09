@@ -1,70 +1,123 @@
 import { NestFactory } from '@nestjs/core';
-import { ConfigService } from '@nestjs/config';
-import { LoggerService } from './common/logger/logger.service';
-import { setupSwagger } from './config/swagger.config';
 import { AppModule } from './app.module';
 import { AppModuleV1 } from './v1/app.module';
 import { AppModuleV2 } from './v2/app.module';
+import { ConfigService } from '@nestjs/config';
 import { VersioningType } from '@nestjs/common';
 import { join } from 'path';
 import * as express from 'express';
 
+import { LoggerService } from './common/logger/logger.service';
+import { setupSwagger } from './config/swagger.config';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('PORT') ?? 3000;
   const logger = new LoggerService('Bootstrap');
 
+  const port = configService.get<number>('PORT') ?? 5000;
+  const appUrl = configService.get<string>('APP_URL');
+
+  /**
+   * ===============================
+   * API VERSIONING
+   * ===============================
+   */
   app.enableVersioning({
     type: VersioningType.URI,
   });
 
-  // Cors configuration
+  /**
+   * ===============================
+   * CORS CONFIGURATION
+   * ===============================
+   */
   const allowlist =
-    configService.get<string>('CORS_ALLOWLIST')?.split(',') || [];
-  if (allowlist.length > 0) {
-    app.enableCors({
-      origin: (origin, callback) => {
-        if (!origin || allowlist.includes(origin)) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'));
-        }
-      },
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-      allowedHeaders: 'Content-Type, Accept',
-    });
+    configService
+      .get<string>('CORS_ALLOWLIST')
+      ?.split(',')
+      .map(origin => origin.trim())
+      .filter(Boolean) || [];
+
+  logger.log(
+    'Bootstrap',
+    `CORS allowlist chargée: ${allowlist.join(', ')}`,
+  );
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      // Requêtes server-to-server (curl, Postman, cron, etc.)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // Autorise les origines listées ou l’URL de l’API elle-même (Swagger)
+      if (allowlist.includes(origin) || origin === appUrl) {
+        return callback(null, true);
+      }
+
+      logger.warn(
+        'CORS',
+        `Origin refusée: ${origin}`,
+      );
+
+      return callback(new Error('Not allowed by CORS'));
+    },
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
+    allowedHeaders: [
+      'Content-Type',
+      'Accept',
+      'Authorization',
+    ],
+    credentials: true,
+  });
+
+  /**
+   * ===============================
+   * GLOBAL PREFIX
+   * ===============================
+   */
+  app.setGlobalPrefix('api');
+
+  /**
+   * ===============================
+   * SWAGGER (MULTI-VERSIONS)
+   * ===============================
+   */
+  if (process.env.NODE_ENV !== 'production') {
+    setupSwagger(app, [
+      { module: AppModuleV1, version: 'v1', path: 'v1' },
+      { module: AppModuleV2, version: 'v2', path: 'v2' },
+    ]);
+
     logger.log(
       'Bootstrap',
-      `CORS configuré avec allowlist: ${allowlist.join(', ')}`,
-    );
-  } else {
-    app.enableCors({
-      origin: '*',
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-      allowedHeaders: 'Content-Type, Accept',
-    });
-    logger.warn(
-      'Bootstrap',
-      'CORS configuré pour autoriser toutes les origines (pas de allowlist définie)',
+      `Swagger UI: ${appUrl}/swagger`,
     );
   }
-  app.setGlobalPrefix('api');
-  // Configure Swagger for both versions
-  setupSwagger(app, [
-    { module: AppModuleV1, version: 'v1', path: 'v1' },
-    { module: AppModuleV2, version: 'v2', path: 'v2' },
-  ]);
 
-  // Servir les fichiers statiques
-  app.use('/upload', express.static(join(process.cwd(), 'upload')));
+  /**
+   * ===============================
+   * STATIC FILES
+   * ===============================
+   */
+  app.use(
+    '/upload',
+    express.static(join(process.cwd(), 'upload')),
+  );
 
-  // Start the application
+  /**
+   * ===============================
+   * START SERVER
+   * ===============================
+   */
   await app.listen(port);
 
-  // Log information
-  logger.log('Bootstrap', `Application démarrée sur le port: ${port}`);
-  logger.log('Bootstrap', `Swagger UI: http://localhost:${port}/swagger`);
+  logger.log(
+    'Bootstrap',
+    `Application démarrée sur ${appUrl} (port ${port})`,
+  );
 }
 
 bootstrap();
