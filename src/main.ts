@@ -118,6 +118,11 @@ async function bootstrap() {
     'Bootstrap',
     `Application démarrée sur ${appUrl} (port ${port})`,
   );
+
+  logger.log(
+    'Bootstrap',
+    `Swagger UI: ${appUrl}/swagger`,
+  );
 }
 
 bootstrap();

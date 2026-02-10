@@ -6,7 +6,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Connection, Model, Error as MongooseError } from 'mongoose';
+import { Connection, Model, Error as MongooseError, Types } from 'mongoose';
 import { User, UserDocument, UserType } from './users.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoggerService } from 'src/common/logger/logger.service';
@@ -41,8 +41,7 @@ export class UsersService {
     this.baseUrl =
       this.configService.get<string>('APP_URL') || 'http://localhost:3000';
     this.adminEmail =
-      this.configService.get<string>('ADMIN_EMAIL') ||
-      'admin@example.com';
+      this.configService.get<string>('ADMIN_EMAIL') || 'admin@example.com';
   }
 
   // ========================= CREATE USER WITH FILES & MAIL =========================
@@ -159,7 +158,10 @@ export class UsersService {
           user.userName ?? user.managerName ?? 'Utilisateur',
           verificationLink,
         );
-        this.logger.log(this.context, ` Email de vérification envoyé à ${user.userEmail}`);
+        this.logger.log(
+          this.context,
+          ` Email de vérification envoyé à ${user.userEmail}`,
+        );
       } catch (mailError) {
         this.logger.error(
           this.context,
@@ -179,7 +181,10 @@ export class UsersService {
           user.userType,
           user.createdAt,
         );
-        this.logger.log(this.context, ` Notification admin envoyée pour ${user.userEmail}`);
+        this.logger.log(
+          this.context,
+          ` Notification admin envoyée pour ${user.userEmail}`,
+        );
       } catch (mailError) {
         this.logger.error(
           this.context,
@@ -195,11 +200,7 @@ export class UsersService {
       try {
         await session.abortTransaction();
       } catch (e) {
-        this.logger.error(
-          this.context,
-          'Failed to abort transaction',
-          e.stack,
-        );
+        this.logger.error(this.context, 'Failed to abort transaction', e.stack);
       } finally {
         session.endSession();
       }
@@ -209,11 +210,7 @@ export class UsersService {
         if (fs.existsSync(f)) fs.unlinkSync(f);
       }
 
-      this.logger.error(
-        this.context,
-        'Erreur création utilisateur',
-        err.stack,
-      );
+      this.logger.error(this.context, 'Erreur création utilisateur', err.stack);
 
       throw err instanceof BadRequestException ||
         err instanceof ConflictException
@@ -252,7 +249,10 @@ export class UsersService {
         user.userEmail,
         user.userName ?? user.managerName ?? 'Utilisateur',
       );
-      this.logger.log(this.context, ` Email "compte en attente" envoyé à ${user.userEmail}`);
+      this.logger.log(
+        this.context,
+        ` Email "compte en attente" envoyé à ${user.userEmail}`,
+      );
     } catch (mailError) {
       this.logger.error(
         this.context,
@@ -264,7 +264,8 @@ export class UsersService {
 
     return {
       status: 'success',
-      message: 'Compte vérifié avec succès. En attente de validation par un administrateur.',
+      message:
+        'Compte vérifié avec succès. En attente de validation par un administrateur.',
       data: [user],
     };
   }
@@ -344,7 +345,10 @@ export class UsersService {
     user.userValidated = false;
     await user.save();
 
-    this.logger.log(this.context, ` Utilisateur supprimé (soft delete): ${user.userEmail}`);
+    this.logger.log(
+      this.context,
+      ` Utilisateur supprimé (soft delete): ${user.userEmail}`,
+    );
 
     // ----------------  EMAIL OPTIONNEL: Notification compte désactivé ----------------
     try {
@@ -353,7 +357,10 @@ export class UsersService {
         user.userName ?? user.managerName ?? 'Utilisateur',
         'Suppression du compte',
       );
-      this.logger.log(this.context, ` Email désactivation envoyé à ${user.userEmail}`);
+      this.logger.log(
+        this.context,
+        ` Email désactivation envoyé à ${user.userEmail}`,
+      );
     } catch (mailError) {
       this.logger.error(
         this.context,
@@ -395,7 +402,10 @@ export class UsersService {
         user.userName ?? user.managerName ?? 'Utilisateur',
         loginLink,
       );
-      this.logger.log(this.context, ` Email activation envoyé à ${user.userEmail}`);
+      this.logger.log(
+        this.context,
+        ` Email activation envoyé à ${user.userEmail}`,
+      );
     } catch (mailError) {
       this.logger.error(
         this.context,
@@ -495,7 +505,7 @@ export class UsersService {
 
         user.identityDocument = savedDocs;
         if (documentType) user.documentType = documentType;
-        changes.push('Documents d\'identité');
+        changes.push("Documents d'identité");
       }
 
       // ---------------- Gestion carteFiscal ----------------
@@ -524,7 +534,10 @@ export class UsersService {
       });
 
       await user.save();
-      this.logger.log(this.context, ` Utilisateur mis à jour: ${user.userEmail}`);
+      this.logger.log(
+        this.context,
+        ` Utilisateur mis à jour: ${user.userEmail}`,
+      );
 
       // ----------------  EMAIL OPTIONNEL: Notification mise à jour profil ----------------
       if (changes.length > 0) {
@@ -534,7 +547,10 @@ export class UsersService {
             user.userName ?? user.managerName ?? 'Utilisateur',
             changes,
           );
-          this.logger.log(this.context, ` Email mise à jour profil envoyé à ${user.userEmail}`);
+          this.logger.log(
+            this.context,
+            ` Email mise à jour profil envoyé à ${user.userEmail}`,
+          );
         } catch (mailError) {
           this.logger.error(
             this.context,
@@ -631,4 +647,14 @@ export class UsersService {
       throw new BadRequestException('Invalid query parameters');
     }
   }
+
+  // ========================= CHECK IF USER EXISTS BY ID (UTIL POUR SITES) =========================
+  async existsById(userId: string): Promise<boolean> {
+    const count = await this.userModel.countDocuments({
+      _id: new Types.ObjectId(userId),
+      deletedAt: null,
+    });
+    return count > 0;
+  }
+  
 }
