@@ -2,16 +2,16 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types, Error as MongooseError } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Site, SiteDocument } from './sites.schema';
 import { CreateSiteDto } from './dto/create-site.dto';
 import { UpdateSiteDto } from './dto/update-site.dto';
 import { UsersService } from '../users/users.service';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction, EntityType } from '../audit/audit-log.schema';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
-import { PipelineStage } from 'mongoose';
 
 @Injectable()
 export class SiteService {
@@ -19,6 +19,7 @@ export class SiteService {
     @InjectModel(Site.name)
     private readonly siteModel: Model<SiteDocument>,
     private readonly userService: UsersService,
+    private readonly auditService: AuditService,
   ) {}
 
   /* ===================== CREATE ===================== */
@@ -35,18 +36,23 @@ export class SiteService {
       throw new NotFoundException('Utilisateur introuvable');
     }
 
-    // Construire location explicitement
     const siteData = {
       ...dto,
       siteUserID: userId,
-      location: {
-        type: 'Point',
-        coordinates: [dto.siteLng, dto.siteLat], // ⚠️ lng, lat
-      },
+      location: { type: 'Point', coordinates: [dto.siteLng, dto.siteLat] },
     };
 
     const site = new this.siteModel(siteData);
-    await site.save(); // maintenant la validation passera
+    await site.save();
+
+    // 🔹 Audit log
+    await this.auditService.log({
+      action: AuditAction.CREATE,
+      entityType: EntityType.SITE,
+      entityId: site._id.toString(),
+      userId,
+      newState: site.toObject(),
+    });
 
     return {
       status: 'success',
@@ -57,30 +63,24 @@ export class SiteService {
 
   /* ===================== FIND ALL ===================== */
   async findAll(
-    page = 1,
-    limit = 10,
+    page: number,
+    limit: number,
     search = '',
   ): Promise<PaginationResult<Site>> {
-    const skip = (page - 1) * limit;
+    const query = search ? { siteName: { $regex: search, $options: 'i' } } : {};
 
-    const filter = search
-      ? { siteName: { $regex: search, $options: 'i' } }
-      : {};
-
-    const [data, total] = await Promise.all([
-      this.siteModel
-        .find(filter)
-        .skip(skip)
-        .limit(limit)
-        .populate('siteUserID')
-        .exec(),
-      this.siteModel.countDocuments(filter),
-    ]);
+    const total = await this.siteModel.countDocuments(query);
+    const sites = await this.siteModel
+      .find(query)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate('siteUserID')
+      .exec();
 
     return {
       status: 'success',
-      message: 'Liste des sites',
-      data,
+      message: 'Liste des sites récupérée',
+      data: sites,
       page,
       limit,
       total,
@@ -90,18 +90,14 @@ export class SiteService {
 
   /* ===================== FIND ONE ===================== */
   async findOne(id: string): Promise<Site> {
-    if (!Types.ObjectId.isValid(id)) {
+    if (!Types.ObjectId.isValid(id))
       throw new BadRequestException('ID invalide');
-    }
 
     const site = await this.siteModel
       .findById(id)
       .populate('siteUserID')
       .exec();
-
-    if (!site) {
-      throw new NotFoundException('Site non trouvé');
-    }
+    if (!site) throw new NotFoundException('Site non trouvé');
 
     return site;
   }
@@ -109,15 +105,16 @@ export class SiteService {
   /* ===================== UPDATE ===================== */
   async update(
     id: string,
-    dto: UpdateSiteDto
+    dto: UpdateSiteDto,
+    userId: string,
   ): Promise<PaginationResult<Site>> {
-    if (!Types.ObjectId.isValid(id)) {
+    if (!Types.ObjectId.isValid(id))
       throw new BadRequestException('ID invalide');
-    }
+
+    const oldSite = await this.siteModel.findById(id).exec();
+    if (!oldSite) throw new NotFoundException('Site non trouvé');
 
     const updateData: any = { ...dto };
-
-    // Si lat/lng modifiés, mettre à jour location
     if (dto.siteLat !== undefined && dto.siteLng !== undefined) {
       updateData.location = {
         type: 'Point',
@@ -125,37 +122,47 @@ export class SiteService {
       };
     }
 
-    const site = await this.siteModel.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    });
+    const updatedSite = await this.siteModel
+      .findByIdAndUpdate(id, updateData, { new: true, runValidators: true })
+      .exec();
 
-    if (!site) {
+    if (!updatedSite) {
       throw new NotFoundException('Site non trouvé');
     }
+
+    // 🔹 Audit log
+    await this.auditService.log({
+      action: AuditAction.UPDATE,
+      entityType: EntityType.SITE,
+      entityId: id,
+      userId,
+      previousState: oldSite.toObject(),
+      newState: updatedSite.toObject(),
+    });
 
     return {
       status: 'success',
       message: 'Site mis à jour avec succès',
-      data: [site],
+      data: [updatedSite],
     };
   }
 
   /* ===================== DELETE ===================== */
   async remove(id: string, userId: string): Promise<PaginationResult<null>> {
-    const userExists = await this.userService.existsById(userId);
-    if (!userExists) {
-      throw new NotFoundException('Utilisateur introuvable');
-    }
-    if (!Types.ObjectId.isValid(id)) {
+    if (!Types.ObjectId.isValid(id))
       throw new BadRequestException('ID invalide');
-    }
 
-    const result = await this.siteModel.findByIdAndDelete(id);
+    const site = await this.siteModel.findByIdAndDelete(id).exec();
+    if (!site) throw new NotFoundException('Site non trouvé');
 
-    if (!result) {
-      throw new NotFoundException('Site non trouvé');
-    }
+    // 🔹 Audit log
+    await this.auditService.log({
+      action: AuditAction.DELETE,
+      entityType: EntityType.SITE,
+      entityId: id,
+      userId,
+      previousState: site.toObject(),
+    });
 
     return {
       status: 'success',
@@ -167,36 +174,24 @@ export class SiteService {
   /* ===================== FIND ALL BY USER ===================== */
   async findAllByUser(
     userId: string,
-    page = 1,
-    limit = 10,
+    page: number,
+    limit: number,
     search = '',
   ): Promise<PaginationResult<Site>> {
-    const userExists = await this.userService.existsById(userId);
-    if (!userExists) {
-      throw new NotFoundException(`Utilisateur introuvable: ${userId}`);
-    }
+    const query: any = { siteUserID: userId };
+    if (search) query.siteName = { $regex: search, $options: 'i' };
 
-    const skip = (page - 1) * limit;
-
-    const filter: any = { siteUserID: userId };
-    if (search) {
-      filter.siteName = { $regex: search, $options: 'i' };
-    }
-
-    const [data, total] = await Promise.all([
-      this.siteModel
-        .find(filter)
-        .skip(skip)
-        .limit(limit)
-        .populate('siteUserID')
-        .exec(),
-      this.siteModel.countDocuments(filter),
-    ]);
+    const total = await this.siteModel.countDocuments(query);
+    const sites = await this.siteModel
+      .find(query)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec();
 
     return {
       status: 'success',
-      message: "Liste des sites de l'utilisateur",
-      data,
+      message: 'Liste des sites récupérée',
+      data: sites,
       page,
       limit,
       total,
@@ -212,64 +207,37 @@ export class SiteService {
     page = 1,
     limit = 10,
   ): Promise<PaginationResult<Site>> {
-    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      throw new BadRequestException('Coordonnées GPS invalides');
-    }
+    const radiusInMeters = radiusKm * 1000;
 
-    try {
-      const radiusMeters = radiusKm * 1000;
-      const skip = (page - 1) * limit;
+    const total = await this.siteModel.countDocuments({
+      location: {
+        $nearSphere: {
+          $geometry: { type: 'Point', coordinates: [lng, lat] },
+          $maxDistance: radiusInMeters,
+        },
+      },
+    });
 
-      const pipeline: PipelineStage[] = [
-        {
-          $geoNear: {
-            near: { type: 'Point', coordinates: [lng, lat] },
-            distanceField: 'distance',
-            maxDistance: radiusMeters,
-            spherical: true,
+    const sites = await this.siteModel
+      .find({
+        location: {
+          $nearSphere: {
+            $geometry: { type: 'Point', coordinates: [lng, lat] },
+            $maxDistance: radiusInMeters,
           },
-        } as PipelineStage,
-        { $skip: skip } as PipelineStage,
-        { $limit: limit } as PipelineStage,
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'siteUserID',
-            foreignField: '_id',
-            as: 'siteUserID',
-          },
-        } as PipelineStage,
-        { $unwind: '$siteUserID' } as PipelineStage,
-      ];
+        },
+      })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec();
 
-      const [data, totalCount] = await Promise.all([
-        this.siteModel.aggregate(pipeline),
-        this.siteModel.aggregate([
-          {
-            $geoNear: {
-              near: { type: 'Point', coordinates: [lng, lat] },
-              distanceField: 'distance',
-              maxDistance: radiusMeters,
-              spherical: true,
-            },
-          } as PipelineStage,
-          { $count: 'count' } as PipelineStage,
-        ]),
-      ]);
-
-      return {
-        status: 'success',
-        message: 'Sites trouvés par localisation',
-        data,
-        page,
-        limit,
-        total: totalCount[0]?.count ?? 0,
-        filter: { latitude: lat, longitude: lng, radiusKm },
-      };
-    } catch (error) {
-      throw new InternalServerErrorException(
-        'Erreur lors de la recherche par localisation',
-      );
-    }
+    return {
+      status: 'success',
+      message: 'Sites proches récupérés',
+      data: sites,
+      page,
+      limit,
+      total,
+    };
   }
 }

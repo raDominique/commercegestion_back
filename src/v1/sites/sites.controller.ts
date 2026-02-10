@@ -81,10 +81,12 @@ export class SiteController {
   @ApiResponse({ status: 404, description: 'Site non trouvé' })
   @Auth()
   async update(
+    @Req() req: any,
     @Param('id') id: string,
     @Body() updateSiteDto: UpdateSiteDto,
   ): Promise<PaginationResult<Site>> {
-    return this.siteService.update(id, updateSiteDto);
+    const userId = req.user.userId;
+    return this.siteService.update(id, updateSiteDto, userId);
   }
 
   /* ===================== DELETE ===================== */
