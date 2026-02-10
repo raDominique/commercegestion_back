@@ -8,6 +8,7 @@ import { UploadModule } from '../shared/upload/upload.module';
 import { UploadService } from '../shared/upload/upload.service';
 import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
+import { SiteModule } from './sites/sites.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AuditModule } from './audit/audit.module';
     UploadModule,
     AuthModule,
     AuditModule,
+    SiteModule,
   ],
   controllers: [AppController],
   providers: [AppService, UploadService],
