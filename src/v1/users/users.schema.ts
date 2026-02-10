@@ -46,10 +46,10 @@ export class User {
   userPhone: string;
 
   @Prop({ default: 'Particulier' })
-  userType: string; // 'Particulier', 'Professionnel', 'Entreprise'
+  userType: string;
 
   @Prop({ default: 'Utilisateur' })
-  userAccess: string; // 'Utilisateur', 'Moderateur', 'Admin'
+  userAccess: string;
 
   @Prop({ default: 0 })
   userTotalSolde: number;
@@ -85,7 +85,7 @@ export class User {
   identityCardNumber?: string;
 
   @Prop({ type: [String], default: [] })
-  identityDocument?: string[]; // Array of file names
+  identityDocument?: string[];
 
   @Prop()
   documentType?: string; // 'cin', 'passport', etc.

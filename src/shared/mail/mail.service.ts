@@ -117,7 +117,7 @@ export class MailService {
     try {
       await this.mailerService.sendMail({
         to,
-        subject: `🎉 Votre compte est maintenant actif - ${this.appName}`,
+        subject: `Votre compte est maintenant actif - ${this.appName}`,
         template: 'account-activated',
         context: {
           name,
