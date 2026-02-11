@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  InternalServerErrorException,
   forwardRef,
   Inject,
 } from '@nestjs/common';
@@ -414,10 +415,15 @@ export class UsersService {
     };
   }
 
-  async findByEmailWithPassword(email: string): Promise<User | null> {
-    return this.userModel
-      .findOne({ email: email.toLowerCase(), deletedAt: null })
-      .select('+password')
-      .exec();
+  async findByEmailWithPassword(userEmail: string): Promise<User | null> {
+    try {
+      const user = await this.userModel
+        .findOne({ userEmail: userEmail.toLowerCase(), deletedAt: null })
+        .select('+userPassword')
+        .exec();
+      return user;
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to find user');
+    }
   }
 }
