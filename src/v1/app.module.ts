@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
 import { SiteModule } from './sites/sites.module';
 import { CategoryModule } from './category/category.module';
+import { ProductsModule } from './products/products.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { CategoryModule } from './category/category.module';
     AuditModule,
     SiteModule,
     CategoryModule,
+    ProductsModule,
   ],
   controllers: [AppController],
   providers: [AppService, UploadService],
