@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      color: #333;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f9f9f9;
+    }
+    .header {
+      background-color: #28a745;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      border-radius: 5px 5px 0 0;
+    }
+    .content {
+      background-color: white;
+      padding: 20px;
+      border-radius: 0 0 5px 5px;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Site Mis à Jour</h1>
+    </div>
+    <div class="content">
+      <p>Bonjour,</p>
+      <p>Le site <strong>{{siteName}}</strong> a été mis à jour avec succès.</p>
+      <p><strong>Détails de la mise à jour :</strong></p>
+      <ul>
+        <li><strong>Nom :</strong> {{siteName}}</li>
+        <li><strong>Date de mise à jour :</strong> {{updatedAt}}</li>
+      </ul>
+      <p>Les modifications sont maintenant actives.</p>
+      <p>Cordialement,<br>L'équipe CommerceGestion</p>
+    </div>
+    <div class="footer">
+      <p>&copy; 2026 CommerceGestion. Tous droits réservés.</p>
+    </div>
+  </div>
+</body>
+</html>
