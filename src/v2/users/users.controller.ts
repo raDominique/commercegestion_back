@@ -1,14 +1,5 @@
-import {
-  Controller,
-  Get,
-  Query,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { Controller, Get, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UserType } from './users.schema';
 
@@ -16,7 +7,6 @@ import { UserType } from './users.schema';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
-
 
   // ========================= PAGINATED FIND =========================
   @Get('all-paginated')
@@ -92,8 +82,10 @@ export class UsersController {
     // Transformer les query strings en types corrects
     const filter = {
       userType,
-      isActive: isActive === undefined ? undefined : String(isActive) === 'true',
-      isVerified: isVerified === undefined ? undefined : String(isVerified) === 'true',
+      isActive:
+        isActive === undefined ? undefined : String(isActive) === 'true',
+      isVerified:
+        isVerified === undefined ? undefined : String(isVerified) === 'true',
     };
     return this.usersService.findAllPaginated(
       Number(page),

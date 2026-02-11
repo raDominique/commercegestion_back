@@ -9,11 +9,14 @@ interface SwaggerVersionConfig {
   path: string;
 }
 
-export function setupSwagger(app: INestApplication, versions: SwaggerVersionConfig[]) {
+export function setupSwagger(
+  app: INestApplication,
+  versions: SwaggerVersionConfig[],
+) {
   // --- V1 ---
   const configV1 = new DocumentBuilder()
     .setTitle('API commercegestion v1')
-    .setDescription('Documentation de l\'API commercegestion v1')
+    .setDescription("Documentation de l'API commercegestion v1")
     .setVersion('1.0')
     .addBearerAuth()
     .build();
@@ -26,7 +29,7 @@ export function setupSwagger(app: INestApplication, versions: SwaggerVersionConf
   // --- V2 ---
   const configV2 = new DocumentBuilder()
     .setTitle('API commercegestion v2')
-    .setDescription('Documentation de l\'API commercegestion v2')
+    .setDescription("Documentation de l'API commercegestion v2")
     .setVersion('2.0')
     .addBearerAuth()
     .build();

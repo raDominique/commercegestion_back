@@ -10,41 +10,41 @@ import { MailModule } from './shared/mail/mail.module';
 import { SharedModule } from './shared/shared.module';
 
 @Module({
-    imports: [
-        AppModuleV1,
-        AppModuleV2,
-        RouterModule.register([
-            {
-                path: 'v1',
-                module: AppModuleV1,
-                children: [
-                    {
-                        path: '',
-                        module: UsersModule,
-                    },
-                    {
-                        path:'',
-                        module: AuditModule
-                    },
-                    {
-                        path: '',
-                        module: AuthModule
-                    }
-                ],
-            },
-            {
-                path: 'v2',
-                module: AppModuleV2,
-                children: [
-                    {
-                        path: '',
-                        module: UsersModuleV2,
-                    },
-                ],
-            },
-        ]),
-        MailModule,
-        SharedModule,
-    ],
+  imports: [
+    AppModuleV1,
+    AppModuleV2,
+    RouterModule.register([
+      {
+        path: 'v1',
+        module: AppModuleV1,
+        children: [
+          {
+            path: '',
+            module: UsersModule,
+          },
+          {
+            path: '',
+            module: AuditModule,
+          },
+          {
+            path: '',
+            module: AuthModule,
+          },
+        ],
+      },
+      {
+        path: 'v2',
+        module: AppModuleV2,
+        children: [
+          {
+            path: '',
+            module: UsersModuleV2,
+          },
+        ],
+      },
+    ]),
+    MailModule,
+    SharedModule,
+  ],
 })
 export class AppModule {}

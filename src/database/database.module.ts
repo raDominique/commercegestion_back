@@ -13,10 +13,15 @@ import { MongooseModule } from '@nestjs/mongoose';
         uri: configService.get<string>('MONGO_URI'),
         connectionFactory: (connection) => {
           connection.on('connected', () => {
-            console.log(`MongoDB connecté à ${configService.get<string>('MONGO_URI')}`);
+            console.log(
+              `MongoDB connecté à ${configService.get<string>('MONGO_URI')}`,
+            );
           });
           connection.on('error', (err) => {
-            console.error(`Erreur de connexion MongoDB à ${configService.get<string>('MONGO_URI')}:`, err);
+            console.error(
+              `Erreur de connexion MongoDB à ${configService.get<string>('MONGO_URI')}:`,
+              err,
+            );
           });
           return connection;
         },

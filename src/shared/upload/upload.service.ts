@@ -16,10 +16,14 @@ export class UploadService {
    * @param destFolder dossier de destination
    * @returns URL publique du fichier sauvegardé
    */
-  async saveFile(file: Express.Multer.File, destFolder = 'uploads'): Promise<string> {
+  async saveFile(
+    file: Express.Multer.File,
+    destFolder = 'uploads',
+  ): Promise<string> {
     try {
       const folderPath = path.join(this.publicPath, destFolder);
-      if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
+      if (!fs.existsSync(folderPath))
+        fs.mkdirSync(folderPath, { recursive: true });
 
       // Nom unique
       const fileExt = path.extname(file.originalname);

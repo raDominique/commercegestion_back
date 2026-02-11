@@ -32,7 +32,9 @@ export class AppController {
       },
     },
   })
-  uploadTest(@UploadedFile() file: Express.Multer.File): Promise<{ avatarUrl: string }> {
+  uploadTest(
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<{ avatarUrl: string }> {
     return this.appService.updateAvatar(file);
   }
 }

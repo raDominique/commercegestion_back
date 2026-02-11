@@ -25,7 +25,7 @@ import { SharedModule } from 'src/shared/shared.module';
     AuditModule,
   ],
   controllers: [UsersController],
-  providers: [UsersService, LoggerService,NotifyHelper],
+  providers: [UsersService, LoggerService, NotifyHelper],
   exports: [UsersService],
 })
 export class UsersModule {}

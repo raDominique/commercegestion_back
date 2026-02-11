@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument, UserType } from './users.schema';
@@ -18,7 +15,6 @@ export class UsersService {
     private readonly logger: LoggerService,
   ) {}
 
-
   // ========================= FIND ALL PAGINATED + SEARCH + SORT + FILTER =========================
   async findAllPaginated(
     page = 1,
@@ -26,7 +22,11 @@ export class UsersService {
     search?: string,
     sortBy = 'createdAt',
     order: 'asc' | 'desc' = 'desc',
-    filter?: Partial<{ userType: UserType; isActive: boolean; isVerified: boolean }>,
+    filter?: Partial<{
+      userType: UserType;
+      isActive: boolean;
+      isVerified: boolean;
+    }>,
   ): Promise<PaginationResult<User>> {
     try {
       const query: any = { deletedAt: null };
@@ -34,8 +34,10 @@ export class UsersService {
       // ------------------ FILTRE ------------------
       if (filter) {
         if (filter.userType) query.userType = filter.userType;
-        if (typeof filter.isActive === 'boolean') query.isActive = filter.isActive;
-        if (typeof filter.isVerified === 'boolean') query.isVerified = filter.isVerified;
+        if (typeof filter.isActive === 'boolean')
+          query.isActive = filter.isActive;
+        if (typeof filter.isVerified === 'boolean')
+          query.isVerified = filter.isVerified;
       }
 
       // ------------------ RECHERCHE ------------------
@@ -58,7 +60,12 @@ export class UsersService {
 
       // ------------------ EXECUTE ------------------
       const [data, total] = await Promise.all([
-        this.userModel.find(query).select('-password').sort(sortQuery).skip(skip).limit(limit),
+        this.userModel
+          .find(query)
+          .select('-password')
+          .sort(sortQuery)
+          .skip(skip)
+          .limit(limit),
         this.userModel.countDocuments(query),
       ]);
 
