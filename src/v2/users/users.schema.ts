@@ -65,7 +65,6 @@ UserSchema.pre<UserDocument>('save', async function () {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-
 /**
  * Index partiel (soft delete friendly)
  */

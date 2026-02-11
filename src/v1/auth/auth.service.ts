@@ -84,17 +84,13 @@ export class AuthService {
   /** Logout utilisateur */
   async logout(refreshToken: string, req?: Request) {
     const token = await this.refreshTokenService.revoke(refreshToken);
-    if (!token) throw new BadRequestException(AuthErrorMessage.INVALID_REFRESH_TOKEN);
+    if (!token)
+      throw new BadRequestException(AuthErrorMessage.INVALID_REFRESH_TOKEN);
 
-    await this.logAudit(
-      token.userId.toString(),
-      AuditAction.LOGOUT,
-      req,
-      {
-        ipAddress: token.ipAddress || 'unknown',
-        userAgent: token.userAgent || 'unknown',
-      },
-    );
+    await this.logAudit(token.userId.toString(), AuditAction.LOGOUT, req, {
+      ipAddress: token.ipAddress || 'unknown',
+      userAgent: token.userAgent || 'unknown',
+    });
 
     return { message: 'Logged out successfully' };
   }

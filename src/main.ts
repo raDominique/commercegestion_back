@@ -37,13 +37,10 @@ async function bootstrap() {
     configService
       .get<string>('CORS_ALLOWLIST')
       ?.split(',')
-      .map(origin => origin.trim())
+      .map((origin) => origin.trim())
       .filter(Boolean) || [];
 
-  logger.log(
-    'Bootstrap',
-    `CORS allowlist chargée: ${allowlist.join(', ')}`,
-  );
+  logger.log('Bootstrap', `CORS allowlist chargée: ${allowlist.join(', ')}`);
 
   app.enableCors({
     origin: (origin, callback) => {
@@ -57,19 +54,12 @@ async function bootstrap() {
         return callback(null, true);
       }
 
-      logger.warn(
-        'CORS',
-        `Origin refusée: ${origin}`,
-      );
+      logger.warn('CORS', `Origin refusée: ${origin}`);
 
       return callback(new Error('Not allowed by CORS'));
     },
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
-    allowedHeaders: [
-      'Content-Type',
-      'Accept',
-      'Authorization',
-    ],
+    allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
     credentials: true,
   });
 
@@ -91,10 +81,7 @@ async function bootstrap() {
       { module: AppModuleV2, version: 'v2', path: 'v2' },
     ]);
 
-    logger.log(
-      'Bootstrap',
-      `Swagger UI: ${appUrl}/swagger`,
-    );
+    logger.log('Bootstrap', `Swagger UI: ${appUrl}/swagger`);
   }
 
   /**
@@ -102,10 +89,7 @@ async function bootstrap() {
    * STATIC FILES
    * ===============================
    */
-  app.use(
-    '/upload',
-    express.static(join(process.cwd(), 'upload')),
-  );
+  app.use('/upload', express.static(join(process.cwd(), 'upload')));
 
   /**
    * ===============================
@@ -114,15 +98,9 @@ async function bootstrap() {
    */
   await app.listen(port);
 
-  logger.log(
-    'Bootstrap',
-    `Application démarrée sur ${appUrl} (port ${port})`,
-  );
+  logger.log('Bootstrap', `Application démarrée sur ${appUrl} (port ${port})`);
 
-  logger.log(
-    'Bootstrap',
-    `Swagger UI: ${appUrl}/swagger`,
-  );
+  logger.log('Bootstrap', `Swagger UI: ${appUrl}/swagger`);
 }
 
 bootstrap();

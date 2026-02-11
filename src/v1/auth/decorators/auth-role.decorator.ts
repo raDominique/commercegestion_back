@@ -8,12 +8,12 @@ import { Roles } from './roles.decorator';
 /**
  * Décorateur composé pour protéger une route avec JWT + vérification de rôle
  * Combine @UseGuards(JwtGuard, RoleGuard), @Roles(), et @ApiBearerAuth() pour Swagger
- * 
+ *
  * @example
  * @Get('admin-only')
  * @AuthRole(UserType.ADMIN)
  * getAdminData(@Req() req) { ... }
- * 
+ *
  * @example
  * @Get('sellers-and-admins')
  * @AuthRole(UserType.SELLER, UserType.ADMIN)
@@ -30,7 +30,8 @@ export function AuthRole(...roles: UserAccess[]) {
       schema: {
         example: {
           statusCode: 403,
-          message: 'Forbidden: This resource requires one of the following roles: ADMIN. Your current role is: BUYER',
+          message:
+            'Forbidden: This resource requires one of the following roles: ADMIN. Your current role is: BUYER',
           error: 'Forbidden',
         },
       },

@@ -3,9 +3,8 @@ import { UploadService } from '../shared/upload/upload.service';
 
 @Injectable()
 export class AppService {
+  constructor(private readonly uploadService: UploadService) {}
 
-   constructor(private readonly uploadService: UploadService) {}
-   
   getHello(): string {
     return 'Hello World v2!';
   }

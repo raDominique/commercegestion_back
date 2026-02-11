@@ -1,73 +1,51 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class MailService {
-  private readonly adminEmail: string;
+  private readonly logger = new Logger(MailService.name);
   private readonly appName: string;
+  private readonly appUrl: string;
+  private readonly frontUrl: string;
 
   constructor(
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
   ) {
-    this.adminEmail =
-      this.configService.get<string>('ADMIN_EMAIL') || 'admin@example.com';
     this.appName =
       this.configService.get<string>('APP_NAME') || 'Votre Application';
+    this.appUrl =
+      this.configService.get<string>('APP_URL') || 'http://localhost:3000';
+    this.frontUrl =
+      this.configService.get<string>('FRONT_URL') || 'http://localhost:3000';
   }
 
-  // ========================= EMAIL DE VÉRIFICATION (lors de l'inscription) =========================
-  /**
-   * Envoyé à l'utilisateur après l'inscription pour vérifier son email
-   */
+  /* =========================================================================
+   * AUTH / USER
+   * ========================================================================= */
+
   async verificationAccountUser(to: string, name: string, link: string) {
-    try {
-      await this.mailerService.sendMail({
-        to,
-        subject: `Vérifiez votre compte - ${this.appName}`,
-        template: 'email-verification',
-        context: {
-          name,
-          link,
-          appName: this.appName,
-        },
-      });
-      console.log(`Email de vérification envoyé à ${to}`);
-    } catch (error) {
-      console.error(` Erreur envoi email de vérification à ${to}:`, error);
-      throw error;
-    }
+    await this.sendMailSafe(
+      to,
+      `Vérifiez votre compte - ${this.appName}`,
+      'email-verification',
+      { name, link },
+    );
   }
 
-  // ========================= NOTIFICATION COMPTE EN ATTENTE (après vérification email) =========================
-  /**
-   * Envoyé à l'utilisateur après qu'il ait vérifié son email
-   * pour l'informer que son compte est en attente de validation admin
-   */
   async notificationCompteAverifier(to: string, name: string) {
-    try {
-      await this.mailerService.sendMail({
-        to,
-        subject: `Votre compte est en cours de vérification - ${this.appName}`,
-        template: 'account-pending',
-        context: {
-          name,
-          appName: this.appName,
-          supportLink: `${this.configService.get<string>('APP_URL')}/support`,
-        },
-      });
-      console.log(`Email compte en attente envoyé à ${to}`);
-    } catch (error) {
-      console.error(` Erreur envoi email compte en attente à ${to}:`, error);
-      throw error;
-    }
+    await this.sendMailSafe(
+      to,
+      `Votre compte est en cours de vérification - ${this.appName}`,
+      'account-pending',
+      {
+        name,
+        supportLink: `${this.appUrl}/support`,
+      },
+    );
   }
 
-  // ========================= NOTIFICATION ADMIN NOUVEAU USER (lors de l'inscription) =========================
-  /**
-   * Envoyé à l'admin quand un nouvel utilisateur s'inscrit
-   */
   async notificationAdminNouveauUser(
     to: string,
     username: string,
@@ -91,107 +69,123 @@ export class MailService {
             ? registrationDate.toLocaleString('fr-FR')
             : new Date().toLocaleString('fr-FR'),
           ipAddress: ipAddress || 'Non disponible',
-          adminPanelLink: `${this.configService.get<string>('APP_URL')}/admin/users/${userId}`,
-          usersListLink: `${this.configService.get<string>('APP_URL')}/admin/users`,
-          totalUsers: '---',
-          pendingUsers: '---',
-          todaySignups: '---',
+          adminPanelLink: `${this.appUrl}/admin/users/${userId}`,
+          usersListLink: `${this.appUrl}/admin/users`,
+          appName: this.appName,
         },
       });
-      console.log(`Email notification admin envoyé à ${to}`);
+      this.logger.log(`Email admin nouvel utilisateur envoyé à ${to}`);
     } catch (error) {
-      console.error(`Erreur envoi email notification admin à ${to}:`, error);
-      // Ne pas throw pour ne pas bloquer l'inscription si l'email admin échoue
+      this.logger.error(`Erreur email admin nouvel utilisateur`, error.stack);
     }
   }
 
-  // ========================= NOTIFICATION COMPTE ACTIVÉ (après validation admin) =========================
-  /**
-   * Envoyé à l'utilisateur quand l'admin active son compte
-   */
   async notificationAccountUserActive(
     to: string,
     name: string,
     loginLink?: string,
   ) {
-    try {
-      await this.mailerService.sendMail({
-        to,
-        subject: `Votre compte est maintenant actif - ${this.appName}`,
-        template: 'account-activated',
-        context: {
-          name,
-          loginLink:
-            loginLink || `${this.configService.get<string>('FRONT_URL')}/login`,
-          supportLink: `${this.configService.get<string>('FRONT_URL')}/support`,
-          appName: this.appName,
-        },
-      });
-      console.log(`Email compte activé envoyé à ${to}`);
-    } catch (error) {
-      console.error(` Erreur envoi email compte activé à ${to}:`, error);
-      throw error;
-    }
+    await this.sendMailSafe(
+      to,
+      `Votre compte est maintenant actif - ${this.appName}`,
+      'account-activated',
+      {
+        name,
+        loginLink: loginLink || `${this.frontUrl}/login`,
+        supportLink: `${this.frontUrl}/support`,
+      },
+    );
   }
 
-  // ========================= NOTIFICATION COMPTE DÉSACTIVÉ (optionnel) =========================
-  /**
-   * Envoyé à l'utilisateur quand son compte est désactivé/supprimé
-   */
   async notificationAccountDeactivated(
     to: string,
     name: string,
     reason?: string,
   ) {
-    try {
-      await this.mailerService.sendMail({
-        to,
-        subject: `Votre compte a été désactivé - ${this.appName}`,
-        template: 'account-deactivated',
-        context: {
-          name,
-          reason: reason || 'Non spécifiée',
-          supportLink: `${this.configService.get<string>('APP_URL')}/support`,
-          appName: this.appName,
-        },
-      });
-      console.log(`Email compte désactivé envoyé à ${to}`);
-    } catch (error) {
-      console.error(` Erreur envoi email compte désactivé à ${to}:`, error);
-    }
+    await this.sendMailSafe(
+      to,
+      `Votre compte a été désactivé - ${this.appName}`,
+      'account-deactivated',
+      {
+        name,
+        reason: reason || 'Non spécifiée',
+        supportLink: `${this.appUrl}/support`,
+      },
+    );
   }
 
-  // ========================= NOTIFICATION MISE À JOUR PROFIL (optionnel) =========================
-  /**
-   * Envoyé à l'utilisateur quand son profil est mis à jour
-   */
   async notificationProfileUpdated(
     to: string,
     name: string,
     changes: string[],
   ) {
-    try {
-      await this.mailerService.sendMail({
-        to,
-        subject: `Votre profil a été mis à jour - ${this.appName}`,
-        template: 'profile-updated',
-        context: {
-          name,
-          changes: changes.join(', '),
-          appName: this.appName,
-        },
-      });
-      console.log(`Email mise à jour profil envoyé à ${to}`);
-    } catch (error) {
-      console.error(`Erreur envoi email mise à jour profil à ${to}:`, error);
-    }
+    await this.sendMailSafe(
+      to,
+      `Votre profil a été mis à jour - ${this.appName}`,
+      'profile-updated',
+      {
+        name,
+        changes: changes.join(', '),
+      },
+    );
   }
 
-  // ========================= EMAIL GÉNÉRIQUE (pour usages personnalisés) =========================
-  /**
-   * Méthode générique pour envoyer des emails personnalisés
-   */
+  /* =========================================================================
+   * SITE NOTIFICATIONS (UTILISÉES PAR NotifyHelper)
+   * ========================================================================= */
+
+  /** 🔹 Création site principal */
+  async notificationUserSitePrincipal(to: string, name: string) {
+    await this.sendMailSafe(
+      to,
+      `Votre site principal a été créé - ${this.appName}`,
+      'site-principal-created',
+      { name },
+    );
+  }
+
+  /** 🔹 Mise à jour site */
+  async notificationUserSiteUpdate(to: string, siteName?: string) {
+    await this.sendMailSafe(
+      to,
+      `Votre site a été mis à jour - ${this.appName}`,
+      'site-updated',
+      {
+        siteName: siteName || 'Votre site',
+      },
+    );
+  }
+
+  /** 🔹 Suppression site */
+  async notificationUserSiteDelete(to: string, siteName?: string) {
+    await this.sendMailSafe(
+      to,
+      `Votre site a été supprimé - ${this.appName}`,
+      'site-deleted',
+      {
+        siteName: siteName || 'Votre site',
+      },
+    );
+  }
+
+  /* =========================================================================
+   * EMAIL GÉNÉRIQUE
+   * ========================================================================= */
+
   async sendCustomEmail(
+    to: string,
+    subject: string,
+    template: string,
+    context: Record<string, any>,
+  ) {
+    await this.sendMailSafe(to, subject, template, context);
+  }
+
+  /* =========================================================================
+   * PRIVATE HELPER (ANTI-CRASH)
+   * ========================================================================= */
+
+  private async sendMailSafe(
     to: string,
     subject: string,
     template: string,
@@ -207,10 +201,12 @@ export class MailService {
           appName: this.appName,
         },
       });
-      console.log(`Email personnalisé envoyé à ${to}`);
+      this.logger.log(`Email envoyé à ${to} (${template})`);
     } catch (error) {
-      console.error(`Erreur envoi email personnalisé à ${to}:`, error);
-      throw error;
+      this.logger.error(
+        `Erreur envoi email [${template}] vers ${to}`,
+        error.stack,
+      );
     }
   }
 }

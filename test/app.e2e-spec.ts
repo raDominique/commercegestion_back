@@ -12,10 +12,7 @@ describe('AppController (e2e)', () => {
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-      providers: [
-        AppService,
-        UploadService,
-      ],
+      providers: [AppService, UploadService],
     }).compile();
 
     app = moduleFixture.createNestApplication();

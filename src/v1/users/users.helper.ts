@@ -1,4 +1,4 @@
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException } from '@nestjs/common';
 
 const DOCUMENT_MIME_RULES: Record<string, RegExp> = {
   cin: /pdf|jpeg|jpg|png/,
@@ -6,7 +6,6 @@ const DOCUMENT_MIME_RULES: Record<string, RegExp> = {
   'permis-de-conduire': /pdf|jpeg|jpg|png/,
   'carte-fiscale': /pdf|jpeg|jpg|png/,
 };
-
 
 export function validateDocumentMime(
   files: Express.Multer.File[],

@@ -2,14 +2,15 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  InternalServerErrorException,
   ConflictException,
+  InternalServerErrorException,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Error as MongooseError, Types } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { User, UserDocument, UserType } from './users.schema';
 import { CreateUserDto } from './dto/create-user.dto';
-import { LoggerService } from 'src/common/logger/logger.service';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { UploadService } from 'src/shared/upload/upload.service';
 import { randomUUID, randomBytes } from 'node:crypto';
@@ -17,14 +18,16 @@ import { validateDocumentMime } from './users.helper';
 import * as fs from 'node:fs';
 import { MailService } from 'src/shared/mail/mail.service';
 import { UserVerificationToken } from './user-verification.schema';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { ConfigService } from '@nestjs/config';
+import { NotifyHelper } from 'src/shared/helpers/notify.helper';
+import { AuditAction, EntityType } from 'src/v1/audit/audit-log.schema';
+import { SiteService } from '../sites/sites.service';
+import { CreateSiteDto } from '../sites/dto/create-site.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
-  private readonly context = 'UsersService';
   private readonly baseUrl: string;
-  private readonly adminEmail: string;
 
   constructor(
     @InjectModel(User.name)
@@ -32,93 +35,65 @@ export class UsersService {
     @InjectModel(UserVerificationToken.name)
     private readonly verificationTokenModel: Model<UserVerificationToken>,
     private readonly configService: ConfigService,
-    private readonly logger: LoggerService,
     private readonly uploadService: UploadService,
     private readonly mailService: MailService,
+    @Inject(forwardRef(() => SiteService))
+    private readonly siteService: SiteService,
+    private readonly notifyHelper: NotifyHelper,
   ) {
     this.baseUrl =
       this.configService.get<string>('APP_URL') || 'http://localhost:3000';
-    this.adminEmail =
-      this.configService.get<string>('ADMIN_EMAIL') || 'admin@example.com';
   }
 
-  // ========================= CREATE USER WITH FILES & MAIL =========================
-  async createWithFiles(
-    dto: CreateUserDto,
-    files: {
-      avatar?: Express.Multer.File;
-      logo?: Express.Multer.File;
-      carteStat?: Express.Multer.File;
-      documents?: Express.Multer.File[];
-      carteFiscal?: Express.Multer.File[];
-    },
-  ): Promise<User> {
+  // ========================= CREATE USER =========================
+  async createWithFiles(dto: CreateUserDto, files: any = {}): Promise<User> {
     const uploadedFiles: string[] = [];
 
     try {
-      // ---------------- Email unique ----------------
+      // ===================== Vérification email unique =====================
       const exists = await this.userModel.findOne({
         userEmail: dto.userEmail.toLowerCase(),
         deletedAt: null,
       });
       if (exists) throw new ConflictException('Email déjà utilisé');
 
-      // ---------------- Validation entreprise ----------------
-      if (dto.userType === 'Entreprise') {
-        if (!dto.managerName || !dto.managerEmail)
-          throw new BadRequestException(
-            'managerName et managerEmail obligatoires pour les entreprises',
-          );
+      // ===================== Validation entreprise =====================
+      if (
+        dto.userType === 'Entreprise' &&
+        (!dto.managerName || !dto.managerEmail)
+      ) {
+        throw new BadRequestException(
+          'managerName et managerEmail obligatoires',
+        );
       }
 
-      // ---------------- Validation MIME ----------------
-      if (files.documents?.length)
+      // ===================== Validation documents =====================
+      if (files.documents?.length) {
         validateDocumentMime(files.documents, dto.documentType);
-      if (files.carteFiscal?.length)
+      }
+      if (files.carteFiscal?.length) {
         validateDocumentMime(files.carteFiscal, 'carte-fiscale');
+      }
 
-      // ---------------- Upload fichiers ----------------
+      // ===================== Upload avatar =====================
       const avatarPath = files.avatar
         ? await this.uploadService.saveFile(files.avatar, 'avatars')
         : undefined;
       if (avatarPath) uploadedFiles.push(avatarPath);
 
+      // ===================== Upload logo =====================
       const logoPath = files.logo
         ? await this.uploadService.saveFile(files.logo, 'logos')
         : undefined;
       if (logoPath) uploadedFiles.push(logoPath);
 
-      const carteStatPath = files.carteStat
-        ? await this.uploadService.saveFile(files.carteStat, 'carteStat')
-        : undefined;
-      if (carteStatPath) uploadedFiles.push(carteStatPath);
-
-      const documentPaths: string[] = [];
-      for (const doc of files.documents ?? []) {
-        const p = await this.uploadService.saveFile(doc, 'documents');
-        uploadedFiles.push(p);
-        documentPaths.push(p);
-      }
-
-      const carteFiscalPaths: string[] = [];
-      for (const cf of files.carteFiscal ?? []) {
-        const p = await this.uploadService.saveFile(cf, 'carteFiscal');
-        uploadedFiles.push(p);
-        carteFiscalPaths.push(p);
-      }
-
-      // ---------------- Création user ----------------
+      // ===================== Création utilisateur =====================
       const user = new this.userModel({
         ...dto,
         userEmail: dto.userEmail.toLowerCase(),
-        userType: dto.userType ?? 'Particulier',
-        userAccess: 'Utilisateur',
-        userImage: avatarPath,
         userId: randomUUID(),
-        identityDocument: documentPaths,
+        userImage: avatarPath,
         logo: logoPath,
-        carteStat: carteStatPath,
-        carteFiscal: carteFiscalPaths,
         userValidated: false,
         userEmailVerified: false,
         userTotalSolde: 0,
@@ -126,12 +101,20 @@ export class UsersService {
 
       await user.save();
 
-      this.logger.log(this.context, ` Utilisateur créé: ${user.userEmail}`);
+      // ===================== Audit + notification =====================
+      await this.notifyHelper.notify({
+        action: AuditAction.CREATE,
+        entityType: EntityType.USER,
+        entityId: user._id.toString(),
+        userId: user._id.toString(), // fallback (pas encore d’admin connecté)
+        newState: user.toObject(),
+        emailData: { type: 'CREATE' },
+      });
 
-      // ---------------- Génération token sécurisé ----------------
-      const token = randomBytes(32).toString('hex'); // 64 caractères
+      // ===================== Token de vérification =====================
+      const token = randomBytes(32).toString('hex');
       const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + 24); // 24h
+      expiresAt.setHours(expiresAt.getHours() + 24);
 
       await this.verificationTokenModel.create({
         userId: user._id,
@@ -139,267 +122,109 @@ export class UsersService {
         expiresAt,
       });
 
-      const verificationLink = `${this.baseUrl}/api/v1/users/verify?token=${token}`;
+      // ===================== Email vérification =====================
+      await this.mailService.verificationAccountUser(
+        user.userEmail,
+        user.userName ?? user.managerName ?? 'Utilisateur',
+        `${this.baseUrl}/api/v1/users/verify?token=${token}`,
+      );
 
-      // ----------------  EMAIL 1: Vérification du compte (utilisateur) ----------------
-      try {
-        await this.mailService.verificationAccountUser(
-          user.userEmail,
-          user.userName ?? user.managerName ?? 'Utilisateur',
-          verificationLink,
-        );
-        this.logger.log(
-          this.context,
-          ` Email de vérification envoyé à ${user.userEmail}`,
-        );
-      } catch (mailError) {
-        this.logger.error(
-          this.context,
-          ` Erreur envoi email de vérification à ${user.userEmail}`,
-          mailError.stack,
-        );
-        // On ne bloque pas l'inscription si l'email échoue
-      }
+      // ===================== Création site principal =====================
+      const siteDto = {
+        siteName: `${user.userName ?? 'Utilisateur'} - Site principal`,
+        siteAddress: user.userAddress ?? '',
+        siteLat: Number(user.userMainLat) || 0,
+        siteLng: Number(user.userMainLng) || 0,
+      };
 
-      // ----------------  EMAIL 2: Notification admin nouveau user ----------------
-      try {
-        await this.mailService.notificationAdminNouveauUser(
-          this.adminEmail,
-          user.userName ?? user.managerName ?? 'Utilisateur',
-          user.userEmail,
-          user.userId,
-          user.userType,
-          user.createdAt,
-        );
-        this.logger.log(
-          this.context,
-          ` Notification admin envoyée pour ${user.userEmail}`,
-        );
-      } catch (mailError) {
-        this.logger.error(
-          this.context,
-          ` Erreur envoi notification admin`,
-          mailError.stack,
-        );
-        // On ne bloque pas l'inscription si l'email échoue
-      }
+      await this.siteService.create(siteDto, user._id.toString());
 
       return user;
     } catch (err) {
-      // ---------------- Rollback fichiers uploadés ----------------
+      // ===================== Rollback fichiers =====================
       for (const f of uploadedFiles) {
         if (fs.existsSync(f)) fs.unlinkSync(f);
       }
-
-      this.logger.error(this.context, 'Erreur création utilisateur', err.stack);
-
-      throw err instanceof BadRequestException ||
-        err instanceof ConflictException
-        ? err
-        : new InternalServerErrorException(
-            err.message || 'Création utilisateur échouée',
-          );
+      throw err;
     }
   }
 
-  // ========================= Vérification sécurisée du compte =========================
+  // ========================= VERIFY ACCOUNT =========================
   async verifyAccountToken(token: string): Promise<PaginationResult<User>> {
     const tokenDoc = await this.verificationTokenModel.findOne({ token });
-    if (!tokenDoc) throw new BadRequestException('Token invalide ou expiré');
-
-    if (tokenDoc.expiresAt < new Date())
-      throw new BadRequestException('Token expiré');
+    if (!tokenDoc || tokenDoc.expiresAt < new Date())
+      throw new BadRequestException('Token invalide ou expiré');
 
     const user = await this.userModel.findById(tokenDoc.userId);
     if (!user) throw new NotFoundException('Utilisateur non trouvé');
 
-    if (user.userEmailVerified)
-      throw new BadRequestException('Compte déjà vérifié');
-
     user.userEmailVerified = true;
     await user.save();
-
-    // Supprimer le token après utilisation
     await tokenDoc.deleteOne();
 
-    this.logger.log(this.context, ` Email vérifié pour ${user.userEmail}`);
-
-    // ----------------  EMAIL 3: Compte en attente de vérification admin (utilisateur) ----------------
-    try {
-      await this.mailService.notificationCompteAverifier(
-        user.userEmail,
-        user.userName ?? user.managerName ?? 'Utilisateur',
-      );
-      this.logger.log(
-        this.context,
-        ` Email "compte en attente" envoyé à ${user.userEmail}`,
-      );
-    } catch (mailError) {
-      this.logger.error(
-        this.context,
-        ` Erreur envoi email "compte en attente"`,
-        mailError.stack,
-      );
-      // On ne bloque pas la vérification
-    }
+    await this.notifyHelper.notify({
+      action: AuditAction.UPDATE,
+      entityType: EntityType.USER,
+      entityId: user._id.toString(),
+      userId: user._id.toString(),
+      previousState: { userEmailVerified: false },
+      newState: { userEmailVerified: true },
+      emailData: { type: 'UPDATE' },
+    });
 
     return {
       status: 'success',
-      message:
-        'Compte vérifié avec succès. En attente de validation par un administrateur.',
+      message: 'Compte vérifié',
       data: [user],
     };
   }
 
-  // ========================= FIND ONE =========================
-  async findOne(id: string): Promise<PaginationResult<User>> {
-    try {
-      const user = await this.userModel
-        .findOne({ _id: id, deletedAt: null })
-        .select('-password')
-        .exec();
-
-      if (!user) throw new NotFoundException('User not found');
-
-      return {
-        status: 'success',
-        message: 'User fetched successfully',
-        data: [user],
-      };
-    } catch (error) {
-      if (error instanceof MongooseError.CastError)
-        throw new BadRequestException('Invalid user id');
-      throw error;
-    }
-  }
-
-  // ========================= FIND ALL =========================
-  async findAll(): Promise<PaginationResult<User>> {
-    try {
-      const users = await this.userModel
-        .find({ deletedAt: null })
-        .select('-password')
-        .exec();
-      return {
-        status: 'success',
-        message: 'Users fetched successfully',
-        data: users,
-      };
-    } catch (error) {
-      throw new InternalServerErrorException('Failed to fetch users');
-    }
-  }
-
-  // ========================= FIND BY EMAIL WITH PASSWORD (FOR AUTH) =========================
-  /**
-   * Recherche un utilisateur par email ET inclut le mot de passe
-   * Utilisé uniquement pour l'authentification
-   */
-  async findByEmailWithPassword(userEmail: string): Promise<User | null> {
-    try {
-      const user = await this.userModel
-        .findOne({ userEmail: userEmail.toLowerCase(), deletedAt: null })
-        .select('+userPassword') // Inclure le mot de passe
-        .exec();
-
-      if (user) {
-        this.logger.log(this.context, `User found by email: ${userEmail}`);
-      }
-
-      return user;
-    } catch (error) {
-      this.logger.error(
-        this.context,
-        `Failed to find user by email: ${userEmail}`,
-        error.stack,
-      );
-      throw new InternalServerErrorException('Failed to find user');
-    }
-  }
-
-  // ========================= SOFT DELETE =========================
-  async remove(id: string): Promise<PaginationResult<null>> {
-    const user = await this.userModel.findOne({ _id: id, deletedAt: null });
-    if (!user) throw new NotFoundException('User not found');
-
-    user.deletedAt = new Date();
-    user.userValidated = false;
-    await user.save();
-
-    this.logger.log(
-      this.context,
-      ` Utilisateur supprimé (soft delete): ${user.userEmail}`,
-    );
-
-    // ----------------  EMAIL OPTIONNEL: Notification compte désactivé ----------------
-    try {
-      await this.mailService.notificationAccountDeactivated(
-        user.userEmail,
-        user.userName ?? user.managerName ?? 'Utilisateur',
-        'Suppression du compte',
-      );
-      this.logger.log(
-        this.context,
-        ` Email désactivation envoyé à ${user.userEmail}`,
-      );
-    } catch (mailError) {
-      this.logger.error(
-        this.context,
-        ` Erreur envoi email désactivation`,
-        mailError.stack,
-      );
-    }
-
-    return {
-      status: 'success',
-      message: 'User deleted successfully',
-      data: null,
-    };
-  }
-
-  // ========================= ACTIVATE ACCOUNT =========================
+  // ========================= ACTIVATE =========================
   async activateAccount(userId: string): Promise<PaginationResult<User>> {
-    const user = await this.userModel.findOne({ _id: userId, deletedAt: null });
+    const user = await this.userModel.findById(userId);
     if (!user) throw new NotFoundException('User not found');
-
-    if (!user.userEmailVerified)
-      throw new BadRequestException(
-        'Account must be verified before activation',
-      );
-
-    if (user.userValidated)
-      throw new BadRequestException('Account already active');
 
     user.userValidated = true;
     await user.save();
 
-    this.logger.log(this.context, ` Compte activé: ${user.userEmail}`);
-
-    // ----------------  EMAIL 4: Compte activé (utilisateur) ----------------
-    try {
-      const loginLink = `${this.baseUrl}/login`;
-      await this.mailService.notificationAccountUserActive(
-        user.userEmail,
-        user.userName ?? user.managerName ?? 'Utilisateur',
-        loginLink,
-      );
-      this.logger.log(
-        this.context,
-        ` Email activation envoyé à ${user.userEmail}`,
-      );
-    } catch (mailError) {
-      this.logger.error(
-        this.context,
-        ` Erreur envoi email activation`,
-        mailError.stack,
-      );
-      // On ne bloque pas l'activation
-    }
+    await this.notifyHelper.notify({
+      action: AuditAction.UPDATE,
+      entityType: EntityType.USER,
+      entityId: user._id.toString(),
+      userId: user._id.toString(),
+      previousState: { userValidated: false },
+      newState: { userValidated: true },
+      emailData: { type: 'UPDATE' },
+    });
 
     return this.findOne(userId);
   }
 
-  // ========================= UPDATE USER =========================
+  // ========================= DELETE =========================
+  async remove(id: string): Promise<PaginationResult<null>> {
+    const user = await this.userModel.findById(id);
+    if (!user) throw new NotFoundException('User not found');
+
+    user.deletedAt = new Date();
+    await user.save();
+
+    await this.notifyHelper.notify({
+      action: AuditAction.DELETE,
+      entityType: EntityType.USER,
+      entityId: user._id.toString(),
+      userId: user._id.toString(),
+      previousState: user.toObject(),
+      emailData: { type: 'DELETE' },
+    });
+
+    return {
+      status: 'success',
+      message: 'User deleted',
+      data: null,
+    };
+  }
+
+  // ======================== UPDATE ========================
   async update(
     id: string,
     dto: UpdateUserDto,
@@ -423,7 +248,6 @@ export class UsersService {
     );
   }
 
-  // ========================= UPDATE USER WITH FILES =========================
   async updateWithFiles(
     id: string,
     dto: UpdateUserDto,
@@ -441,40 +265,26 @@ export class UsersService {
     const changes: string[] = [];
 
     try {
-      // ---------------- Gestion de l'avatar ----------------
       if (avatar) {
         if (user.userImage && fs.existsSync(user.userImage))
           fs.unlinkSync(user.userImage);
+
         user.userImage = await this.uploadService.saveFile(avatar, 'avatars');
         uploadedFiles.push(user.userImage);
-        changes.push('Photo de profil');
+        changes.push('Avatar');
       }
 
-      // ---------------- Gestion du logo ----------------
       if (logo) {
         if (user.logo && fs.existsSync(user.logo)) fs.unlinkSync(user.logo);
+
         user.logo = await this.uploadService.saveFile(logo, 'logos');
         uploadedFiles.push(user.logo);
         changes.push('Logo');
       }
 
-      // ---------------- Gestion carteStat ----------------
-      if (carteStat) {
-        if (user.carteStat && fs.existsSync(user.carteStat))
-          fs.unlinkSync(user.carteStat);
-        user.carteStat = await this.uploadService.saveFile(
-          carteStat,
-          'carteStat',
-        );
-        uploadedFiles.push(user.carteStat);
-        changes.push('Carte statistique');
-      }
-
-      // ---------------- Gestion documents ----------------
       if (documents?.length) {
-        // Supprime anciens documents
-        for (const docPath of user.identityDocument ?? []) {
-          if (fs.existsSync(docPath)) fs.unlinkSync(docPath);
+        for (const doc of user.identityDocument ?? []) {
+          if (fs.existsSync(doc)) fs.unlinkSync(doc);
         }
 
         const savedDocs: string[] = [];
@@ -486,27 +296,9 @@ export class UsersService {
 
         user.identityDocument = savedDocs;
         if (documentType) user.documentType = documentType;
-        changes.push("Documents d'identité");
+        changes.push('Documents');
       }
 
-      // ---------------- Gestion carteFiscal ----------------
-      if (carteFiscal?.length) {
-        // Supprime anciens fichiers
-        for (const cfPath of user.carteFiscal ?? []) {
-          if (fs.existsSync(cfPath)) fs.unlinkSync(cfPath);
-        }
-
-        const savedCF: string[] = [];
-        for (const file of carteFiscal) {
-          const path = await this.uploadService.saveFile(file, 'carteFiscal');
-          savedCF.push(path);
-          uploadedFiles.push(path);
-        }
-        user.carteFiscal = savedCF;
-        changes.push('Carte fiscale');
-      }
-
-      // ---------------- Mise à jour des autres champs du DTO ----------------
       Object.keys(dto).forEach((key) => {
         if (dto[key] !== undefined && user[key] !== dto[key]) {
           user[key] = dto[key];
@@ -515,53 +307,59 @@ export class UsersService {
       });
 
       await user.save();
-      this.logger.log(
-        this.context,
-        ` Utilisateur mis à jour: ${user.userEmail}`,
-      );
 
-      // ----------------  EMAIL OPTIONNEL: Notification mise à jour profil ----------------
-      if (changes.length > 0) {
-        try {
-          await this.mailService.notificationProfileUpdated(
-            user.userEmail,
-            user.userName ?? user.managerName ?? 'Utilisateur',
-            changes,
-          );
-          this.logger.log(
-            this.context,
-            ` Email mise à jour profil envoyé à ${user.userEmail}`,
-          );
-        } catch (mailError) {
-          this.logger.error(
-            this.context,
-            ` Erreur envoi email mise à jour profil`,
-            mailError.stack,
-          );
-          // On ne bloque pas la mise à jour
-        }
-      }
+      // 🔔 Notification helper
+      await this.notifyHelper.notify({
+        action: AuditAction.UPDATE,
+        entityType: EntityType.USER,
+        entityId: user._id.toString(),
+        userId: user._id.toString(),
+        previousState: null,
+        newState: user.toObject(),
+      });
 
-      return this.findOne(id);
+      return {
+        status: 'success',
+        message: 'Utilisateur mis à jour',
+        data: [user],
+      };
     } catch (err) {
-      // ---------------- Rollback fichiers uploadés en cas d'erreur ----------------
       for (const f of uploadedFiles) {
         if (fs.existsSync(f)) fs.unlinkSync(f);
       }
-
-      this.logger.error(
-        this.context,
-        `Failed to update user: ${id}`,
-        err.stack,
-      );
-      throw err instanceof BadRequestException ||
-        err instanceof ConflictException
-        ? err
-        : new InternalServerErrorException('Failed to update user');
+      throw err;
     }
   }
 
-  // ========================= FIND ALL PAGINATED + SEARCH + SORT + FILTER =========================
+  // ========================= GET =========================
+  async findOne(id: string): Promise<PaginationResult<User>> {
+    const user = await this.userModel.findById(id).select('-password');
+    if (!user) throw new NotFoundException('User not found');
+
+    return { status: 'success', message: 'OK', data: [user] };
+  }
+
+  async findAll(): Promise<PaginationResult<User>> {
+    const users = await this.userModel.find({ deletedAt: null });
+    return { status: 'success', message: 'OK', data: users };
+  }
+
+  async getById(userId: string): Promise<User | null> {
+    return this.userModel.findOne({
+      _id: new Types.ObjectId(userId),
+      deletedAt: null,
+    });
+  }
+
+  async existsById(userId: string): Promise<boolean> {
+    return (
+      (await this.userModel.countDocuments({
+        _id: new Types.ObjectId(userId),
+        deletedAt: null,
+      })) > 0
+    );
+  }
+
   async findAllPaginated(
     page = 1,
     limit = 10,
@@ -574,68 +372,58 @@ export class UsersService {
       isVerified: boolean;
     }>,
   ): Promise<PaginationResult<User>> {
+    const query: any = { deletedAt: null };
+
+    // ---------- Filtres ----------
+    if (filter?.userType) query.userType = filter.userType;
+    if (typeof filter?.isActive === 'boolean')
+      query.userValidated = filter.isActive;
+    if (typeof filter?.isVerified === 'boolean')
+      query.userEmailVerified = filter.isVerified;
+
+    // ---------- Recherche ----------
+    if (search) {
+      const regex = new RegExp(search, 'i');
+      query.$or = [
+        { userEmail: regex },
+        { userName: regex },
+        { managerName: regex },
+      ];
+    }
+
+    const skip = (page - 1) * limit;
+    const sortOrder = order === 'asc' ? 1 : -1;
+
+    const [data, total] = await Promise.all([
+      this.userModel
+        .find(query)
+        .select('-password')
+        .sort({ [sortBy]: sortOrder })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.userModel.countDocuments(query),
+    ]);
+
+    return {
+      status: 'success',
+      message: 'Users fetched successfully',
+      data,
+      page,
+      limit,
+      total,
+    };
+  }
+
+  async findByEmailWithPassword(userEmail: string): Promise<User | null> {
     try {
-      const query: any = { deletedAt: null };
-
-      // ------------------ FILTRE ------------------
-      if (filter) {
-        if (filter.userType) query.userType = filter.userType;
-        if (typeof filter.isActive === 'boolean')
-          query.isActive = filter.isActive;
-        if (typeof filter.isVerified === 'boolean')
-          query.isVerified = filter.isVerified;
-      }
-
-      // ------------------ RECHERCHE ------------------
-      if (search) {
-        const regex = new RegExp(search, 'i');
-        query.$or = [
-          { email: regex },
-          { companyName: regex },
-          { contactPerson: regex },
-        ];
-      }
-
-      // ------------------ PAGINATION ------------------
-      const skip = (page - 1) * limit;
-
-      // ------------------ TRI ------------------
-      const sortOrder = order === 'asc' ? 1 : -1;
-      const sortQuery: any = {};
-      sortQuery[sortBy] = sortOrder;
-
-      // ------------------ EXECUTE ------------------
-      const [data, total] = await Promise.all([
-        this.userModel
-          .find(query)
-          .select('-password')
-          .sort(sortQuery)
-          .skip(skip)
-          .limit(limit),
-        this.userModel.countDocuments(query),
-      ]);
-
-      return {
-        status: 'success',
-        message: 'Users fetched successfully',
-        data,
-        page,
-        limit,
-        total,
-      };
+      const user = await this.userModel
+        .findOne({ userEmail: userEmail.toLowerCase(), deletedAt: null })
+        .select('+userPassword')
+        .exec();
+      return user;
     } catch (error) {
-      this.logger.error(this.context, 'Failed to fetch users', error.stack);
-      throw new BadRequestException('Invalid query parameters');
+      throw new InternalServerErrorException('Failed to find user');
     }
   }
-
-  // ========================= CHECK IF USER EXISTS BY ID (UTIL POUR SITES) =========================
-  async existsById(userId: string): Promise<boolean> {
-    const count = await this.userModel.countDocuments({
-      _id: new Types.ObjectId(userId),
-      deletedAt: null,
-    });
-    return count > 0;
-  }
-  
 }

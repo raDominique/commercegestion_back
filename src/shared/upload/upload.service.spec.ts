@@ -28,7 +28,7 @@ describe('UploadService', () => {
       destination: '',
       filename: '',
       path: '',
-      stream: undefined as any
+      stream: undefined as any,
     };
 
     const filePath = await service.saveFile(mockFile, destFolder);

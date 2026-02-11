@@ -1,13 +1,18 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserType } from '../../users/users.schema';
 
 /**
  * Guard pour vérifier les rôles d'accès
  * À utiliser avec le décorateur @Roles()
- * 
+ *
  * Ce guard doit être utilisé APRÈS le JwtGuard pour vérifier les rôles
- * 
+ *
  * @example
  * @Get('admin-only')
  * @Auth()
