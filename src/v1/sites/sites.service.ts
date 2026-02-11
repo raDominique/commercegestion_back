@@ -78,9 +78,7 @@ export class SiteService {
     limit = 10,
     search = '',
   ): Promise<PaginationResult<Site>> {
-    const query = search
-      ? { siteName: { $regex: search, $options: 'i' } }
-      : {};
+    const query = search ? { siteName: { $regex: search, $options: 'i' } } : {};
 
     const total = await this.siteModel.countDocuments(query);
     const sites = await this.siteModel
@@ -126,7 +124,7 @@ export class SiteService {
     userId: string,
   ): Promise<PaginationResult<Site>> {
     if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('ID invalide');
+      throw new BadRequestException('ID du site invalide');
     }
 
     const oldSite = await this.siteModel.findById(id).exec();
@@ -176,10 +174,7 @@ export class SiteService {
   }
 
   /* ===================== DELETE ===================== */
-  async remove(
-    id: string,
-    userId: string,
-  ): Promise<PaginationResult<null>> {
+  async remove(id: string, userId: string): Promise<PaginationResult<null>> {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('ID invalide');
     }
