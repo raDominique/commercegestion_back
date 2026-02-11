@@ -7,7 +7,7 @@ pipeline {
         CONTAINER  = "api-etokisana"
 
         PORT       = "4243"
-        NODE_ENV   = "production"
+        NODE_ENV   = "development"
 
         MONGO_URI  = credentials('MONGO_URI_ETOKISANA')
         // JWT Configuration
@@ -51,7 +51,7 @@ pipeline {
             }
         }
 
-        stage('Run container (PROD)') {
+        stage('Run container (DEV)') {
             steps {
                 sh '''
                 docker run -d \
