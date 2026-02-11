@@ -5,16 +5,16 @@ import {
   InternalServerErrorException,
   ConflictException,
 } from '@nestjs/common';
-import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Connection, Model, Error as MongooseError, Types } from 'mongoose';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Error as MongooseError, Types } from 'mongoose';
 import { User, UserDocument, UserType } from './users.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoggerService } from 'src/common/logger/logger.service';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { UploadService } from 'src/shared/upload/upload.service';
-import { randomUUID, randomBytes } from 'crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 import { validateDocumentMime } from './users.helper';
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 import { MailService } from 'src/shared/mail/mail.service';
 import { UserVerificationToken } from './user-verification.schema';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -34,8 +34,6 @@ export class UsersService {
     private readonly configService: ConfigService,
     private readonly logger: LoggerService,
     private readonly uploadService: UploadService,
-    @InjectConnection()
-    private readonly connection: Connection,
     private readonly mailService: MailService,
   ) {
     this.baseUrl =
@@ -55,18 +53,14 @@ export class UsersService {
       carteFiscal?: Express.Multer.File[];
     },
   ): Promise<User> {
-    const session = await this.connection.startSession();
     const uploadedFiles: string[] = [];
 
     try {
-      session.startTransaction();
-
       // ---------------- Email unique ----------------
-      const exists = await this.userModel.findOne(
-        { userEmail: dto.userEmail.toLowerCase(), deletedAt: null },
-        null,
-        { session },
-      );
+      const exists = await this.userModel.findOne({
+        userEmail: dto.userEmail.toLowerCase(),
+        deletedAt: null,
+      });
       if (exists) throw new ConflictException('Email déjà utilisé');
 
       // ---------------- Validation entreprise ----------------
@@ -130,11 +124,7 @@ export class UsersService {
         userTotalSolde: 0,
       });
 
-      await user.save({ session });
-
-      // ---------------- Commit transaction ----------------
-      await session.commitTransaction();
-      await session.endSession();
+      await user.save();
 
       this.logger.log(this.context, ` Utilisateur créé: ${user.userEmail}`);
 
@@ -196,15 +186,6 @@ export class UsersService {
 
       return user;
     } catch (err) {
-      // ---------------- Rollback transaction si non commit ----------------
-      try {
-        await session.abortTransaction();
-      } catch (e) {
-        this.logger.error(this.context, 'Failed to abort transaction', e.stack);
-      } finally {
-        session.endSession();
-      }
-
       // ---------------- Rollback fichiers uploadés ----------------
       for (const f of uploadedFiles) {
         if (fs.existsSync(f)) fs.unlinkSync(f);
