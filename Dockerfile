@@ -20,7 +20,7 @@ FROM node:24-alpine
 
 WORKDIR /app
 
-ENV NODE_ENV=production
+ENV NODE_ENV=development
 
 # User non-root
 RUN addgroup -S app && adduser -S app -G app
