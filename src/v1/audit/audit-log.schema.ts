@@ -19,6 +19,7 @@ export enum EntityType {
   USER = 'USER',
   SITE = 'SITE',
   PRODUCT = 'PRODUCT',
+  CPC = 'CPC',
 }
 
 @Schema({ timestamps: { createdAt: 'timestamp', updatedAt: false } })

@@ -51,12 +51,10 @@ export class CreateUserDto {
 
   @ApiPropertyOptional({ example: 48.8566 })
   @IsOptional()
-  @IsNumber()
   userMainLat?: number;
 
   @ApiPropertyOptional({ example: 2.3522 })
   @IsOptional()
-  @IsNumber()
   userMainLng?: number;
 
   // ==================== DOCUMENTS ====================

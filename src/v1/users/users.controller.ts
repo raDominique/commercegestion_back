@@ -11,6 +11,7 @@ import {
   HttpStatus,
   UploadedFiles,
   UseInterceptors,
+  Res,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,7 +19,6 @@ import {
   ApiResponse,
   ApiParam,
   ApiBody,
-  ApiBadRequestResponse,
   ApiNotFoundResponse,
   ApiQuery,
   ApiConsumes,
@@ -30,6 +30,7 @@ import { User, UserAccess, UserType } from './users.schema';
 import { Auth, AuthRole } from '../auth';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { multerMemoryConfig } from 'src/shared/upload/multer.memory';
+import express from 'express';
 
 @ApiTags('Users')
 @Controller()
@@ -223,14 +224,18 @@ export class UsersController {
   // ========================= VERIFY ACCOUNT SECURISE =========================
   @Get('verify')
   @ApiOperation({
-    summary: "Vérifier l'adresse email",
-    description: 'Endpoint appelé lors du clic sur le lien reçu par email.',
+    summary: "Vérifier l'adresse email et rediriger",
+    description: 'Endpoint appelé lors du clic sur le lien reçu par email. Redirige vers le Login.',
   })
   @ApiQuery({ name: 'token', description: 'Jeton de sécurité unique' })
-  @ApiResponse({ status: 200, description: 'Compte marqué comme vérifié.' })
-  @ApiBadRequestResponse({ description: 'Lien expiré ou invalide.' })
-  async verifyAccount(@Query('token') token: string) {
-    return this.usersService.verifyAccountToken(token);
+  @ApiResponse({ status: 302, description: 'Redirection vers la page de login.' })
+  async verifyAccount(@Query('token') token: string, @Res() res: express.Response) {
+    try {
+      const redirectUrl = await this.usersService.verifyAccountToken(token);
+      return res.redirect(redirectUrl);
+    } catch (error) {
+      throw error;
+    }
   }
 
   // ========================= ACTIVATE ACCOUNT =========================

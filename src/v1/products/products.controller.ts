@@ -1,34 +1,39 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { ProductsService } from './products.service';
+import { Controller, Get, Post, Body, Param, Patch, Delete, Query, Req } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ProductService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
+@ApiTags('Products')
+@ApiBearerAuth()
 @Controller()
-export class ProductsController {
-  constructor(private readonly productsService: ProductsService) { }
+export class ProductController {
+  constructor(private readonly service: ProductService) { }
 
   @Post()
-  create(@Body() createProductDto: CreateProductDto) {
-    return this.productsService.create(createProductDto);
+  @ApiOperation({ summary: 'Créer un produit' })
+  create(@Body() dto: CreateProductDto, @Req() req: any) {
+    return this.service.create(dto, req.user?.id || 'system_id');
   }
 
   @Get()
-  findAll() {
-    return this.productsService.findAll();
+  @ApiOperation({ summary: 'Lister avec pagination' })
+  findAll(@Query() query: any) {
+    return this.service.findAll(query);
   }
 
-  @Get(':id')
+  @Get('get-by-id/:id')
   findOne(@Param('id') id: string) {
-    return this.productsService.findOne(+id);
+    return this.service.findOne(id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
-    return this.productsService.update(+id, updateProductDto);
+  @Patch('update/:id')
+  update(@Param('id') id: string, @Body() dto: UpdateProductDto, @Req() req: any) {
+    return this.service.update(id, dto, req.user?.id || 'system_id');
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.productsService.remove(+id);
+  @Delete('delete/:id')
+  remove(@Param('id') id: string, @Req() req: any) {
+    return this.service.delete(id, req.user?.id || 'system_id');
   }
 }

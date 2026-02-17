@@ -72,7 +72,7 @@ export class User {
 
   // ==================== PROFILE ====================
   @Prop({ unique: true, sparse: true })
-  userId: string; // Custom user ID
+  userId: string;
 
   @Prop()
   userImage: string;
