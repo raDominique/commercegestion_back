@@ -31,6 +31,7 @@ import { Auth, AuthRole } from '../auth';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { multerMemoryConfig } from 'src/shared/upload/multer.memory';
 import express from 'express';
+import { UsersQueryDto } from './dto/users-query.dto';
 
 @ApiTags('Users')
 @Controller()
@@ -266,16 +267,17 @@ export class UsersController {
   @ApiQuery({ name: 'userType', required: false, enum: UserType })
   @ApiQuery({ name: 'isActive', required: false, type: Boolean })
   @ApiQuery({ name: 'isVerified', required: false, type: Boolean })
-  findAllPaginated(
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-    @Query('search') search?: string,
-    @Query('sortBy') sortBy = 'createdAt',
-    @Query('order') order: 'asc' | 'desc' = 'desc',
-    @Query('userType') userType?: UserType,
-    @Query('isActive') isActive?: boolean,
-    @Query('isVerified') isVerified?: boolean,
-  ) {
+  findAllPaginated(@Query() query: UsersQueryDto) {
+    const {
+      page = '1',
+      limit = '10',
+      search,
+      sortBy = 'createdAt',
+      order = 'desc',
+      userType,
+      isActive,
+      isVerified,
+    } = query;
     const filter = {
       userType,
       isActive:
@@ -291,5 +293,12 @@ export class UsersController {
       order,
       filter,
     );
+  }
+
+  @Patch('toggle-role/:id')
+  @AuthRole(UserAccess.ADMIN)
+  @ApiOperation({ summary: 'Basculer rôle ADMIN/UTILISATEUR' })
+  toggleRole(@Param('id') id: string) {
+    return this.usersService.toggleAdminRole(id);
   }
 }

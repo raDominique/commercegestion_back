@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { User, UserDocument, UserType } from './users.schema';
+import { User, UserAccess, UserDocument, UserType } from './users.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
@@ -39,12 +39,17 @@ export class UsersService {
     private readonly siteService: SiteService,
     private readonly notifyHelper: NotifyHelper,
   ) {
-    this.baseUrl = this.configService.get<string>('APP_URL') || 'http://localhost:3000';
-    this.frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:4200';
+    this.baseUrl =
+      this.configService.get<string>('APP_URL') || 'http://localhost:3000';
+    this.frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:4200';
   }
 
   // ========================= CREATE =========================
-  async createWithFiles(dto: CreateUserDto, files: any = {}): Promise<PaginationResult<User>> {
+  async createWithFiles(
+    dto: CreateUserDto,
+    files: any = {},
+  ): Promise<PaginationResult<User>> {
     const uploadedFiles: string[] = [];
 
     try {
@@ -56,15 +61,24 @@ export class UsersService {
       if (exists) throw new ConflictException('Email déjà utilisé');
 
       // 2. Validation Entreprise
-      if (dto.userType === 'Entreprise' && (!dto.managerName || !dto.managerEmail)) {
-        throw new BadRequestException('managerName et managerEmail obligatoires');
+      if (
+        dto.userType === 'Entreprise' &&
+        (!dto.managerName || !dto.managerEmail)
+      ) {
+        throw new BadRequestException(
+          'managerName et managerEmail obligatoires',
+        );
       }
 
       // 3. Uploads
-      const avatarPath = files.avatar ? await this.uploadService.saveFile(files.avatar, 'avatars') : undefined;
+      const avatarPath = files.avatar
+        ? await this.uploadService.saveFile(files.avatar, 'avatars')
+        : undefined;
       if (avatarPath) uploadedFiles.push(avatarPath);
 
-      const logoPath = files.logo ? await this.uploadService.saveFile(files.logo, 'logos') : undefined;
+      const logoPath = files.logo
+        ? await this.uploadService.saveFile(files.logo, 'logos')
+        : undefined;
       if (logoPath) uploadedFiles.push(logoPath);
 
       // 4. Persistence
@@ -96,7 +110,11 @@ export class UsersService {
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
 
-      await this.verificationTokenModel.create({ userId: user._id, token, expiresAt });
+      await this.verificationTokenModel.create({
+        userId: user._id,
+        token,
+        expiresAt,
+      });
 
       await this.mailService.verificationAccountUser(
         user.userEmail,
@@ -116,7 +134,7 @@ export class UsersService {
       return {
         status: 'success',
         message: `Compte créé avec succès. Un e-mail de vérification a été envoyé à ${user.userEmail}.`,
-        data: [user]
+        data: [user],
       };
     } catch (err) {
       for (const f of uploadedFiles) {
@@ -133,17 +151,27 @@ export class UsersService {
     search?: string,
     sortBy = 'createdAt',
     order: 'asc' | 'desc' = 'desc',
-    filter?: Partial<{ userType: UserType; isActive: boolean; isVerified: boolean }>,
+    filter?: Partial<{
+      userType: UserType;
+      isActive: boolean;
+      isVerified: boolean;
+    }>,
   ): Promise<PaginationResult<User>> {
     const query: any = { deletedAt: null };
 
     if (filter?.userType) query.userType = filter.userType;
-    if (typeof filter?.isActive === 'boolean') query.userValidated = filter.isActive;
-    if (typeof filter?.isVerified === 'boolean') query.userEmailVerified = filter.isVerified;
+    if (typeof filter?.isActive === 'boolean')
+      query.userValidated = filter.isActive;
+    if (typeof filter?.isVerified === 'boolean')
+      query.userEmailVerified = filter.isVerified;
 
     if (search) {
       const regex = new RegExp(search, 'i');
-      query.$or = [{ userEmail: regex }, { userName: regex }, { managerName: regex }];
+      query.$or = [
+        { userEmail: regex },
+        { userName: regex },
+        { managerName: regex },
+      ];
     }
 
     const p = Number(page);
@@ -167,12 +195,16 @@ export class UsersService {
       data,
       total,
       page: p,
-      limit: l
+      limit: l,
     };
   }
 
   // ========================= UPDATE =========================
-  async update(id: string, dto: UpdateUserDto, files: any = {}): Promise<PaginationResult<User>> {
+  async update(
+    id: string,
+    dto: UpdateUserDto,
+    files: any = {},
+  ): Promise<PaginationResult<User>> {
     const user = await this.userModel.findOne({ _id: id, deletedAt: null });
     if (!user) throw new NotFoundException('Utilisateur non trouvé');
 
@@ -182,8 +214,12 @@ export class UsersService {
     try {
       // Gestion Avatar
       if (files.avatar) {
-        if (user.userImage && fs.existsSync(user.userImage)) fs.unlinkSync(user.userImage);
-        user.userImage = await this.uploadService.saveFile(files.avatar, 'avatars');
+        if (user.userImage && fs.existsSync(user.userImage))
+          fs.unlinkSync(user.userImage);
+        user.userImage = await this.uploadService.saveFile(
+          files.avatar,
+          'avatars',
+        );
         uploadedFiles.push(user.userImage);
       }
 
@@ -206,7 +242,7 @@ export class UsersService {
       return {
         status: 'success',
         message: 'Mise à jour réussie',
-        data: [updated]
+        data: [updated],
       };
     } catch (err) {
       for (const f of uploadedFiles) {
@@ -229,7 +265,7 @@ export class UsersService {
 
     if (!tokenDoc || tokenDoc.expiresAt < new Date()) {
       // Optionnel : rediriger vers une page d'erreur spécifique sur le Front
-      // return `${this.frontendUrl}/login?error=expired`; 
+      // return `${this.frontendUrl}/login?error=expired`;
       throw new BadRequestException('Token invalide ou expiré');
     }
 
@@ -270,17 +306,21 @@ export class UsersService {
    * Utilisé par NotifyHelper et SiteService (Erreurs lignes 61 et 41)
    */
   async getById(userId: string): Promise<User | null> {
-    return this.userModel.findOne({
-      _id: new Types.ObjectId(userId),
-      deletedAt: null,
-    }).exec();
+    return this.userModel
+      .findOne({
+        _id: new Types.ObjectId(userId),
+        deletedAt: null,
+      })
+      .exec();
   }
 
   /**
    * Utilisé par AuthService pour le Login (Erreur ligne 31)
    * On utilise .select('+userPassword') car le mot de passe est souvent en "select: false"
    */
-  async findByEmailWithPassword(userEmail: string): Promise<UserDocument | null> {
+  async findByEmailWithPassword(
+    userEmail: string,
+  ): Promise<UserDocument | null> {
     return this.userModel
       .findOne({ userEmail: userEmail.toLowerCase(), deletedAt: null })
       .select('+userPassword')
@@ -310,7 +350,7 @@ export class UsersService {
     return {
       status: 'success',
       message: 'Compte activé avec succès',
-      data: [user]
+      data: [user],
     };
   }
 
@@ -323,5 +363,48 @@ export class UsersService {
       deletedAt: null,
     });
     return count > 0;
+  }
+
+  /**
+   * Toggle du rôle entre ADMIN et UTILISATEUR
+   * - Si ADMIN => UTILISATEUR
+   * - Sinon => ADMIN
+   * - SUPERADMIN non modifiable
+   */
+  async toggleAdminRole(userId: string): Promise<PaginationResult<User>> {
+    const user = await this.userModel.findOne({
+      _id: userId,
+      deletedAt: null,
+    });
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    const previousRole = user.userAccess;
+
+    // 🔁 Toggle logique
+    user.userAccess =
+      user.userAccess === UserAccess.ADMIN
+        ? UserAccess.UTILISATEUR
+        : UserAccess.ADMIN;
+
+    await user.save();
+
+    await this.notifyHelper.notify({
+      action: AuditAction.UPDATE,
+      entityType: EntityType.USER,
+      entityId: user._id.toString(),
+      userId: user._id.toString(),
+      previousState: { userAccess: previousRole },
+      newState: { userAccess: user.userAccess },
+      emailData: { type: 'UPDATE' },
+    });
+
+    return {
+      status: 'success',
+      message: `Rôle modifié : ${previousRole} ➜ ${user.userAccess}`,
+      data: [user],
+    };
   }
 }
