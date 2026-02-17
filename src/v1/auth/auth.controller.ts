@@ -14,9 +14,9 @@ import { LogoutDto } from './dto/logout.dto';
 import { Auth } from './decorators/auth.decorator';
 
 @ApiTags('Authentication')
-@Controller('auth')
+@Controller()
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('login')
   @ApiOperation({ summary: 'Login user and get access + refresh tokens' })

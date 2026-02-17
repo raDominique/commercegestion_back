@@ -22,7 +22,6 @@ import {
   ApiNotFoundResponse,
   ApiQuery,
   ApiConsumes,
-  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -33,9 +32,9 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { multerMemoryConfig } from 'src/shared/upload/multer.memory';
 
 @ApiTags('Users')
-@Controller('users')
+@Controller()
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   // ========================= CREATE USER + FILES =========================
   @Post()
