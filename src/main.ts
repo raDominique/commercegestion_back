@@ -4,12 +4,13 @@ import { AppModuleV1 } from './v1/app.module';
 import { AppModuleV2 } from './v2/app.module';
 import { ConfigService } from '@nestjs/config';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
-import { join } from 'path';
+import { join } from 'node:path';
 import * as express from 'express';
 
 import { LoggerService } from './common/logger/logger.service';
 import { setupSwagger } from './config/swagger.config';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import { runSeeders } from './seeders/seeds';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -26,7 +27,6 @@ async function bootstrap() {
    * ===============================
    */
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-
 
   /**
    * ===============================
@@ -97,6 +97,15 @@ async function bootstrap() {
     ]);
 
     logger.log('Bootstrap', `Swagger UI: ${appUrl}/swagger`);
+  }
+
+  /**
+   * ===============================
+   * SEEDERS
+   * ===============================
+   */
+  if (process.env.NODE_ENV !== 'production') {
+    await runSeeders(app);
   }
 
   /**
