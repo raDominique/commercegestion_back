@@ -8,13 +8,21 @@ import { AuditService } from 'src/v1/audit/audit.service';
 import { LoggerService } from 'src/common/logger/logger.service';
 import { AuditAction, EntityType } from 'src/v1/audit/audit-log.schema';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
+import { UploadService } from 'src/shared/upload/upload.service';
+import * as fs from 'fs';
+import * as path from 'path';
+import csv from 'csv-parser';
+import { Readable } from 'stream';
+import { BulkCreateCpcDto } from './dto/bulk-create-cpc.dto';
+const { Parser: Json2CsvParser } = require('json2csv');
 
 @Injectable()
 export class CpcService {
   constructor(
     @InjectModel(CpcProduct.name) private model: Model<CpcProduct>,
     private readonly auditService: AuditService,
-    private readonly logger: LoggerService
+    private readonly logger: LoggerService,
+    private readonly uploadService: UploadService
   ) { }
 
   /**
@@ -150,4 +158,103 @@ export class CpcService {
       data: []
     };
   }
+  /**
+     * Importer un fichier CSV de CPC
+     */
+  async importCpcProduct(file: Express.Multer.File, userId: string): Promise<PaginationResult<CpcProduct>> {
+    // Sauvegarde du fichier via UploadService
+    const fileUrl = await this.uploadService.saveFile(file, 'cpc-import');
+    const filePath = path.join(process.cwd(), fileUrl.replace('/upload/', 'upload/'));
+
+    const results: any[] = [];
+    const stream = fs.createReadStream(filePath).pipe(csv());
+
+    for await (const row of stream) {
+      results.push(row);
+    }
+
+    const created: CpcProduct[] = [];
+    for (const row of results) {
+      const existing = await this.model.findOne({ code: row.code }).exec();
+      if (existing) continue; // ignorer les doublons
+
+      const newCpc = await new this.model(row).save();
+      created.push(newCpc);
+
+      await this.auditService.log({
+        action: AuditAction.CREATE,
+        entityType: 'CPC' as EntityType,
+        entityId: newCpc._id.toString(),
+        userId,
+        newState: newCpc.toObject(),
+      });
+    }
+
+    return {
+      status: 'success',
+      message: `${created.length} CPC importés avec succès`,
+      data: created,
+    };
+  }
+
+  /**
+   * Exporter les CPC au format CSV
+   */
+  async exportCpc(): Promise<string> {
+    const data = await this.model.find().sort({ code: 1 }).lean().exec();
+
+    if (!data.length) throw new NotFoundException('Aucun CPC à exporter');
+
+    const fields = ['code', 'nom', 'niveau', 'parentCode', 'correspondances'];
+    const json2csv = new Json2CsvParser({ fields });
+    const csvData = json2csv.parse(data);
+
+    // Sauvegarde via UploadService
+    const fileName = `cpc_export_${Date.now()}.csv`;
+    const buffer = Buffer.from(csvData, 'utf-8');
+
+    const fakeFile: Express.Multer.File = {
+      buffer,
+      originalname: fileName,
+      fieldname: 'file',
+      mimetype: 'text/csv',
+      size: buffer.length,
+      destination: '',
+      filename: '',
+      path: '',
+      encoding: '7bit',
+      stream: Readable.from(buffer),
+    } as Express.Multer.File;
+
+
+    const fileUrl = await this.uploadService.saveFile(fakeFile, 'cpc-export');
+    return fileUrl;
+  }
+
+  async bulkCreate(dto: BulkCreateCpcDto, userId: string): Promise<PaginationResult<CpcProduct>> {
+    const created: CpcProduct[] = [];
+
+    for (const item of dto.items) {
+      const existing = await this.model.findOne({ code: item.code }).exec();
+      if (existing) continue; // ignorer les doublons
+
+      const newCpc = await new this.model(item).save();
+      created.push(newCpc);
+
+      await this.auditService.log({
+        action: AuditAction.CREATE,
+        entityType: 'CPC' as EntityType,
+        entityId: newCpc._id.toString(),
+        userId,
+        newState: newCpc.toObject(),
+      });
+    }
+
+    return {
+      status: 'success',
+      message: `${created.length} CPC créés avec succès`,
+      data: created,
+    };
+  }
+
 }
