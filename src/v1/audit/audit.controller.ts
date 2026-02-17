@@ -4,7 +4,7 @@ import { ApiTags, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { Auth } from '../auth/decorators/auth.decorator';
 
 @Controller('audit')
-@ApiTags('Audit')
+@ApiTags()
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 

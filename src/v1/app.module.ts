@@ -9,8 +9,8 @@ import { UploadService } from '../shared/upload/upload.service';
 import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
 import { SiteModule } from './sites/sites.module';
-import { CategoryModule } from './category/category.module';
 import { ProductsModule } from './products/products.module';
+import { CpcModule } from './cpc/cpc.module';
 
 @Module({
   imports: [
@@ -21,10 +21,10 @@ import { ProductsModule } from './products/products.module';
     AuthModule,
     AuditModule,
     SiteModule,
-    CategoryModule,
     ProductsModule,
+    CpcModule,
   ],
   controllers: [AppController],
   providers: [AppService, UploadService],
 })
-export class AppModuleV1 {}
+export class AppModuleV1 { }

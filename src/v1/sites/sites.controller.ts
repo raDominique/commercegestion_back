@@ -27,12 +27,12 @@ import { Auth } from '../auth';
 import { LoggerService } from 'src/common/logger/logger.service';
 
 @ApiTags('Sites')
-@Controller('sites')
+@Controller()
 export class SiteController {
   constructor(
     private readonly siteService: SiteService,
     private readonly loggerService: LoggerService,
-  ) {}
+  ) { }
 
   /* ===================== CREATE ===================== */
   @Post()
