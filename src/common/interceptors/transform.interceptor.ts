@@ -9,7 +9,7 @@ export class TransformInterceptor<T> implements NestInterceptor<T, any> {
       map(data => ({
         status: 'success',
         message: 'Opération réussie',
-        ...data, // On spread les données (data, total, page, etc.)
+        ...data,
       })),
     );
   }
