@@ -12,9 +12,7 @@ export enum UserType {
 
 export enum UserAccess {
   UTILISATEUR = 'Utilisateur',
-  MODERATEUR = 'Moderateur',
   ADMIN = 'Admin',
-  SUPERADMIN = 'Superadmin',
 }
 
 export enum DocumentType {

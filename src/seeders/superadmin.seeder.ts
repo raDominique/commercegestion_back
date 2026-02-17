@@ -44,7 +44,7 @@ export class SuperAdminSeeder implements Seeder {
       userPassword: password,
       userPhone: '0000000000',
       userType: UserType.PARTICULIER,
-      userAccess: UserAccess.SUPERADMIN,
+      userAccess: UserAccess.ADMIN,
       userId: randomUUID(),
       userValidated: true,
       userEmailVerified: true,
