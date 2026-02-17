@@ -1,0 +1,16 @@
+{
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug Jest Tests",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [
+                "run",
+                "test"
+            ],
+            "cwd": "${workspaceFolder}",
+            "internalConsoleOptions": "neverOpen"
+        }
+    ]
+}

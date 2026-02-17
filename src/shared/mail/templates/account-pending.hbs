@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compte en attente de vérification</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f4f7fa;
+            padding: 20px;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            padding: 50px 30px;
+            text-align: center;
+        }
+        
+        .pending-icon {
+            width: 80px;
+            height: 80px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 40px;
+        }
+        
+        .header h1 {
+            color: #ffffff;
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 16px;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .greeting {
+            font-size: 20px;
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .message {
+            font-size: 16px;
+            color: #4a5568;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+        
+        .status-card {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border: 2px solid #fbbf24;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        
+        .status-card .icon {
+            font-size: 50px;
+            margin-bottom: 15px;
+        }
+        
+        .status-card h3 {
+            color: #92400e;
+            font-size: 20px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .status-card p {
+            color: #b45309;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+        
+        .timeline {
+            background-color: #f7fafc;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        
+        .timeline h3 {
+            color: #2d3748;
+            font-size: 18px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .timeline-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            position: relative;
+            padding-left: 30px;
+        }
+        
+        .timeline-item::before {
+            content: "";
+            position: absolute;
+            left: 7px;
+            top: 8px;
+            width: 2px;
+            height: calc(100% + 15px);
+            background-color: #e2e8f0;
+        }
+        
+        .timeline-item:last-child::before {
+            display: none;
+        }
+        
+        .timeline-dot {
+            position: absolute;
+            left: 0;
+            top: 5px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: #f59e0b;
+        }
+        
+        .timeline-dot.completed {
+            background-color: #10b981;
+        }
+        
+        .timeline-dot.pending {
+            background-color: #e2e8f0;
+            border: 2px solid #cbd5e0;
+        }
+        
+        .timeline-content {
+            flex: 1;
+        }
+        
+        .timeline-title {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 15px;
+            margin-bottom: 3px;
+        }
+        
+        .timeline-desc {
+            color: #718096;
+            font-size: 13px;
+        }
+        
+        .info-box {
+            background-color: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        
+        .info-box p {
+            font-size: 14px;
+            color: #1e40af;
+            line-height: 1.5;
+        }
+        
+        .footer {
+            background-color: #f7fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .footer p {
+            font-size: 14px;
+            color: #718096;
+            margin-bottom: 8px;
+        }
+        
+        .footer a {
+            color: #f59e0b;
+            text-decoration: none;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                border-radius: 0;
+            }
+            
+            .header, .content, .footer {
+                padding: 30px 20px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .status-card {
+                padding: 20px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="pending-icon">⏳</div>
+            <h1>Inscription reçue !</h1>
+            <p>Votre compte est en cours de traitement</p>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <p class="greeting">Bonjour {{name}},</p>
+            
+            <p class="message">
+                Merci pour votre inscription ! Nous avons bien reçu votre demande de création 
+                de compte et celle-ci est actuellement en attente de vérification par notre équipe.
+            </p>
+            
+            <div class="status-card">
+                <div class="icon">📋</div>
+                <h3>Statut : En cours de vérification</h3>
+                <p>
+                    Notre équipe examine votre demande. Vous recevrez un email de confirmation 
+                    dès que votre compte sera validé.
+                </p>
+            </div>
+            
+            <div class="timeline">
+                <h3>Processus de vérification</h3>
+                
+                <div class="timeline-item">
+                    <div class="timeline-dot completed"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-title">Inscription complétée</div>
+                        <div class="timeline-desc">Votre demande a été soumise avec succès</div>
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-title">Vérification en cours</div>
+                        <div class="timeline-desc">Notre équipe examine votre profil (1-2 jours ouvrables)</div>
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-dot pending"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-title">Activation du compte</div>
+                        <div class="timeline-desc">Vous recevrez un email de confirmation</div>
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-dot pending"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-title">Accès complet</div>
+                        <div class="timeline-desc">Profitez de tous nos services</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="info-box">
+                <p>
+                    <strong>ℹ️ Bon à savoir :</strong> La vérification prend généralement 
+                    1 à 2 jours ouvrables. Nous vous enverrons un email dès que votre compte 
+                    sera activé. Aucune action n'est requise de votre part pour le moment.
+                </p>
+            </div>
+            
+            <p class="message" style="margin-top: 25px;">
+                Si vous avez des questions concernant le processus de vérification, 
+                n'hésitez pas à contacter notre équipe support.
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>Des questions ? <a href="{{supportLink}}">Contactez notre support</a></p>
+            <p style="margin-top: 15px; font-size: 13px; color: #a0aec0;">
+                © 2026 Votre Entreprise. Tous droits réservés.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
