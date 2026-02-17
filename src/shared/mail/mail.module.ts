@@ -25,11 +25,9 @@ import { join } from 'path';
         defaults: {
           from: `"No Reply" <${configService.get<string>('SMTP_FROM')}>`,
         },
+        // Replace your existing template block with this:
         template: {
-          dir:
-            process.env.NODE_ENV === 'production'
-              ? __dirname + '/templates'
-              : process.cwd() + '/src/shared/mail/templates',
+          dir: join(__dirname, 'templates'),
           adapter: new HandlebarsAdapter(),
           options: { strict: true },
         },
@@ -39,4 +37,4 @@ import { join } from 'path';
   providers: [MailService],
   exports: [MailService],
 })
-export class MailModule {}
+export class MailModule { }
