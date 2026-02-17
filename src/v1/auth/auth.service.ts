@@ -55,11 +55,14 @@ export class AuthService {
       throw new UnauthorizedException(AuthErrorMessage.INVALID_CREDENTIALS);
     }
 
-    // ✅ Succès: Générer les tokens
+    // Succès: Générer les tokens
     const payload = {
       sub: user._id.toString(),
       userEmail: user.userEmail,
       userType: user.userType,
+      userAccess: user.userAccess,
+      userValidated: user.userValidated,
+      userVerified: user.userEmailVerified,
     };
     const accessToken = this.jwtService.sign(payload, {
       secret: this.jwtConfig.secret,
@@ -111,6 +114,9 @@ export class AuthService {
       sub: user._id.toString(),
       userEmail: user.userEmail,
       userType: user.userType,
+      userAccess: user.userAccess,
+      userValidated: user.userValidated,
+      userVerified: user.userEmailVerified,
     };
     const accessToken = this.jwtService.sign(payload, {
       secret: this.jwtConfig.secret,
