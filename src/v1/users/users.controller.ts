@@ -35,7 +35,7 @@ import express from 'express';
 @ApiTags('Users')
 @Controller()
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(private readonly usersService: UsersService) {}
 
   // ========================= CREATE USER + FILES =========================
   @Post()
@@ -225,17 +225,15 @@ export class UsersController {
   @Get('verify')
   @ApiOperation({
     summary: "Vérifier l'adresse email et rediriger",
-    description: 'Endpoint appelé lors du clic sur le lien reçu par email. Redirige vers le Login.',
   })
   @ApiQuery({ name: 'token', description: 'Jeton de sécurité unique' })
-  @ApiResponse({ status: 302, description: 'Redirection vers la page de login.' })
-  async verifyAccount(@Query('token') token: string, @Res() res: express.Response) {
-    try {
-      const redirectUrl = await this.usersService.verifyAccountToken(token);
-      return res.redirect(redirectUrl);
-    } catch (error) {
-      throw error;
-    }
+  @ApiResponse({ status: 302 })
+  async verifyAccount(
+    @Query('token') token: string,
+    @Res() res: express.Response,
+  ) {
+    const redirectUrl = await this.usersService.verifyAccountToken(token);
+    return res.redirect(redirectUrl);
   }
 
   // ========================= ACTIVATE ACCOUNT =========================

@@ -3,7 +3,6 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
-  InternalServerErrorException,
   forwardRef,
   Inject,
 } from '@nestjs/common';
@@ -15,7 +14,6 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { UploadService } from 'src/shared/upload/upload.service';
 import { randomUUID, randomBytes } from 'node:crypto';
-import { validateDocumentMime } from './users.helper';
 import * as fs from 'node:fs';
 import { MailService } from 'src/shared/mail/mail.service';
 import { UserVerificationToken } from './user-verification.schema';

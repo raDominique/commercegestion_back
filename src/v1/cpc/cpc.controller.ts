@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, Query, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, Query, Req, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { CpcService } from './cpc.service';
 import { CreateCpcDto } from './dto/create-cpc.dto';
 import { UpdateCpcDto } from './dto/update-cpc.dto';
 import { Auth } from '../auth';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { BulkCreateCpcDto } from './dto/bulk-create-cpc.dto';
 
 @ApiTags('Classification CPC')
 @Controller()
@@ -71,5 +73,32 @@ export class CpcController {
   remove(@Param('code') code: string, @Req() req: any) {
     const userId = req.user?.id || 'system';
     return this.service.delete(code, userId);
+  }
+
+  @Post('import')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Importer un fichier CSV de CPC' })
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @Auth()
+  async importCpc(@UploadedFile() file: Express.Multer.File, @Req() req: any) {
+    const userId = req.user?.id || 'system';
+    return this.service.importCpcProduct(file, userId);
+  }
+
+  @Get('export')
+  @ApiOperation({ summary: 'Exporter tous les CPC en CSV' })
+  async exportCpc() {
+    const fileUrl = await this.service.exportCpc();
+    return { status: 'success', file: fileUrl };
+  }
+
+  @Post('bulk-create')
+  @ApiOperation({ summary: 'Créer plusieurs CPC en une seule requête' })
+  @ApiBody({ type: BulkCreateCpcDto })
+  @ApiResponse({ status: 201, description: 'CPC créés avec succès' })
+  @Auth()
+  async bulkCreate(@Body() dto: BulkCreateCpcDto, @Req() req: any) {
+    const userId = req.user?.id || 'system';
+    return this.service.bulkCreate(dto, userId);
   }
 }

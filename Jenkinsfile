@@ -31,6 +31,10 @@ pipeline {
         // CORS Configuration
         CORS_ALLOWLIST = "http://localhost:3000,https://api-etokisana.tsirylab.comco"
         FRONTEND_URL = "http://localhost:3000"
+
+        // Seeder Configuration
+        SUPERADMIN_EMAIL = 'superadmin@commercegestion.com'
+        SUPERADMIN_PASSWORD='SuperSecurePassword2026!'
     }
 
     stages {
@@ -75,6 +79,8 @@ pipeline {
                     -e ADMIN_EMAIL="$ADMIN_EMAIL" \
                     -e CORS_ALLOWLIST="$CORS_ALLOWLIST" \
                     -e FRONTEND_URL="$FRONTEND_URL" \
+                    -e SUPERADMIN_EMAIL="$SUPERADMIN_EMAIL" \
+                    -e SUPERADMIN_PASSWORD="$SUPERADMIN_PASSWORD" \
                     --log-driver json-file \
                     --log-opt max-size=10m \
                     --log-opt max-file=5 \
