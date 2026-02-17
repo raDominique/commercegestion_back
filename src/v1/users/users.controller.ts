@@ -33,7 +33,6 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { multerMemoryConfig } from 'src/shared/upload/multer.memory';
 
 @ApiTags('Users')
-@ApiBearerAuth()
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
