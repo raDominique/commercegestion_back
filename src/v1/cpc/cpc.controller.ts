@@ -32,7 +32,7 @@ export class CpcController {
     return this.service.findAll(query);
   }
 
-  @Get(':code')
+  @Get('get-by-code/:code')
   @ApiOperation({ summary: 'Obtenir un produit par son code' })
   @ApiParam({ name: 'code', description: 'Code de la catégorie CPC (ex: 01111)' })
   @ApiResponse({ status: 200, description: 'Catégorie trouvée.' })
@@ -41,14 +41,14 @@ export class CpcController {
     return this.service.findOne(code);
   }
 
-  @Get(':code/enfants')
+  @Get('get-children/:code')
   @ApiOperation({ summary: 'Lister les sous-catégories directes' })
   @ApiParam({ name: 'code', description: 'Code de la catégorie parente' })
   findChildren(@Param('code') code: string) {
     return this.service.findChildren(code);
   }
 
-  @Patch(':code')
+  @Patch('update/:code')
   @ApiOperation({ summary: 'Modifier une catégorie' })
   @ApiParam({ name: 'code', description: 'Code de la catégorie à modifier' })
   @ApiBody({ type: UpdateCpcDto })
@@ -63,7 +63,7 @@ export class CpcController {
     return this.service.update(code, dto, userId);
   }
 
-  @Delete(':code')
+  @Delete('delete/:code')
   @ApiOperation({ summary: 'Supprimer un code' })
   @ApiParam({ name: 'code', description: 'Code de la catégorie à supprimer' })
   @ApiResponse({ status: 200, description: 'Catégorie supprimée avec succès.' })
