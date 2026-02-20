@@ -48,7 +48,7 @@ export class ProductController {
   // ==========================================
   // MISE À JOUR PRODUIT
   // ==========================================
-  @Patch(':id')
+  @Patch('update/:id')
   @Auth()
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Mettre à jour un produit et son image' })
@@ -95,7 +95,7 @@ export class ProductController {
   // ==========================================
   // RÉCUPÉRATION (ID)
   // ==========================================
-  @Get(':id')
+  @Get('get-by-id/:id')
   @Auth()
   @ApiOperation({ summary: 'Récupérer un produit par ID' })
   @ApiParam({ name: 'id', description: 'ID MongoDB du produit' })
@@ -108,7 +108,7 @@ export class ProductController {
   // ==========================================
   // VALIDATION ADMIN
   // ==========================================
-  @Patch(':id/validate')
+  @Patch('validate/:id')
   @Auth() // Probablement réservé aux admins dans votre logique
   @ApiOperation({ summary: 'Valider un produit' })
   @ApiParam({ name: 'id', description: 'ID MongoDB du produit' })
@@ -121,7 +121,7 @@ export class ProductController {
   // ==========================================
   // TOGGLE STOCK
   // ==========================================
-  @Patch(':id/stock-toggle')
+  @Patch('stock-toggle/:id')
   @Auth()
   @ApiOperation({
     summary: 'Inverser le statut de stockage',
@@ -136,7 +136,7 @@ export class ProductController {
   // ==========================================
   // SUPPRESSION
   // ==========================================
-  @Delete(':id')
+  @Delete('delete/:id')
   @Auth()
   @ApiOperation({ summary: 'Supprimer un produit' })
   @ApiParam({ name: 'id', description: 'ID MongoDB du produit' })
@@ -147,5 +147,20 @@ export class ProductController {
   })
   async remove(@Param('id') id: string, @Req() req: any) {
     return this.productService.delete(id, req.user?.userId);
+  }
+
+  // ==========================================
+  // RÉCUPÉRATION LEUR ID
+  // ==========================================
+  @Get('me')
+  @Auth()
+  @ApiOperation({ summary: 'Récupérer les produits de l’utilisateur connecté' })
+  @ApiResponse({ status: 200, description: 'Produits récupérés.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Aucun produit trouvé pour cet utilisateur.',
+  })
+  async getMyProducts(@Req() req: any) {
+    return this.productService.getMyProducts(req.user?.userId);
   }
 }

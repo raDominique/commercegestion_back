@@ -299,4 +299,36 @@ export class ProductService {
 
     return { status: 'success', message: 'Produit supprimé', data: null };
   }
+
+  /**
+   * Recupérer les produits d'un utilisateur (pour le dashboard)
+   */
+  async getMyProducts(userId: string): Promise<PaginationResult<any>> {
+    const products = await this.productModel
+      .find({ productOwnerId: new Types.ObjectId(userId) })
+      .populate('categoryId', 'nom')
+      .select(
+        '_id productImage productName productValidation isStocker categoryId',
+      )
+      .sort({ createdAt: -1 })
+      .exec();
+
+    const formattedData = products.map((product: any) => {
+      const obj = product.toObject();
+      return {
+        _id: obj._id,
+        image: obj.productImage,
+        name: obj.productName,
+        categoryNom: obj.categoryId?.nom || null,
+        validation: obj.productValidation,
+        isStocker: obj.isStocker,
+      };
+    });
+
+    return {
+      status: 'success',
+      message: 'Produits récupérés',
+      data: formattedData,
+    };
+  }
 }
