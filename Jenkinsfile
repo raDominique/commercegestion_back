@@ -15,7 +15,7 @@ pipeline {
         // Credentials Jenkins
         MONGO_URI          = credentials('MONGO_URI_ETOKISANA')
         JWT_SECRET         = credentials('JWT_SECRET')
-        JWT_REFRESH_SECRET = credentials('JWT_REFRESH_SECRET')
+        JWT_REFRESH_SECRET = credentials('JWT_SECRET')
         SMTP_HOST          = credentials('SMTP_HOST_HIQAODY')
         SMTP_PORT          = credentials('SMTP_PORT_HIQAODY')
         SMTP_USER          = credentials('SMTP_USER_HIQAODY')
