@@ -23,6 +23,13 @@ export class CpcController {
     return this.service.create(dto, userId);
   }
 
+  @Get('select/all')
+  @ApiOperation({ summary: 'Récupérer tous les CPC pour un select (sans pagination)' })
+  @ApiResponse({ status: 200, description: 'Liste récupérée avec id, nom, code.' })
+  getForSelect() {
+    return this.service.getForSelect();
+  }
+
   @Get()
   @ApiOperation({ summary: 'Lister les produits avec pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number })

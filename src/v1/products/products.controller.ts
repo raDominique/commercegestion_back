@@ -1,39 +1,151 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, Query, Req } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  Req,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiConsumes,
+  ApiQuery,
+  ApiParam,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { ProductService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
+import { Auth } from '../auth';
 
 @ApiTags('Products')
-@ApiBearerAuth()
 @Controller()
 export class ProductController {
-  constructor(private readonly service: ProductService) { }
+  constructor(private readonly productService: ProductService) {}
 
+  // ==========================================
+  // CRÉATION PRODUIT
+  // ==========================================
   @Post()
-  @ApiOperation({ summary: 'Créer un produit' })
-  create(@Body() dto: CreateProductDto, @Req() req: any) {
-    return this.service.create(dto, req.user?.id || 'system_id');
+  @Auth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Créer un produit avec une image unique' })
+  @UseInterceptors(FileInterceptor('image'))
+  async create(
+    @Body() dto: CreateProductDto,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ) {
+    return this.productService.create(dto, req.user.userId, file);
   }
 
+  // ==========================================
+  // MISE À JOUR PRODUIT
+  // ==========================================
+  @Patch(':id')
+  @Auth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Mettre à jour un produit et son image' })
+  @UseInterceptors(FileInterceptor('image'))
+  async update(
+    @Param('id') id: string,
+    @Body() dto: Partial<CreateProductDto>,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ) {
+    return this.productService.update(id, dto, req.user.userId, file);
+  }
+
+  // ==========================================
+  // RÉCUPÉRATION (LISTE)
+  // ==========================================
   @Get()
-  @ApiOperation({ summary: 'Lister avec pagination' })
-  findAll(@Query() query: any) {
-    return this.service.findAll(query);
+  @ApiOperation({
+    summary: 'Lister les produits',
+    description:
+      'Récupère la liste des produits avec support pour la pagination et la recherche.',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Recherche par nom ou codeCPC',
+  })
+  @ApiQuery({
+    name: 'isStocker',
+    required: false,
+    type: Boolean,
+    description: 'Filtrer par statut de stockage',
+  })
+  @ApiResponse({ status: 200, description: 'Liste récupérée.' })
+  @Auth()
+  async findAll(@Query() query: any, @Req() req: any) {
+    const userId = req.user?.userId;
+    return this.productService.findAll(query, userId);
   }
 
-  @Get('get-by-id/:id')
-  findOne(@Param('id') id: string) {
-    return this.service.findOne(id);
+  // ==========================================
+  // RÉCUPÉRATION (ID)
+  // ==========================================
+  @Get(':id')
+  @Auth()
+  @ApiOperation({ summary: 'Récupérer un produit par ID' })
+  @ApiParam({ name: 'id', description: 'ID MongoDB du produit' })
+  @ApiResponse({ status: 200, description: 'Produit récupéré.' })
+  @ApiResponse({ status: 404, description: 'Produit non trouvé.' })
+  async findById(@Param('id') id: string, @Req() req: any) {
+    return this.productService.findById(id, req.user?.userId);
   }
 
-  @Patch('update/:id')
-  update(@Param('id') id: string, @Body() dto: UpdateProductDto, @Req() req: any) {
-    return this.service.update(id, dto, req.user?.id || 'system_id');
+  // ==========================================
+  // VALIDATION ADMIN
+  // ==========================================
+  @Patch(':id/validate')
+  @Auth() // Probablement réservé aux admins dans votre logique
+  @ApiOperation({ summary: 'Valider un produit' })
+  @ApiParam({ name: 'id', description: 'ID MongoDB du produit' })
+  @ApiResponse({ status: 200, description: 'Produit marqué comme validé.' })
+  @ApiResponse({ status: 404, description: 'Produit non trouvé.' })
+  async validate(@Param('id') id: string, @Req() req: any) {
+    return this.productService.validateProduct(id, req.user?.userId);
   }
 
-  @Delete('delete/:id')
-  remove(@Param('id') id: string, @Req() req: any) {
-    return this.service.delete(id, req.user?.id || 'system_id');
+  // ==========================================
+  // TOGGLE STOCK
+  // ==========================================
+  @Patch(':id/stock-toggle')
+  @Auth()
+  @ApiOperation({
+    summary: 'Inverser le statut de stockage',
+    description: 'Bascule isStocker entre true et false.',
+  })
+  @ApiParam({ name: 'id', description: 'ID MongoDB du produit' })
+  @ApiResponse({ status: 200, description: 'Statut de stockage mis à jour.' })
+  async toggleStock(@Param('id') id: string, @Req() req: any) {
+    return this.productService.toggleStock(id, req.user?.userId);
+  }
+
+  // ==========================================
+  // SUPPRESSION
+  // ==========================================
+  @Delete(':id')
+  @Auth()
+  @ApiOperation({ summary: 'Supprimer un produit' })
+  @ApiParam({ name: 'id', description: 'ID MongoDB du produit' })
+  @ApiResponse({ status: 200, description: 'Produit supprimé.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Action interdite (Propriétaire uniquement ?).',
+  })
+  async remove(@Param('id') id: string, @Req() req: any) {
+    return this.productService.delete(id, req.user?.userId);
   }
 }

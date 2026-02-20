@@ -13,10 +13,12 @@ import { RefreshTokenService } from './refresh-token.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { JwtConfig } from './config/jwt.config';
+import { SharedModule } from 'src/shared/shared.module';
 
 @Module({
   imports: [
     UsersModule,
+    SharedModule,
     PassportModule,
     MongooseModule.forFeature([
       { name: RefreshToken.name, schema: RefreshTokenSchema },

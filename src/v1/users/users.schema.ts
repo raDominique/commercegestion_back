@@ -87,7 +87,7 @@ export class User {
   identityDocument?: string[];
 
   @Prop()
-  documentType?: string; // 'cin', 'passport', etc.
+  documentType?: string;
 
   // ==================== INFORMATIONS PROFESSIONNELLES ====================
   @Prop()
@@ -116,6 +116,13 @@ export class User {
 
   @Prop({ type: [String], default: [] })
   carteFiscal?: string[]; // Array of file names
+
+  // ==================== PASSWORD RESET ====================
+  @Prop({ default: null })
+  resetPasswordToken?: string;
+
+  @Prop({ default: null })
+  resetPasswordExpires?: Date;
 
   // ==================== PARRAINAGE ====================
   @Prop()

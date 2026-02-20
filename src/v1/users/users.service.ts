@@ -407,4 +407,106 @@ export class UsersService {
       data: [user],
     };
   }
+
+  /**
+   * Trouver un utilisateur par email
+   */
+  async findByEmail(userEmail: string): Promise<PaginationResult<User>> {
+    const user = await this.userModel.findOne({
+      userEmail: userEmail.toLowerCase(),
+      deletedAt: null,
+    });
+
+    if (!user) {
+      return { status: 'success', message: 'Utilisateur non trouvé', data: [] };
+    }
+
+    return {
+      status: 'success',
+      message: 'Utilisateur trouvé',
+      data: [user],
+    };
+  }
+
+  /**
+   * Trouver un utilisateur par ID avec le mot de passe
+   */
+  async findByIdWithPassword(userId: string): Promise<PaginationResult<User>> {
+    const user = await this.userModel
+      .findOne({
+        _id: new Types.ObjectId(userId),
+        deletedAt: null,
+      })
+      .select('+userPassword');
+
+    if (!user) {
+      return { status: 'success', message: 'Utilisateur non trouvé', data: [] };
+    }
+
+    return {
+      status: 'success',
+      message: 'Utilisateur trouvé',
+      data: [user],
+    };
+  }
+
+  /**
+   * Trouver un utilisateur par token de réinitialisation
+   */
+  async findByResetToken(resetToken: string): Promise<PaginationResult<User>> {
+    const user = await this.userModel.findOne({
+      resetPasswordToken: resetToken,
+      deletedAt: null,
+    });
+
+    if (!user) {
+      return { status: 'success', message: 'Utilisateur non trouvé', data: [] };
+    }
+
+    return {
+      status: 'success',
+      message: 'Utilisateur trouvé',
+      data: [user],
+    };
+  }
+
+  /**
+   * Mettre à jour le token de réinitialisation du mot de passe
+   */
+  async updatePasswordReset(
+    userId: string,
+    resetToken: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: new Types.ObjectId(userId) },
+      {
+        resetPasswordToken: resetToken,
+        resetPasswordExpires: expiresAt,
+      },
+    );
+  }
+
+  /**
+   * Mettre à jour le mot de passe
+   */
+  async updatePassword(userId: string, newPassword: string): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: new Types.ObjectId(userId) },
+      { userPassword: newPassword },
+    );
+  }
+
+  /**
+   * Nettoyer les tokens de réinitialisation
+   */
+  async clearPasswordReset(userId: string): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: new Types.ObjectId(userId) },
+      {
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+      },
+    );
+  }
 }
