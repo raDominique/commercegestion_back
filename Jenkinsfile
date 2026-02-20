@@ -6,16 +6,16 @@ pipeline {
         IMAGE_TAG  = "${BUILD_NUMBER}"
         CONTAINER  = "api-etokisana"
         PORT       = "4243"
-        NODE_ENV   = "development"
+        NODE_ENV   = "production"
 
-        // Chemins pour la persistance sur le serveur hôte
-        UPLOAD_PATH_HOST = "/home/jenkins/api-etokisana/uploads"
-        LOG_PATH_HOST    = "/var/log/api-etokisana"
+        // Volumes persistants host
+        UPLOAD_PATH_HOST = "/var/data/api-etokisana/upload"
+        LOG_PATH_HOST    = "/var/data/api-etokisana/logs"
 
-        // Credentials chargés depuis Jenkins
+        // Credentials Jenkins
         MONGO_URI          = credentials('MONGO_URI_ETOKISANA')
         JWT_SECRET         = credentials('JWT_SECRET')
-        JWT_REFRESH_SECRET = credentials('JWT_SECRET')
+        JWT_REFRESH_SECRET = credentials('JWT_REFRESH_SECRET')
         SMTP_HOST          = credentials('SMTP_HOST_HIQAODY')
         SMTP_PORT          = credentials('SMTP_PORT_HIQAODY')
         SMTP_USER          = credentials('SMTP_USER_HIQAODY')
@@ -30,35 +30,38 @@ pipeline {
         ADMIN_EMAIL            = "randrianomenjanaharyjacquinot@gmail.com"
         CORS_ALLOWLIST         = "http://localhost:3000,https://api-etokisana.tsirylab.com"
         FRONTEND_URL           = "http://localhost:3000"
-        SUPERADMIN_EMAIL       = 'superadmin@commercegestion.com'
-        SUPERADMIN_PASSWORD    = 'SuperSecurePassword2026!'
+        SUPERADMIN_EMAIL       = "superadmin@commercegestion.com"
+        SUPERADMIN_PASSWORD    = "SuperSecurePassword2026!"
     }
 
     stages {
+
         stage('Prepare Host Directories') {
             steps {
-                // S'assurer que les dossiers de persistance existent sur le serveur Jenkins/Docker
                 sh '''
                 sudo mkdir -p $UPLOAD_PATH_HOST
                 sudo mkdir -p $LOG_PATH_HOST
-                sudo chmod -R 777 $UPLOAD_PATH_HOST
+
+                # UID 1000 correspond généralement à l'user non-root Alpine
+                sudo chown -R 1000:1000 /var/data/api-etokisana
+                sudo chmod -R 755 /var/data/api-etokisana
                 '''
             }
         }
 
-        stage('Build image') {
+        stage('Build Docker Image') {
             steps {
                 sh 'docker build -t $IMAGE_NAME:$IMAGE_TAG .'
             }
         }
 
-        stage('Stop old container') {
+        stage('Stop Old Container') {
             steps {
                 sh 'docker rm -f $CONTAINER || true'
             }
         }
 
-        stage('Run container') {
+        stage('Run Container') {
             steps {
                 sh '''
                 docker run -d \
@@ -87,17 +90,29 @@ pipeline {
                     --log-driver json-file \
                     --log-opt max-size=10m \
                     --log-opt max-file=5 \
-                    -v "$LOG_PATH_HOST:/var/log/api-etokisana" \
                     -v "$UPLOAD_PATH_HOST:/app/upload" \
+                    -v "$LOG_PATH_HOST:/var/log/api-etokisana" \
                     "$IMAGE_NAME:$IMAGE_TAG"
                 '''
+            }
+        }
+
+        stage('Docker Cleanup (Optional)') {
+            steps {
+                sh 'docker image prune -f'
             }
         }
     }
 
     post {
-        success { echo 'Déploiement terminé avec succès.' }
-        failure { echo 'Échec critique du déploiement.' }
-        always { cleanWs() }
+        success {
+            echo 'Déploiement terminé avec succès.'
+        }
+        failure {
+            echo 'Échec critique du déploiement.'
+        }
+        always {
+            cleanWs()
+        }
     }
 }
