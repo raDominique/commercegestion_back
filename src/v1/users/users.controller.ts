@@ -12,6 +12,9 @@ import {
   UploadedFiles,
   UseInterceptors,
   Res,
+  Req,
+  UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -210,16 +213,24 @@ export class UsersController {
 
   // ========================= DELETE (SOFT) =========================
   @Delete('delete/:id')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.NO_CONTENT) // 204 No Content
   @AuthRole(UserAccess.ADMIN)
   @ApiOperation({
     summary: 'Suppression logique (ADMIN)',
     description:
-      'Désactive le compte sans supprimer les données de la base (Soft Delete).',
+      'Désactive le compte (Soft Delete). Un admin ne peut pas supprimer son propre compte.',
   })
   @ApiParam({ name: 'id', description: "ID MongoDB de l'utilisateur" })
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(id);
+  async remove(@Req() req: any, @Param('id') id: string) {
+    // 1. Empêcher l'auto-suppression
+    if (req.user.userId === id) {
+      throw new ForbiddenException(
+        'Vous ne pouvez pas supprimer votre propre compte admin.',
+      );
+    }
+
+    // 2. Appeler le service
+    return await this.usersService.remove(id);
   }
 
   // ========================= VERIFY ACCOUNT SECURISE =========================

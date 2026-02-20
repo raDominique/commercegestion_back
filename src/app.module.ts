@@ -11,6 +11,7 @@ import { SharedModule } from './shared/shared.module';
 import { ProductsModule } from './v1/products/products.module';
 import { CpcModule } from './v1/cpc/cpc.module';
 import { SiteModule } from './v1/sites/sites.module';
+import { DepotItemModule } from './v1/depot-item/depot-item.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { SiteModule } from './v1/sites/sites.module';
           { path: 'sites', module: SiteModule },
           { path: 'products', module: ProductsModule },
           { path: 'cpc', module: CpcModule },
+          { path: 'depot-items', module: DepotItemModule },
         ],
       },
       {
@@ -44,4 +46,4 @@ import { SiteModule } from './v1/sites/sites.module';
     SharedModule,
   ],
 })
-export class AppModule { }
+export class AppModule {}

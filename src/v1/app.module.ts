@@ -11,6 +11,7 @@ import { AuditModule } from './audit/audit.module';
 import { SiteModule } from './sites/sites.module';
 import { ProductsModule } from './products/products.module';
 import { CpcModule } from './cpc/cpc.module';
+import { DepotItemModule } from './depot-item/depot-item.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { CpcModule } from './cpc/cpc.module';
     SiteModule,
     ProductsModule,
     CpcModule,
+    DepotItemModule,
   ],
   controllers: [AppController],
   providers: [AppService, UploadService],
