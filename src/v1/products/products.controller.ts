@@ -10,6 +10,7 @@ import {
   Req,
   UseInterceptors,
   UploadedFile,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -22,7 +23,8 @@ import {
 } from '@nestjs/swagger';
 import { ProductService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
-import { Auth } from '../auth';
+import { Auth, AuthRole } from '../auth';
+import { UserAccess } from '../users/users.schema';
 
 @ApiTags('Products')
 @Controller()
@@ -106,22 +108,28 @@ export class ProductController {
   }
 
   // ==========================================
-  // VALIDATION ADMIN
+  // VALIDATION / INVALIDATION ADMIN (TOGGLE)
   // ==========================================
-  @Patch('validate/:id')
-  @Auth() // Probablement réservé aux admins dans votre logique
-  @ApiOperation({ summary: 'Valider un produit' })
+  @Patch('toggle-validation/:id') // Nom de route plus explicite
+  @AuthRole(UserAccess.ADMIN)
+  @ApiOperation({
+    summary: 'Basculer la validation (Admin)',
+    description: 'Active ou désactive la validation du produit (Vise-versa)',
+  })
   @ApiParam({ name: 'id', description: 'ID MongoDB du produit' })
-  @ApiResponse({ status: 200, description: 'Produit marqué comme validé.' })
+  @ApiResponse({
+    status: 200,
+    description: 'État de validation modifié avec succès.',
+  })
   @ApiResponse({ status: 404, description: 'Produit non trouvé.' })
-  async validate(@Param('id') id: string, @Req() req: any) {
-    return this.productService.validateProduct(id, req.user?.userId);
+  async toggleValidation(@Param('id') id: string) {
+    return this.productService.toggleProductValidation(id);
   }
 
   // ==========================================
   // TOGGLE STOCK
   // ==========================================
-  @Patch('stock-toggle/:id')
+  @Patch('toggle-stock/:id')
   @Auth()
   @ApiOperation({
     summary: 'Inverser le statut de stockage',

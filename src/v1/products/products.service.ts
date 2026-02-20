@@ -231,13 +231,13 @@ export class ProductService {
       limit: Number(limit),
     };
   }
-
+  
   /**
-   * Valider un produit (Admin)
+   * Basculer l'état de validation d'un produit (Admin)
+   * Inverse l'état : true -> false / false -> true
    */
-  async validateProduct(
+  async toggleProductValidation(
     id: string,
-    userId: string,
   ): Promise<PaginationResult<Product>> {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('ID de produit invalide.');
@@ -246,12 +246,15 @@ export class ProductService {
     const product = await this.productModel.findById(id);
     if (!product) throw new NotFoundException('Produit introuvable');
 
-    product.productValidation = true;
+    // --- LOGIQUE VISE-VERSA ---
+    product.productValidation = !product.productValidation;
     await product.save();
 
     return {
       status: 'success',
-      message: 'Produit validé',
+      message: product.productValidation
+        ? 'Produit validé avec succès'
+        : 'Validation du produit retirée',
       data: [product],
     };
   }
