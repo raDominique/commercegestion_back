@@ -20,11 +20,13 @@ import {
   ApiQuery,
   ApiParam,
   ApiResponse,
+  ApiBody,
 } from '@nestjs/swagger';
 import { ProductService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { Auth, AuthRole } from '../auth';
 import { UserAccess } from '../users/users.schema';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 @ApiTags('Products')
 @Controller()
@@ -54,10 +56,14 @@ export class ProductController {
   @Auth()
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Mettre à jour un produit et son image' })
+  @ApiBody({
+    description: 'Données du produit à mettre à jour (image facultative)',
+    type: UpdateProductDto,
+  })
   @UseInterceptors(FileInterceptor('image'))
   async update(
     @Param('id') id: string,
-    @Body() dto: Partial<CreateProductDto>,
+    @Body() dto: UpdateProductDto,
     @UploadedFile() file: Express.Multer.File,
     @Req() req: any,
   ) {

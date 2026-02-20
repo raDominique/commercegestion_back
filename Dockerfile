@@ -5,11 +5,11 @@ FROM node:24-alpine AS builder
 
 WORKDIR /app
 
-# Installer TOUTES les dépendances (dev incluses)
+# Installation des dépendances
 COPY package*.json ./
 RUN npm ci --legacy-peer-deps
 
-# Copier le code et builder
+# Copie du code source et compilation
 COPY . .
 RUN npm run build
 
@@ -20,27 +20,32 @@ FROM node:24-alpine
 
 WORKDIR /app
 
+# Mode développement par défaut selon votre besoin
 ENV NODE_ENV=development
 
-# User non-root
+# Création d'un utilisateur non-root pour la sécurité
 RUN addgroup -S app && adduser -S app -G app
 
-# Copier uniquement le nécessaire
+# Copie des fichiers compilés et des modules nécessaires
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 
-# Créer le dossier upload et donner les permissions
+# Création du dossier d'upload et gestion des permissions
+# /app/upload est le dossier où NestJS enregistre les fichiers
 RUN mkdir -p /app/upload \
- && chown -R app:app /app/upload \
- && chmod -R 775 /app/upload \
- && chown -R app:app /app
+    && chown -R app:app /app/upload \
+    && chmod -R 775 /app/upload \
+    && chown -R app:app /app
 
-# Supprimer les devDependencies en prod
+# Nettoyage des dépendances de développement pour alléger l'image
 RUN npm prune --omit=dev
 
 USER app
 
 EXPOSE 4243
+
+# Définition du point de montage pour la persistance
+VOLUME ["/app/upload"]
 
 CMD ["node", "dist/main.js"]
