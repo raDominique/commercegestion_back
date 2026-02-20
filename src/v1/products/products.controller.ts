@@ -10,7 +10,6 @@ import {
   Req,
   UseInterceptors,
   UploadedFile,
-  ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -21,25 +20,43 @@ import {
   ApiParam,
   ApiResponse,
   ApiBody,
+  ApiBearerAuth,
+  getSchemaPath,
+  ApiExtraModels,
 } from '@nestjs/swagger';
 import { ProductService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 import { Auth, AuthRole } from '../auth';
 import { UserAccess } from '../users/users.schema';
-import { UpdateProductDto } from './dto/update-product.dto';
+import { Product } from './products.schema';
 
-@ApiTags('Products')
-@Controller()
+@ApiTags('Produits')
+@ApiBearerAuth()
+@Controller('products')
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   // ==========================================
-  // CRÉATION PRODUIT
+  // SECTION : ACTIONS UTILISATEUR (ÉCRITURE)
   // ==========================================
+
   @Post()
   @Auth()
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Créer un produit avec une image unique' })
+  @ApiOperation({
+    summary: 'Créer un nouveau produit',
+    description:
+      'Crée un produit avec les informations CPC et une image obligatoire.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Le produit a été créé avec succès.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Données invalides ou doublon détecté.',
+  })
   @UseInterceptors(FileInterceptor('image'))
   async create(
     @Body() dto: CreateProductDto,
@@ -49,17 +66,22 @@ export class ProductController {
     return this.productService.create(dto, req.user.userId, file);
   }
 
-  // ==========================================
-  // MISE À JOUR PRODUIT
-  // ==========================================
   @Patch('update/:id')
   @Auth()
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Mettre à jour un produit et son image' })
-  @ApiBody({
-    description: 'Données du produit à mettre à jour (image facultative)',
-    type: UpdateProductDto,
+  @ApiOperation({
+    summary: 'Mettre à jour un produit existant',
+    description:
+      "Permet de modifier les informations d'un produit. L'image est facultative.",
   })
+  @ApiParam({ name: 'id', description: 'MongoDB ID du produit' })
+  @ApiBody({ type: UpdateProductDto })
+  @ApiResponse({ status: 200, description: 'Produit mis à jour avec succès.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Accès refusé (Propriétaire uniquement).',
+  })
+  @ApiResponse({ status: 404, description: 'Produit introuvable.' })
   @UseInterceptors(FileInterceptor('image'))
   async update(
     @Param('id') id: string,
@@ -70,111 +92,112 @@ export class ProductController {
     return this.productService.update(id, dto, req.user.userId, file);
   }
 
+  @Delete('delete/:id')
+  @Auth()
+  @ApiOperation({ summary: 'Supprimer un produit' })
+  @ApiParam({ name: 'id', description: 'ID du produit à supprimer' })
+  @ApiResponse({ status: 200, description: 'Produit supprimé.' })
+  @ApiResponse({ status: 403, description: 'Action interdite.' })
+  async remove(@Param('id') id: string, @Req() req: any) {
+    return this.productService.delete(id, req.user.userId);
+  }
+
   // ==========================================
-  // RÉCUPÉRATION (LISTE)
+  // SECTION : ACTIONS DE BASCULE (TOGGLES)
   // ==========================================
-  @Get()
+
+  @Patch('toggle-stock/:id')
+  @Auth()
   @ApiOperation({
-    summary: 'Lister les produits',
-    description:
-      'Récupère la liste des produits avec support pour la pagination et la recherche.',
+    summary: 'Basculer le statut de stockage',
+    description: 'Inverse l\'état "En stock / Hors stock" du produit.',
   })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    type: String,
-    description: 'Recherche par nom ou codeCPC',
-  })
-  @ApiQuery({
-    name: 'isStocker',
-    required: false,
-    type: Boolean,
-    description: 'Filtrer par statut de stockage',
-  })
-  @ApiResponse({ status: 200, description: 'Liste récupérée.' })
-  @Auth()
-  async findAll(@Query() query: any, @Req() req: any) {
-    const userId = req.user?.userId;
-    return this.productService.findAll(query, userId);
+  @ApiResponse({ status: 200, description: 'Statut mis à jour.' })
+  async toggleStock(@Param('id') id: string, @Req() req: any) {
+    return this.productService.toggleStock(id, req.user?.userId);
   }
 
-  // ==========================================
-  // RÉCUPÉRATION (ID)
-  // ==========================================
-  @Get('get-by-id/:id')
-  @Auth()
-  @ApiOperation({ summary: 'Récupérer un produit par ID' })
-  @ApiParam({ name: 'id', description: 'ID MongoDB du produit' })
-  @ApiResponse({ status: 200, description: 'Produit récupéré.' })
-  @ApiResponse({ status: 404, description: 'Produit non trouvé.' })
-  async findById(@Param('id') id: string, @Req() req: any) {
-    return this.productService.findById(id, req.user?.userId);
-  }
-
-  // ==========================================
-  // VALIDATION / INVALIDATION ADMIN (TOGGLE)
-  // ==========================================
-  @Patch('toggle-validation/:id') // Nom de route plus explicite
+  @Patch('toggle-validation/:id')
   @AuthRole(UserAccess.ADMIN)
   @ApiOperation({
-    summary: 'Basculer la validation (Admin)',
-    description: 'Active ou désactive la validation du produit (Vise-versa)',
+    summary: 'Valider/Invalider un produit (ADMIN)',
+    description:
+      "Permet à un administrateur d'approuver ou de rejeter un produit.",
   })
-  @ApiParam({ name: 'id', description: 'ID MongoDB du produit' })
-  @ApiResponse({
-    status: 200,
-    description: 'État de validation modifié avec succès.',
-  })
-  @ApiResponse({ status: 404, description: 'Produit non trouvé.' })
+  @ApiResponse({ status: 200, description: 'État de validation modifié.' })
   async toggleValidation(@Param('id') id: string) {
     return this.productService.toggleProductValidation(id);
   }
 
   // ==========================================
-  // TOGGLE STOCK
+  // SECTION : RÉCUPÉRATION DES DONNÉES
   // ==========================================
-  @Patch('toggle-stock/:id')
+
+  @Get()
   @Auth()
   @ApiOperation({
-    summary: 'Inverser le statut de stockage',
-    description: 'Bascule isStocker entre true et false.',
+    summary: 'Lister tous les produits (Admin/Global)',
+    description: 'Récupère la liste globale triée (Hors stock en premier).',
   })
-  @ApiParam({ name: 'id', description: 'ID MongoDB du produit' })
-  @ApiResponse({ status: 200, description: 'Statut de stockage mis à jour.' })
-  async toggleStock(@Param('id') id: string, @Req() req: any) {
-    return this.productService.toggleStock(id, req.user?.userId);
-  }
-
-  // ==========================================
-  // SUPPRESSION
-  // ==========================================
-  @Delete('delete/:id')
-  @Auth()
-  @ApiOperation({ summary: 'Supprimer un produit' })
-  @ApiParam({ name: 'id', description: 'ID MongoDB du produit' })
-  @ApiResponse({ status: 200, description: 'Produit supprimé.' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'isStocker', required: false, type: Boolean })
   @ApiResponse({
-    status: 403,
-    description: 'Action interdite (Propriétaire uniquement ?).',
+    status: 200,
+    description: 'Liste récupérée.',
+    schema: {
+      example: {
+        status: 'success',
+        message: 'Liste récupérée',
+        data: [
+          {
+            _id: '65dcf...',
+            image: '/upload/products/hash.jpg',
+            name: 'Blé dur',
+            categoryNom: 'Céréales',
+            ownerName: 'Jean Dupont',
+            validation: false,
+            isStocker: false,
+            codeCPC: '01111',
+          },
+        ],
+        total: 100,
+        page: 1,
+        limit: 10,
+      },
+    },
   })
-  async remove(@Param('id') id: string, @Req() req: any) {
-    return this.productService.delete(id, req.user?.userId);
+  async findAll(@Query() query: any, @Req() req: any) {
+    const userId = req.user?.userId;
+    const isAdmin = req.user?.role === 'admin';
+    return this.productService.findAll(query, userId, isAdmin);
   }
 
-  // ==========================================
-  // RÉCUPÉRATION LEUR ID
-  // ==========================================
   @Get('me')
   @Auth()
-  @ApiOperation({ summary: 'Récupérer les produits de l’utilisateur connecté' })
-  @ApiResponse({ status: 200, description: 'Produits récupérés.' })
-  @ApiResponse({
-    status: 404,
-    description: 'Aucun produit trouvé pour cet utilisateur.',
+  @ApiOperation({
+    summary: 'Mes produits',
+    description:
+      "Récupère uniquement les produits appartenant à l'utilisateur connecté.",
   })
-  async getMyProducts(@Req() req: any) {
-    return this.productService.getMyProducts(req.user?.userId);
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'isStocker', required: false, type: Boolean })
+  @ApiResponse({ status: 200, description: 'Vos produits ont été récupérés.' })
+  async getMyProducts(@Query() query: any, @Req() req: any) {
+    const userId = req.user?.userId;
+    return this.productService.findAll(query, userId, false);
+  }
+
+  @Get('get-by-id/:id')
+  @Auth()
+  @ApiOperation({ summary: "Détails d'un produit" })
+  @ApiParam({ name: 'id', description: 'ID du produit' })
+  @ApiResponse({ status: 200, description: 'Produit trouvé.' })
+  @ApiResponse({ status: 404, description: 'Produit non trouvé.' })
+  async findById(@Param('id') id: string, @Req() req: any) {
+    return this.productService.findById(id, req.user?.userId);
   }
 }

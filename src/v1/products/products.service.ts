@@ -128,10 +128,9 @@ export class ProductService {
       );
     }
 
-    if(dto.codeCPC){
+    if (dto.codeCPC) {
       product.codeCPC = dto.codeCPC;
     }
-    
 
     // 4. Mise à jour des données
     if (dto.categoryId) product.categoryId = new Types.ObjectId(dto.categoryId);
@@ -181,21 +180,30 @@ export class ProductService {
 
   /**
    * Lister les produits (Paginer)
+   * Tri : Hors stock d'abord, puis par date de création (récent d'abord)
    */
-  async findAll(query: any, userId: string): Promise<PaginationResult<any>> {
+  async findAll(
+    query: any,
+    userId?: string,
+    isAdmin?: boolean,
+  ): Promise<PaginationResult<any>> {
     const { page = 1, limit = 10, search, isStocker } = query;
     const filter: any = {};
 
-    if (userId) {
+    // Filtrage par propriétaire si non-admin
+    if (userId && !isAdmin) {
       filter.productOwnerId = new Types.ObjectId(userId);
     }
 
+    // Recherche textuelle
     if (search) {
       filter.$or = [
         { productName: { $regex: search, $options: 'i' } },
         { codeCPC: { $regex: search, $options: 'i' } },
       ];
     }
+
+    // Filtre spécifique sur le statut de stockage
     if (isStocker !== undefined) filter.isStocker = isStocker === 'true';
 
     const skip = (Number(page) - 1) * Number(limit);
@@ -204,39 +212,31 @@ export class ProductService {
       this.productModel
         .find(filter)
         .populate('categoryId', 'nom')
+        .populate('productOwnerId', 'userName userFirstname userNickName')
         .select(
-          '_id productImage productName productValidation isStocker categoryId',
+          '_id productImage productName productValidation isStocker categoryId productOwnerId codeCPC createdAt',
         )
-        .sort({ createdAt: -1 })
+        // ==========================================
+        // LOGIQUE DE TRI MULTIPLE
+        // 1. isStocker: 1 -> false (0) avant true (1)
+        // 2. createdAt: -1 -> plus récent d'abord au sein de chaque groupe
+        // ==========================================
+        .sort({ isStocker: 1, createdAt: -1 })
         .skip(skip)
         .limit(Number(limit))
         .exec(),
       this.productModel.countDocuments(filter),
     ]);
 
-    // Transformer les données pour le format attendu
-    const formattedData = data.map((product: any) => {
-      const obj = product.toObject();
-      return {
-        _id: obj._id,
-        image: obj.productImage,
-        name: obj.productName,
-        categoryNom: obj.categoryId?.nom || null,
-        validation: obj.productValidation,
-        isStocker: obj.isStocker,
-      };
-    });
-
     return {
       status: 'success',
       message: 'Liste récupérée',
-      data: formattedData,
+      data: this.formatProductResponse(data),
       total,
       page: Number(page),
       limit: Number(limit),
     };
   }
-  
   /**
    * Basculer l'état de validation d'un produit (Admin)
    * Inverse l'état : true -> false / false -> true
@@ -305,38 +305,42 @@ export class ProductService {
     const product = await this.productModel.findByIdAndDelete(id);
     if (!product) throw new NotFoundException('Produit introuvable');
 
+    await this.auditService.log({
+      action: AuditAction.DELETE,
+      entityType: EntityType.PRODUCT,
+      entityId: id,
+      userId,
+    });
+
     return { status: 'success', message: 'Produit supprimé', data: null };
   }
 
   /**
-   * Recupérer les produits d'un utilisateur (pour le dashboard)
+   * UTILITAIRE : Formate un ou plusieurs produits pour la réponse API
    */
-  async getMyProducts(userId: string): Promise<PaginationResult<any>> {
-    const products = await this.productModel
-      .find({ productOwnerId: new Types.ObjectId(userId) })
-      .populate('categoryId', 'nom')
-      .select(
-        '_id productImage productName productValidation isStocker categoryId',
-      )
-      .sort({ createdAt: -1 })
-      .exec();
+  private formatProductResponse(products: any[]): any[] {
+    return products.map((product) => {
+      const obj = product.toObject ? product.toObject() : product;
 
-    const formattedData = products.map((product: any) => {
-      const obj = product.toObject();
+      // Construction propre du nom du propriétaire
+      const owner = obj.productOwnerId;
+      const ownerName =
+        owner && typeof owner === 'object'
+          ? `${owner.userName || ''} ${owner.userFirstname || ''}`.trim() ||
+            owner.userNickName
+          : 'Inconnu';
+
       return {
         _id: obj._id,
         image: obj.productImage,
         name: obj.productName,
         categoryNom: obj.categoryId?.nom || null,
+        ownerName: ownerName,
+        ownerNickName: owner?.userNickName || null,
         validation: obj.productValidation,
         isStocker: obj.isStocker,
+        codeCPC: obj.codeCPC, // Ajouté pour plus de contexte
       };
     });
-
-    return {
-      status: 'success',
-      message: 'Produits récupérés',
-      data: formattedData,
-    };
   }
 }
