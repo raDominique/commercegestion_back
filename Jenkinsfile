@@ -5,7 +5,7 @@ pipeline {
         IMAGE_NAME = 'api-etokisana'
         IMAGE_TAG  = "${BUILD_NUMBER}"
         PORT       = '4243'
-        NODE_ENV   = 'production'
+        NODE_ENV   = 'development'
 
         MONGO_URI          = credentials('MONGO_URI_ETOKISANA')
         JWT_SECRET         = credentials('JWT_SECRET')
