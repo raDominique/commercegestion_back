@@ -45,7 +45,7 @@ export class CreateCpcDto {
     ancetres?: string[];
 
     @ApiPropertyOptional({
-        example: { sh: '1001.10', citi: '0111' },
+        example: { sh: '1001.10', citi: '0111' , ctci: '244.03'},
         description: 'Correspondances avec d\'autres nomenclatures'
     })
     @IsObject()
