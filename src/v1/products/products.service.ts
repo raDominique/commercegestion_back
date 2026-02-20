@@ -128,6 +128,11 @@ export class ProductService {
       );
     }
 
+    if(dto.codeCPC){
+      product.codeCPC = dto.codeCPC;
+    }
+    
+
     // 4. Mise à jour des données
     if (dto.categoryId) product.categoryId = new Types.ObjectId(dto.categoryId);
 
