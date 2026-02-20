@@ -86,8 +86,8 @@ export class CreateProductDto {
   @ApiPropertyOptional({
     type: 'string',
     format: 'binary',
-    description: 'Images du produit (plusieurs fichiers possibles)',
+    description: 'Image du produit',
   })
   @IsOptional()
-  images?: any;
+  image?: any;
 }

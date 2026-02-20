@@ -22,61 +22,51 @@ export class ProductService {
   ) {}
 
   /**
-   * Créer un produit
-   * Règle : isStocker est toujours false à la création
+   * CRÉER UN PRODUIT
+   * Gère une image unique et empêche les doublons pour un même utilisateur
    */
   async create(
     dto: CreateProductDto,
     userId: string,
-    files: Express.Multer.File[],
+    file?: Express.Multer.File,
   ): Promise<PaginationResult<Product>> {
-    const imagePaths: string[] = [];
+    // 1. Vérification de sécurité de base
+    if (!userId) throw new BadRequestException('Utilisateur non identifié.');
+    if (!dto.categoryId)
+      throw new BadRequestException('La catégorie CPC est requise.');
 
-    // Validation du categoryId
-    if (!dto.categoryId) {
-      throw new BadRequestException(
-        'categoryId invalide. Doit être un ID MongoDB valide (24 caractères hexadécimaux).',
-      );
-    }
-
-    // Validation du userId
-    if (!userId) {
-      throw new BadRequestException('Utilisateur invalide ou non authentifié.');
-    }
-
-    // 1. Vérification proactive des doublons pour cet utilisateur
-    const existingProduct = await this.productModel.findOne({
+    // 2. Vérification des doublons (Même nom + Même CPC pour cet utilisateur)
+    const existing = await this.productModel.findOne({
       productOwnerId: new Types.ObjectId(userId),
       codeCPC: dto.codeCPC,
       productName: dto.productName,
     });
 
-    if (existingProduct) {
+    if (existing) {
       throw new BadRequestException(
-        `Vous possédez déjà un produit nommé "${dto.productName}" avec le code CPC ${dto.codeCPC}.`,
+        `Vous avez déjà un produit "${dto.productName}" dans cette catégorie.`,
       );
     }
 
-    // Gestion des uploads via UploadService
-    if (files && files.length > 0) {
-      for (const file of files) {
-        const publicUrl = await this.uploadService.saveFile(file, 'products');
-        imagePaths.push(publicUrl);
-      }
+    // 3. Gestion de l'image unique
+    let imagePath = '';
+    if (file) {
+      imagePath = await this.uploadService.saveFile(file, 'products');
     }
 
+    // 4. Création
     const newProduct = new this.productModel({
       ...dto,
       productOwnerId: new Types.ObjectId(userId),
       categoryId: new Types.ObjectId(dto.categoryId),
-      productImage: imagePaths,
-      isStocker: false, // Condition imposée
+      productImage: imagePath,
+      isStocker: false,
       productValidation: false,
     });
 
     const saved = await newProduct.save();
 
-    // Audit Log
+    // 5. Audit Log
     await this.auditService.log({
       action: AuditAction.CREATE,
       entityType: EntityType.PRODUCT,
@@ -87,8 +77,79 @@ export class ProductService {
 
     return {
       status: 'success',
-      message: 'Produit créé avec succès. En attente de mise en stock.',
+      message: 'Produit créé avec succès.',
       data: [saved],
+    };
+  }
+
+  /**
+   * METTRE À JOUR UN PRODUIT
+   * Remplace l'image si une nouvelle est fournie
+   */
+  async update(
+    id: string,
+    dto: Partial<CreateProductDto>,
+    userId: string,
+    file?: Express.Multer.File,
+  ): Promise<PaginationResult<Product>> {
+    if (!Types.ObjectId.isValid(id))
+      throw new BadRequestException('ID invalide.');
+
+    // 1. Vérifier l'existence et la propriété
+    const product = await this.productModel.findOne({
+      _id: new Types.ObjectId(id),
+      productOwnerId: new Types.ObjectId(userId),
+    });
+
+    if (!product)
+      throw new NotFoundException('Produit introuvable ou accès refusé.');
+
+    const previousState = product.toObject();
+
+    // 2. Vérifier les doublons si le nom ou le code change
+    if (dto.productName || dto.codeCPC) {
+      const duplicate = await this.productModel.findOne({
+        _id: { $ne: new Types.ObjectId(id) },
+        productOwnerId: new Types.ObjectId(userId),
+        codeCPC: dto.codeCPC || product.codeCPC,
+        productName: dto.productName || product.productName,
+      });
+      if (duplicate)
+        throw new BadRequestException(
+          'Un produit identique existe déjà dans votre liste.',
+        );
+    }
+
+    // 3. Mise à jour de l'image (Remplacement)
+    if (file) {
+      product.productImage = await this.uploadService.saveFile(
+        file,
+        'products',
+      );
+    }
+
+    // 4. Mise à jour des données
+    if (dto.categoryId) product.categoryId = new Types.ObjectId(dto.categoryId);
+
+    // Fusion des autres champs
+    Object.assign(product, dto);
+
+    const updated = await product.save();
+
+    // 5. Audit Log
+    await this.auditService.log({
+      action: AuditAction.UPDATE,
+      entityType: EntityType.PRODUCT,
+      entityId: updated._id.toString(),
+      userId,
+      previousState,
+      newState: updated.toObject(),
+    });
+
+    return {
+      status: 'success',
+      message: 'Produit mis à jour avec succès.',
+      data: [updated],
     };
   }
 

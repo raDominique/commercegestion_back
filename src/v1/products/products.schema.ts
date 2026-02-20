@@ -38,8 +38,8 @@ export class Product extends Document {
   @Prop({ enum: ['Brut', 'Transformé', 'Conditionné'], default: 'Brut' })
   productState: string;
 
-  @Prop({ type: [String] })
-  productImage: string[];
+  @Prop({ type: String })
+  productImage: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   productOwnerId: Types.ObjectId;

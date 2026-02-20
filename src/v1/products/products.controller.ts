@@ -9,14 +9,13 @@ import {
   Query,
   Req,
   UseInterceptors,
-  UploadedFiles,
+  UploadedFile,
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
   ApiConsumes,
-  ApiBody,
   ApiQuery,
   ApiParam,
   ApiResponse,
@@ -36,25 +35,31 @@ export class ProductController {
   @Post()
   @Auth()
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({
-    summary: 'Créer un produit avec images',
-    description:
-      "Crée un nouveau produit. Le champ isStocker est forcé à false. Accepte jusqu'à 5 images.",
-  })
-  @ApiBody({
-    description: 'Données du produit et fichiers images',
-    type: CreateProductDto,
-  })
-  @ApiResponse({ status: 201, description: 'Produit créé avec succès.' })
-  @ApiResponse({ status: 400, description: 'Données invalides.' })
-  @ApiResponse({ status: 401, description: 'Non authentifié.' })
-  @UseInterceptors(FilesInterceptor('images', 5))
+  @ApiOperation({ summary: 'Créer un produit avec une image unique' })
+  @UseInterceptors(FileInterceptor('image'))
   async create(
     @Body() dto: CreateProductDto,
-    @UploadedFiles() files: Express.Multer.File[],
+    @UploadedFile() file: Express.Multer.File,
     @Req() req: any,
   ) {
-    return this.productService.create(dto, req.user?.userId || 'anonymous', files);
+    return this.productService.create(dto, req.user.userId, file);
+  }
+
+  // ==========================================
+  // MISE À JOUR PRODUIT
+  // ==========================================
+  @Patch(':id')
+  @Auth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Mettre à jour un produit et son image' })
+  @UseInterceptors(FileInterceptor('image'))
+  async update(
+    @Param('id') id: string,
+    @Body() dto: Partial<CreateProductDto>,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ) {
+    return this.productService.update(id, dto, req.user.userId, file);
   }
 
   // ==========================================
