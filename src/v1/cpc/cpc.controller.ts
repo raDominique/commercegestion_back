@@ -1,5 +1,25 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, Query, Req, UseInterceptors, UploadedFile } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Patch,
+  Delete,
+  Query,
+  Req,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBody,
+  ApiQuery,
+  ApiConsumes,
+} from '@nestjs/swagger';
 import { CpcService } from './cpc.service';
 import { CreateCpcDto } from './dto/create-cpc.dto';
 import { UpdateCpcDto } from './dto/update-cpc.dto';
@@ -10,12 +30,15 @@ import { BulkCreateCpcDto } from './dto/bulk-create-cpc.dto';
 @ApiTags('Classification CPC')
 @Controller()
 export class CpcController {
-  constructor(private readonly service: CpcService) { }
+  constructor(private readonly service: CpcService) {}
 
   @Post()
   @ApiOperation({ summary: 'Créer une nouvelle catégorie CPC' })
   @ApiBody({ type: CreateCpcDto })
-  @ApiResponse({ status: 201, description: 'La catégorie a été créée avec succès.' })
+  @ApiResponse({
+    status: 201,
+    description: 'La catégorie a été créée avec succès.',
+  })
   @ApiResponse({ status: 400, description: 'Données invalides.' })
   @Auth()
   create(@Body() dto: CreateCpcDto, @Req() req: any) {
@@ -24,8 +47,13 @@ export class CpcController {
   }
 
   @Get('select/all')
-  @ApiOperation({ summary: 'Récupérer tous les CPC pour un select (sans pagination)' })
-  @ApiResponse({ status: 200, description: 'Liste récupérée avec id, nom, code.' })
+  @ApiOperation({
+    summary: 'Récupérer tous les CPC pour un select (sans pagination)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste récupérée avec id, nom, code.',
+  })
   getForSelect() {
     return this.service.getForSelect();
   }
@@ -34,8 +62,16 @@ export class CpcController {
   @ApiOperation({ summary: 'Lister les produits avec pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'niveau', required: false, description: 'Filtrer par niveau hiérarchique' })
-  @ApiQuery({ name: 'search', required: false, description: 'Recherche par nom' })
+  @ApiQuery({
+    name: 'niveau',
+    required: false,
+    description: 'Filtrer par niveau hiérarchique',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Recherche par nom',
+  })
   @ApiResponse({ status: 200, description: 'Liste récupérée avec succès.' })
   findAll(@Query() query: any) {
     return this.service.findAll(query);
@@ -43,7 +79,10 @@ export class CpcController {
 
   @Get('get-by-code/:code')
   @ApiOperation({ summary: 'Obtenir un produit par son code' })
-  @ApiParam({ name: 'code', description: 'Code de la catégorie CPC (ex: 01111)' })
+  @ApiParam({
+    name: 'code',
+    description: 'Code de la catégorie CPC (ex: 01111)',
+  })
   @ApiResponse({ status: 200, description: 'Catégorie trouvée.' })
   @ApiResponse({ status: 404, description: 'Catégorie non trouvée.' })
   findOne(@Param('code') code: string) {
@@ -61,12 +100,15 @@ export class CpcController {
   @ApiOperation({ summary: 'Modifier une catégorie' })
   @ApiParam({ name: 'code', description: 'Code de la catégorie à modifier' })
   @ApiBody({ type: UpdateCpcDto })
-  @ApiResponse({ status: 200, description: 'Catégorie mise à jour avec succès.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Catégorie mise à jour avec succès.',
+  })
   @Auth()
   update(
     @Param('code') code: string,
     @Body() dto: UpdateCpcDto,
-    @Req() req: any
+    @Req() req: any,
   ) {
     const userId = req.user?.id || 'system';
     return this.service.update(code, dto, userId);
@@ -84,11 +126,58 @@ export class CpcController {
 
   @Post('import')
   @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Importer un fichier CSV de CPC' })
-  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiOperation({
+    summary: 'Importer des CPC depuis Excel ou CSV',
+    description:
+      'Importe un fichier Excel (.xlsx, .xls, .xlsm) ou CSV contenant des codes CPC. Les colonnes attendues sont: code, nom, niveau (optionnel), parentCode (optionnel)',
+  })
+  @ApiBody({
+    description: 'Fichier Excel ou CSV à importer',
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Fichier Excel ou CSV',
+        },
+      },
+      required: ['file'],
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Import réussi ou partiellement réussi',
+    schema: {
+      example: {
+        status: 'success',
+        message: '10 CPC importés avec succès',
+        data: [
+          { _id: '...', code: '01111', nom: 'Blé dur', niveau: 'sous-classe' },
+        ],
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Fichier invalide ou format non supporté',
+    schema: {
+      example: {
+        status: 'success',
+        message: '8 CPC importés, 2 erreur(s) rencontrée(s)',
+        data: [],
+        errors: [
+          { ligne: 5, raison: 'Champs requis manquants (code, nom)' },
+          { ligne: 7, code: '01111', raison: 'Code CPC déjà existant' },
+        ],
+        importedCount: 8,
+      },
+    },
+  })
+  @ApiConsumes('multipart/form-data')
   @Auth()
   async importCpc(@UploadedFile() file: Express.Multer.File, @Req() req: any) {
-    const userId = req.user?.id || 'system';
+    const userId = req.user?.usersId || 'system';
     return this.service.importCpcProduct(file, userId);
   }
 
