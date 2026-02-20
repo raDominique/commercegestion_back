@@ -93,6 +93,19 @@ export class ProductController {
   }
 
   // ==========================================
+  // RÉCUPÉRATION (ID)
+  // ==========================================
+  @Get(':id')
+  @Auth()
+  @ApiOperation({ summary: 'Récupérer un produit par ID' })
+  @ApiParam({ name: 'id', description: 'ID MongoDB du produit' })
+  @ApiResponse({ status: 200, description: 'Produit récupéré.' })
+  @ApiResponse({ status: 404, description: 'Produit non trouvé.' })
+  async findById(@Param('id') id: string, @Req() req: any) {
+    return this.productService.findById(id, req.user?.userId);
+  }
+
+  // ==========================================
   // VALIDATION ADMIN
   // ==========================================
   @Patch(':id/validate')

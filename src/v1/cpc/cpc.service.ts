@@ -53,6 +53,29 @@ export class CpcService {
   }
 
   /**
+   * Récupérer tous les CPC sans pagination pour un select (id, nom, code)
+   */
+  async getForSelect(): Promise<{ status: string; message: string; data: Array<{ id: string; nom: string; code: string }> }> {
+    const data = await this.model
+      .find({})
+      .select('_id nom code')
+      .sort({ code: 1 })
+      .exec();
+
+    const formatted = data.map((item: any) => ({
+      id: item._id.toString(),
+      nom: item.nom,
+      code: item.code,
+    }));
+
+    return {
+      status: 'success',
+      message: 'Données CPC récupérées',
+      data: formatted,
+    };
+  }
+
+  /**
    * Liste paginée avec filtres
    */
   async findAll(query: any): Promise<PaginationResult<CpcProduct>> {

@@ -154,12 +154,30 @@ export class ProductService {
   }
 
   /**
+   * Récupérer un produit par ID
+   */
+  async findById(
+    id: string,
+    userId?: string,
+  ): Promise<PaginationResult<Product>> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('ID de produit invalide.');
+    }
+
+    const product = await this.productModel.findById(id).populate('categoryId');
+    if (!product) throw new NotFoundException('Produit introuvable');
+
+    return {
+      status: 'success',
+      message: 'Produit récupéré',
+      data: [product],
+    };
+  }
+
+  /**
    * Lister les produits (Paginer)
    */
-  async findAll(
-    query: any,
-    userId: string,
-  ): Promise<PaginationResult<Product>> {
+  async findAll(query: any, userId: string): Promise<PaginationResult<any>> {
     const { page = 1, limit = 10, search, isStocker } = query;
     const filter: any = {};
 
@@ -180,7 +198,10 @@ export class ProductService {
     const [data, total] = await Promise.all([
       this.productModel
         .find(filter)
-        .populate('categoryId')
+        .populate('categoryId', 'nom')
+        .select(
+          '_id productImage productName productValidation isStocker categoryId',
+        )
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit))
@@ -188,10 +209,23 @@ export class ProductService {
       this.productModel.countDocuments(filter),
     ]);
 
+    // Transformer les données pour le format attendu
+    const formattedData = data.map((product: any) => {
+      const obj = product.toObject();
+      return {
+        _id: obj._id,
+        image: obj.productImage,
+        name: obj.productName,
+        categoryNom: obj.categoryId?.nom || null,
+        validation: obj.productValidation,
+        isStocker: obj.isStocker,
+      };
+    });
+
     return {
       status: 'success',
       message: 'Liste récupérée',
-      data,
+      data: formattedData,
       total,
       page: Number(page),
       limit: Number(limit),
