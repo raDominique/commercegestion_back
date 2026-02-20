@@ -9,33 +9,37 @@ import { LoggerService } from 'src/common/logger/logger.service';
 import { AuditAction, EntityType } from 'src/v1/audit/audit-log.schema';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { UploadService } from 'src/shared/upload/upload.service';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import csv from 'csv-parser';
-import { Readable } from 'stream';
+import { Readable } from 'node:stream';
 import { BulkCreateCpcDto } from './dto/bulk-create-cpc.dto';
 const { Parser: Json2CsvParser } = require('json2csv');
 
 @Injectable()
 export class CpcService {
   constructor(
-    @InjectModel(CpcProduct.name) private model: Model<CpcProduct>,
+    @InjectModel(CpcProduct.name)
+    private readonly model: Model<CpcProduct>,
     private readonly auditService: AuditService,
     private readonly logger: LoggerService,
-    private readonly uploadService: UploadService
-  ) { }
+    private readonly uploadService: UploadService,
+  ) {}
 
   /**
    * Créer une nouvelle entrée CPC
    */
-  async create(data: CreateCpcDto, userId: string): Promise<PaginationResult<CpcProduct>> {
+  async create(
+    data: CreateCpcDto,
+    userId: string,
+  ): Promise<PaginationResult<CpcProduct>> {
     this.logger.debug('CPC', `Création du code ${data.code}`);
 
     const created = await new this.model(data).save();
 
     await this.auditService.log({
       action: AuditAction.CREATE,
-      entityType: 'CPC' as EntityType,
+      entityType: EntityType.CPC,
       entityId: created._id.toString(),
       userId: userId,
       newState: created.toObject(),
@@ -44,7 +48,7 @@ export class CpcService {
     return {
       status: 'success',
       message: 'Code CPC créé avec succès',
-      data: [created]
+      data: [created],
     };
   }
 
@@ -58,8 +62,13 @@ export class CpcService {
     if (search) filter.nom = { $regex: search, $options: 'i' };
 
     const [data, total] = await Promise.all([
-      this.model.find(filter).limit(Number(limit)).skip((Number(page) - 1) * Number(limit)).sort({ code: 1 }).exec(),
-      this.model.countDocuments(filter)
+      this.model
+        .find(filter)
+        .limit(Number(limit))
+        .skip((Number(page) - 1) * Number(limit))
+        .sort({ code: 1 })
+        .exec(),
+      this.model.countDocuments(filter),
     ]);
 
     return {
@@ -68,21 +77,29 @@ export class CpcService {
       data,
       total,
       page: Number(page),
-      limit: Number(limit)
+      limit: Number(limit),
     };
   }
 
   /**
    * Trouver les enfants directs d'un code
    */
-  async findChildren(parentCode: string, query: any = {}): Promise<PaginationResult<CpcProduct>> {
+  async findChildren(
+    parentCode: string,
+    query: any = {},
+  ): Promise<PaginationResult<CpcProduct>> {
     const { page = 1, limit = 10 } = query;
 
     this.logger.debug('CPC', `Recherche des enfants pour: ${parentCode}`);
 
     const [data, total] = await Promise.all([
-      this.model.find({ parentCode }).limit(Number(limit)).skip((Number(page) - 1) * Number(limit)).sort({ code: 1 }).exec(),
-      this.model.countDocuments({ parentCode })
+      this.model
+        .find({ parentCode })
+        .limit(Number(limit))
+        .skip((Number(page) - 1) * Number(limit))
+        .sort({ code: 1 })
+        .exec(),
+      this.model.countDocuments({ parentCode }),
     ]);
 
     return {
@@ -91,7 +108,7 @@ export class CpcService {
       data,
       total,
       page: Number(page),
-      limit: Number(limit)
+      limit: Number(limit),
     };
   }
 
@@ -108,11 +125,18 @@ export class CpcService {
   /**
    * Mettre à jour (avec gestion stricte de null pour TS)
    */
-  async update(code: string, data: UpdateCpcDto, userId: string): Promise<PaginationResult<CpcProduct>> {
+  async update(
+    code: string,
+    data: UpdateCpcDto,
+    userId: string,
+  ): Promise<PaginationResult<CpcProduct>> {
     const previous = await this.model.findOne({ code }).exec();
-    if (!previous) throw new NotFoundException('Code introuvable pour modification');
+    if (!previous)
+      throw new NotFoundException('Code introuvable pour modification');
 
-    const updated = await this.model.findOneAndUpdate({ code }, data, { new: true }).exec();
+    const updated = await this.model
+      .findOneAndUpdate({ code }, data, { new: true })
+      .exec();
 
     // Type Guard pour rassurer TypeScript sur le retour non-null
     if (!updated) {
@@ -131,16 +155,20 @@ export class CpcService {
     return {
       status: 'success',
       message: 'Mise à jour réussie',
-      data: [updated]
+      data: [updated],
     };
   }
 
   /**
    * Supprimer une entrée
    */
-  async delete(code: string, userId: string): Promise<PaginationResult<CpcProduct>> {
+  async delete(
+    code: string,
+    userId: string,
+  ): Promise<PaginationResult<CpcProduct>> {
     const toDelete = await this.model.findOne({ code }).exec();
-    if (!toDelete) throw new NotFoundException('Code introuvable pour suppression');
+    if (!toDelete)
+      throw new NotFoundException('Code introuvable pour suppression');
 
     await this.model.deleteOne({ code }).exec();
 
@@ -155,16 +183,22 @@ export class CpcService {
     return {
       status: 'success',
       message: 'Suppression réussie',
-      data: []
+      data: [],
     };
   }
   /**
-     * Importer un fichier CSV de CPC
-     */
-  async importCpcProduct(file: Express.Multer.File, userId: string): Promise<PaginationResult<CpcProduct>> {
+   * Importer un fichier CSV de CPC
+   */
+  async importCpcProduct(
+    file: Express.Multer.File,
+    userId: string,
+  ): Promise<PaginationResult<CpcProduct>> {
     // Sauvegarde du fichier via UploadService
     const fileUrl = await this.uploadService.saveFile(file, 'cpc-import');
-    const filePath = path.join(process.cwd(), fileUrl.replace('/upload/', 'upload/'));
+    const filePath = path.join(
+      process.cwd(),
+      fileUrl.replace('/upload/', 'upload/'),
+    );
 
     const results: any[] = [];
     const stream = fs.createReadStream(filePath).pipe(csv());
@@ -226,12 +260,14 @@ export class CpcService {
       stream: Readable.from(buffer),
     } as Express.Multer.File;
 
-
     const fileUrl = await this.uploadService.saveFile(fakeFile, 'cpc-export');
     return fileUrl;
   }
 
-  async bulkCreate(dto: BulkCreateCpcDto, userId: string): Promise<PaginationResult<CpcProduct>> {
+  async bulkCreate(
+    dto: BulkCreateCpcDto,
+    userId: string,
+  ): Promise<PaginationResult<CpcProduct>> {
     const created: CpcProduct[] = [];
 
     for (const item of dto.items) {
@@ -256,5 +292,4 @@ export class CpcService {
       data: created,
     };
   }
-
 }

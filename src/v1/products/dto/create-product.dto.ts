@@ -1,41 +1,93 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsArray, IsBoolean, IsObject } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEnum,
+} from 'class-validator';
 
 export class CreateProductDto {
-    @ApiProperty({ example: '01111', description: 'Code CPC à 5 chiffres' })
-    @IsString() @IsNotEmpty()
-    codeCPC: string;
+  @ApiProperty({
+    description: 'Code officiel de la nomenclature CPC',
+    example: '01111',
+  })
+  @IsString()
+  @IsNotEmpty()
+  codeCPC: string;
 
-    @ApiProperty({ example: 'Blé dur de qualité supérieure' })
-    @IsString() @IsNotEmpty()
-    productName: string;
+  @ApiProperty({
+    description: 'Nom commercial ou spécifique du produit',
+    example: 'Blé dur de qualité supérieure',
+  })
+  @IsString()
+  @IsNotEmpty()
+  productName: string;
 
-    @ApiPropertyOptional({ example: 'Récolte 2023' })
-    @IsString() @IsOptional()
-    productDescription?: string;
+  @ApiPropertyOptional({
+    description: 'Description détaillée du produit',
+    example: 'Blé dur récolté en 2025, teneur en humidité < 12%',
+  })
+  @IsString()
+  @IsOptional()
+  productDescription?: string;
 
-    @ApiProperty({ enum: ['Brut', 'Transformé', 'Conditionné'], default: 'Brut' })
-    @IsEnum(['Brut', 'Transformé', 'Conditionné'])
-    @IsOptional()
-    productState?: string;
+  @ApiProperty({
+    description: 'ID MongoDB de la catégorie CPC correspondante',
+    example: '65dcf1234567890abcdef123',
+  })
+  @IsNotEmpty()
+  categoryId: string;
 
-    @ApiPropertyOptional({ type: [String] })
-    @IsArray() @IsString({ each: true }) @IsOptional()
-    productImage?: string[];
+  @ApiProperty({
+    description: 'Libellé textuel de la catégorie',
+    example: 'Céréales',
+  })
+  @IsString()
+  @IsNotEmpty()
+  productCategory: string;
 
-    @ApiPropertyOptional()
-    @IsString() @IsOptional()
-    productVolume?: string;
+  @ApiProperty({
+    description: 'État physique du produit',
+    enum: ['Brut', 'Transformé', 'Conditionné'],
+    example: 'Brut',
+  })
+  @IsEnum(['Brut', 'Transformé', 'Conditionné'])
+  @IsOptional()
+  productState?: string;
 
-    @ApiPropertyOptional()
-    @IsString() @IsOptional()
-    productPoids?: string;
+  @ApiPropertyOptional({ description: 'Volume total', example: '1000 L' })
+  @IsString()
+  @IsOptional()
+  productVolume?: string;
 
-    @ApiPropertyOptional()
-    @IsObject() @IsOptional()
-    dimensions?: { hauteur: string; largeur: string; longueur: string };
+  @ApiPropertyOptional({ description: 'Hauteur unitaire', example: '1.2 m' })
+  @IsString()
+  @IsOptional()
+  productHauteur?: string;
 
-    @ApiPropertyOptional({ default: false })
-    @IsBoolean() @IsOptional()
-    isStocker?: boolean;
+  @ApiPropertyOptional({ description: 'Largeur unitaire', example: '0.8 m' })
+  @IsString()
+  @IsOptional()
+  productLargeur?: string;
+
+  @ApiPropertyOptional({ description: 'Longueur unitaire', example: '0.8 m' })
+  @IsString()
+  @IsOptional()
+  productLongueur?: string;
+
+  @ApiPropertyOptional({
+    description: 'Poids total ou unitaire',
+    example: '500 kg',
+  })
+  @IsString()
+  @IsOptional()
+  productPoids?: string;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Images du produit (plusieurs fichiers possibles)',
+  })
+  @IsOptional()
+  images?: any;
 }
