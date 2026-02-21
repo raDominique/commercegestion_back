@@ -15,6 +15,5 @@ import { LoggerService } from 'src/common/logger/logger.service';
   controllers: [ProductController],
   providers: [ProductService, LoggerService],
   exports: [ProductService],
-
 })
 export class ProductsModule { }

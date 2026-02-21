@@ -343,4 +343,22 @@ export class ProductService {
       };
     });
   }
+
+  /**
+   * Version interne pour forcer le statut de stockage sans vérification de propriété
+   * (Utilisé par StockService lors d'un dépôt)
+   */
+  async setStockStatus(productId: string, status: boolean): Promise<void> {
+    await this.productModel.findByIdAndUpdate(productId, { isStocker: status });
+  }
+
+  /**
+   * Version améliorée de findById pour retourner l'objet Document brut si nécessaire
+   * ou simplement s'assurer qu'on récupère les data correctement.
+   */
+  async findOneRaw(id: string): Promise<ProductDocument> {
+    const product = await this.productModel.findById(id);
+    if (!product) throw new NotFoundException('Produit introuvable');
+    return product;
+  }
 }
