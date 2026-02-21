@@ -20,7 +20,6 @@ import {
   ApiParam,
   ApiResponse,
   ApiBody,
-  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ProductService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -102,6 +101,7 @@ export class ProductController {
   // SECTION : ACTIONS DE BASCULE (TOGGLES)
   // ==========================================
 
+  /*
   @Patch('toggle-stock/:id')
   @Auth()
   @ApiOperation({
@@ -112,7 +112,7 @@ export class ProductController {
   async toggleStock(@Param('id') id: string, @Req() req: any) {
     return this.productService.toggleStock(id, req.user?.userId);
   }
-
+  */
   @Patch('toggle-validation/:id')
   @AuthRole(UserAccess.ADMIN)
   @ApiOperation({
@@ -139,6 +139,7 @@ export class ProductController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({ name: 'isStocker', required: false, type: Boolean })
+  @ApiQuery({ name: 'validation', required: false, type: Boolean })
   @ApiResponse({
     status: 200,
     description: 'Liste récupérée.',
@@ -181,6 +182,7 @@ export class ProductController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({ name: 'isStocker', required: false, type: Boolean })
+  @ApiQuery({ name: 'validation', required: false, type: Boolean })
   @ApiResponse({ status: 200, description: 'Vos produits ont été récupérés.' })
   async getMyProducts(@Query() query: any, @Req() req: any) {
     const userId = req.user?.userId;

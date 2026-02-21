@@ -187,7 +187,7 @@ export class ProductService {
     userId?: string,
     isAdmin?: boolean,
   ): Promise<PaginationResult<any>> {
-    const { page = 1, limit = 10, search, isStocker } = query;
+    const { page = 1, limit = 10, search, isStocker, validation } = query;
     const filter: any = {};
 
     // Filtrage par propriétaire si non-admin
@@ -204,7 +204,18 @@ export class ProductService {
     }
 
     // Filtre spécifique sur le statut de stockage
-    if (isStocker !== undefined) filter.isStocker = isStocker === 'true';
+    if (isStocker !== undefined) {
+      filter.isStocker =
+        isStocker === 'true' || isStocker === true || isStocker === '1' ||
+        isStocker === 1;
+    }
+
+    // Filtre spécifique sur le statut de validation
+    if (validation !== undefined) {
+      filter.productValidation =
+        validation === 'true' || validation === true || validation === '1' ||
+        validation === 1;
+    }
 
     const skip = (Number(page) - 1) * Number(limit);
 

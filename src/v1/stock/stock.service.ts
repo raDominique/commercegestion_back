@@ -24,6 +24,7 @@ export class StockService {
     // 1. Vérifier l'existence du produit (via ProductService)
     const product = await this.productService.findOneRaw(dto.productId);
 
+
     // 2. RÈGLE : Validation Admin requise
     if (!product.productValidation) {
       throw new BadRequestException("Produit non validé par l'admin.");
@@ -32,6 +33,7 @@ export class StockService {
     // 3. Vérifier que les sites existent (via SiteService)
     const siteOrigine = await this.siteService.findOne(dto.siteOrigineId);
     const siteDest = await this.siteService.findOne(dto.siteDestinationId);
+
 
     // 4. Création du mouvement
     const movement = new this.movementModel({
