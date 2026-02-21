@@ -11,6 +11,7 @@ import { UploadService } from 'src/shared/upload/upload.service';
 import { AuditService } from 'src/v1/audit/audit.service';
 import { AuditAction, EntityType } from 'src/v1/audit/audit-log.schema';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
+import { NotificationsService } from 'src/shared/notifications/notifications.service';
 
 @Injectable()
 export class ProductService {
@@ -19,6 +20,7 @@ export class ProductService {
     private readonly productModel: Model<ProductDocument>,
     private readonly uploadService: UploadService,
     private readonly auditService: AuditService,
+    private readonly socketNotifications: NotificationsService,
   ) {}
 
   /**
@@ -74,6 +76,13 @@ export class ProductService {
       userId,
       newState: saved.toObject(),
     });
+
+    // Notification automatique aux Administrateurs
+    await this.socketNotifications.notifyAllAdmins(
+      'Nouveau produit à valider',
+      `Le produit "${saved.productName}" a été créé et nécessite une validation admin.`,
+      { productId: saved._id, ownerId: userId },
+    );
 
     return {
       status: 'success',
@@ -206,14 +215,18 @@ export class ProductService {
     // Filtre spécifique sur le statut de stockage
     if (isStocker !== undefined) {
       filter.isStocker =
-        isStocker === 'true' || isStocker === true || isStocker === '1' ||
+        isStocker === 'true' ||
+        isStocker === true ||
+        isStocker === '1' ||
         isStocker === 1;
     }
 
     // Filtre spécifique sur le statut de validation
     if (validation !== undefined) {
       filter.productValidation =
-        validation === 'true' || validation === true || validation === '1' ||
+        validation === 'true' ||
+        validation === true ||
+        validation === '1' ||
         validation === 1;
     }
 
@@ -250,31 +263,36 @@ export class ProductService {
   }
   /**
    * Basculer l'état de validation d'un produit (Admin)
-   * Inverse l'état : true -> false / false -> true
    */
   async toggleProductValidation(
     id: string,
   ): Promise<PaginationResult<Product>> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('ID de produit invalide.');
-    }
+    if (!Types.ObjectId.isValid(id))
+      throw new BadRequestException('ID invalide.');
 
     const product = await this.productModel.findById(id);
     if (!product) throw new NotFoundException('Produit introuvable');
 
-    // --- LOGIQUE VISE-VERSA ---
     product.productValidation = !product.productValidation;
     await product.save();
+
+    // 🔥 OPTIONNEL : Notifier l'utilisateur que son produit est validé
+    if (product.productValidation) {
+      await this.socketNotifications.notifyUser(
+        product.productOwnerId.toString(),
+        'Produit Validé !',
+        `Votre produit "${product.productName}" a été validé par l'administration.`,
+      );
+    }
 
     return {
       status: 'success',
       message: product.productValidation
-        ? 'Produit validé avec succès'
-        : 'Validation du produit retirée',
+        ? 'Produit validé'
+        : 'Validation retirée',
       data: [product],
     };
   }
-
   /**
    * Inverser le statut de stockage
    */
