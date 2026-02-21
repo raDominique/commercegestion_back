@@ -1,4 +1,4 @@
-# API Etokisana
+# API CommerceGestion
 
 <p align="center">
   <a href="http://nestjs.com/" target="blank">
@@ -40,9 +40,9 @@
 
 ## Description
 
-**API Etokisana** est une application backend robuste et performante développée avec **NestJS**, offrant une architecture modulaire et évolutive. L'API fournit deux versions distinctes pour répondre à différents besoins :
+**API CommerceGestion** est une plateforme backend complète et performante développée avec **NestJS**, offrant une architecture modulaire et évolutive pour la gestion du commerce et des inventaires. L'API fournit deux versions distinctes pour répondre à différents besoins :
 
-- **Version 1 (V1)** : Solution complète avec authentification avancée, autorisation basée sur les rôles et système d'audit
+- **Version 1 (V1)** : Solution complète avec authentification avancée, autorisation basée sur les rôles, gestion des produits, catégories, dépôts et système d'audit
 - **Version 2 (V2)** : Version allégée et optimisée pour des cas d'usage simples nécessitant des performances maximales
 
 L'application utilise **MongoDB** comme base de données, **Mongoose** comme ORM, et propose une documentation interactive via **Swagger/OpenAPI**.
@@ -52,20 +52,29 @@ L'application utilise **MongoDB** comme base de données, **Mongoose** comme ORM
 ## ✨ Fonctionnalités
 
 ### Version 1 (Complète)
+
 - ✅ Authentification JWT avec refresh tokens
 - ✅ Système d'autorisation basé sur les rôles et permissions
 - ✅ Logging et audit des actions utilisateurs
 - ✅ Gestion avancée des utilisateurs
+- ✅ Gestion complète des produits avec images
+- ✅ Gestion des catégories (CPC)
+- ✅ Gestion des dépôts et items
+- ✅ Gestion des sites/emplacements
+- ✅ Validation et filtrage des produits
+- ✅ Pagination et recherche avancée
 - ✅ Service d'envoi d'emails avec templates Handlebars
 - ✅ Gestion sécurisée des fichiers
 
 ### Version 2 (Optimisée)
+
 - ⚡ Performance optimisée
 - ⚡ Gestion basique des utilisateurs
 - ⚡ Upload de fichiers simplifié
 - ⚡ Idéale pour les intégrations légères
 
 ### Fonctionnalités communes
+
 - 📚 Documentation API interactive (Swagger)
 - 🔒 Validation des données avec Joi
 - 🌍 Configuration flexible via variables d'environnement
@@ -76,17 +85,20 @@ L'application utilise **MongoDB** comme base de données, **Mongoose** comme ORM
 
 ## 🛠 Technologies
 
-| Technologie | Version | Usage |
-|------------|---------|-------|
-| **NestJS** | 11.0 | Framework backend |
-| **MongoDB** | Latest | Base de données NoSQL |
-| **Mongoose** | Latest | ODM pour MongoDB |
-| **TypeScript** | Latest | Langage de programmation |
-| **Swagger/OpenAPI** | Latest | Documentation API |
-| **@nestjs/config** | Latest | Gestion de configuration |
-| **Joi** | Latest | Validation de schémas |
-| **Passport JWT** | Latest | Authentification |
-| **Handlebars** | Latest | Moteur de templates pour emails |
+| Technologie         | Version | Usage                           |
+| ------------------- | ------- | ------------------------------- |
+| **NestJS**          | 11.0.1  | Framework backend               |
+| **MongoDB**         | 9.x+    | Base de données NoSQL           |
+| **Mongoose**        | 9.1.5   | ODM pour MongoDB                |
+| **TypeScript**      | 5.7.3   | Langage de programmation        |
+| **Swagger/OpenAPI** | 11.2.5  | Documentation API               |
+| **@nestjs/config**  | 4.0.2   | Gestion de configuration        |
+| **Joi**             | 18.0.2  | Validation de schémas           |
+| **Passport JWT**    | 4.0.1   | Authentification                |
+| **Handlebars**      | 4.7.8   | Moteur de templates pour emails |
+| **Bcrypt**          | 6.0.0   | Hachage de mots de passe        |
+| **Class Validator** | 0.14.3  | Validation de classes           |
+| **Multer**          | 2.0.2   | Gestion des uploads             |
 
 ---
 
@@ -95,6 +107,7 @@ L'application utilise **MongoDB** comme base de données, **Mongoose** comme ORM
 ### Prérequis
 
 Assurez-vous d'avoir installé :
+
 - **Node.js** (version 18.x ou supérieure)
 - **npm** ou **yarn**
 - **MongoDB** (version 6.x ou supérieure)
@@ -104,7 +117,7 @@ Assurez-vous d'avoir installé :
 ```bash
 # Cloner le projet
 git clone <repository-url>
-cd api-etokisana
+cd commercegestion_back
 
 # Installer les dépendances
 npm install
@@ -130,14 +143,16 @@ PORT=5000
 NODE_ENV=development
 APP_NAME=CommerceGestion
 APP_URL=http://localhost:5000
-ADMIN_EMAIL=admin@example.com
 
 # Frontend
 FRONTEND_URL=http://localhost:3000
 CORS_ALLOWLIST=http://localhost:3000,http://localhost:4200
 
 # Base de données
-MONGO_URI=mongodb://localhost:27017/api-etokisana
+MONGO_URI=mongodb://localhost:27017/commercegestion
+
+# Admin Email
+ADMIN_EMAIL=admin@example.com
 ```
 
 ### Configuration JWT
@@ -161,7 +176,14 @@ SMTP_HOST=your_smtp_host
 SMTP_PORT=587
 SMTP_USER=your_smtp_user
 SMTP_PASS=your_smtp_password
-SMTP_FROM="Etokisana Support <no-reply@etokisana.com>"
+SMTP_FROM="CommerceGestion Support <no-reply@commercegestion.com>"
+```
+
+### Configuration Seeder
+
+```env
+SUPERADMIN_EMAIL=superadmin@example.com
+SUPERADMIN_PASSWORD=superadminpassword
 ```
 
 ---
@@ -176,6 +198,12 @@ npm run start:dev
 
 L'API sera accessible sur `http://localhost:5000`
 
+### Mode debug
+
+```bash
+npm run start:debug
+```
+
 ### Mode production
 
 ```bash
@@ -186,10 +214,10 @@ npm run build
 npm run start:prod
 ```
 
-### Mode watch
+### Mode démarrage simple
 
 ```bash
-npm run start:watch
+npm start
 ```
 
 ---
@@ -199,10 +227,11 @@ npm run start:watch
 La documentation Swagger/OpenAPI est automatiquement générée et accessible une fois l'application lancée :
 
 ```
-http://localhost:5000/api/docs
+http://localhost:5000/swagger
 ```
 
 La documentation interactive vous permet de :
+
 - 📋 Explorer tous les endpoints disponibles
 - 🧪 Tester les requêtes directement depuis l'interface
 - 📝 Consulter les schémas de données
@@ -217,25 +246,56 @@ La documentation interactive vous permet de :
 Version avec fonctionnalités avancées incluant l'authentification, l'autorisation et l'audit.
 
 #### Modules disponibles
+
 - **Auth** : Authentification JWT avec refresh tokens
 - **Users** : Gestion complète des utilisateurs
+- **Products** : Gestion des produits avec images et validation
+- **CPC** : Gestion des catégories et classifications
+- **Depot Items** : Gestion des items de dépôt
+- **Sites** : Gestion des sites/emplacements
 - **Audit** : Système de logging et traçabilité
 
 #### Endpoints principaux
 
-| Méthode | Endpoint | Description |
-|---------|----------|-------------|
-| `POST` | `/api/v1/auth/login` | Connexion utilisateur |
-| `POST` | `/api/v1/auth/refresh` | Rafraîchir le token |
-| `POST` | `/api/v1/auth/logout` | Déconnexion |
-| `GET` | `/api/v1/users` | Liste des utilisateurs |
-| `POST` | `/api/v1/users` | Créer un utilisateur |
-| `GET` | `/api/v1/users/:id` | Détails d'un utilisateur |
-| `PATCH` | `/api/v1/users/:id` | Modifier un utilisateur |
+**Authentification**
+
+| Méthode | Endpoint               | Description           |
+| ------- | ---------------------- | --------------------- |
+| `POST`  | `/api/v1/auth/login`   | Connexion utilisateur |
+| `POST`  | `/api/v1/auth/refresh` | Rafraîchir le token   |
+| `POST`  | `/api/v1/auth/logout`  | Déconnexion           |
+
+**Utilisateurs**
+
+| Méthode  | Endpoint            | Description              |
+| -------- | ------------------- | ------------------------ |
+| `GET`    | `/api/v1/users`     | Liste des utilisateurs   |
+| `POST`   | `/api/v1/users`     | Créer un utilisateur     |
+| `GET`    | `/api/v1/users/:id` | Détails d'un utilisateur |
+| `PATCH`  | `/api/v1/users/:id` | Modifier un utilisateur  |
 | `DELETE` | `/api/v1/users/:id` | Supprimer un utilisateur |
-| `GET` | `/api/v1/audit` | Consulter les logs d'audit |
+
+**Produits**
+
+| Méthode  | Endpoint                                 | Description                                      |
+| -------- | ---------------------------------------- | ------------------------------------------------ |
+| `GET`    | `/api/v1/products`                       | Lister les produits (avec pagination)            |
+| `POST`   | `/api/v1/products`                       | Créer un produit (avec image)                    |
+| `GET`    | `/api/v1/products/me`                    | Récupérer les produits de l'utilisateur connecté |
+| `GET`    | `/api/v1/products/get-by-id/:id`         | Récupérer un produit par ID                      |
+| `PATCH`  | `/api/v1/products/update/:id`            | Mettre à jour un produit                         |
+| `PATCH`  | `/api/v1/products/toggle-validation/:id` | Basculer la validation (Admin)                   |
+| `PATCH`  | `/api/v1/products/toggle-stock/:id`      | Inverser le statut de stockage                   |
+| `DELETE` | `/api/v1/products/delete/:id`            | Supprimer un produit                             |
+
+**Audit**
+
+| Méthode | Endpoint        | Description                |
+| ------- | --------------- | -------------------------- |
+| `GET`   | `/api/v1/audit` | Consulter les logs d'audit |
 
 **Cas d'usage recommandés :**
+
 - Applications nécessitant une authentification robuste
 - Systèmes avec gestion de rôles et permissions
 - Applications nécessitant un audit trail complet
@@ -247,18 +307,20 @@ Version avec fonctionnalités avancées incluant l'authentification, l'autorisat
 Version allégée pour des performances maximales et une intégration simplifiée.
 
 #### Modules disponibles
+
 - **Users** : Gestion simplifiée des utilisateurs
 - **Upload** : Gestion des fichiers
 
 #### Endpoints principaux
 
-| Méthode | Endpoint | Description |
-|---------|----------|-------------|
-| `GET` | `/api/v2/users` | Liste des utilisateurs |
-| `POST` | `/api/v2/users` | Créer un utilisateur |
-| `POST` | `/api/v2/upload` | Upload de fichiers |
+| Méthode | Endpoint         | Description            |
+| ------- | ---------------- | ---------------------- |
+| `GET`   | `/api/v2/users`  | Liste des utilisateurs |
+| `POST`  | `/api/v2/users`  | Créer un utilisateur   |
+| `POST`  | `/api/v2/upload` | Upload de fichiers     |
 
 **Cas d'usage recommandés :**
+
 - Microservices simples
 - Prototypes et MVP
 - Applications nécessitant des temps de réponse minimaux
@@ -323,6 +385,35 @@ src/
 │   │       ├── create-user.dto.ts
 │   │       └── update-user.dto.ts
 │   │
+│   ├── products/                 # Module produits
+│   │   ├── products.module.ts
+│   │   ├── products.service.ts
+│   │   ├── products.controller.ts
+│   │   ├── products.schema.ts
+│   │   └── dto/
+│   │       ├── create-product.dto.ts
+│   │       └── update-product.dto.ts
+│   │
+│   ├── cpc/                      # Module CPC (Catégories)
+│   │   ├── cpc.module.ts
+│   │   ├── cpc.service.ts
+│   │   ├── cpc.controller.ts
+│   │   ├── cpc.schema.ts
+│   │   └── dto/
+│   │
+│   ├── depot-item/               # Module items de dépôt
+│   │   ├── depot-item.module.ts
+│   │   ├── depot-item.service.ts
+│   │   ├── depot-item.controller.ts
+│   │   ├── depot-item.schema.ts
+│   │   └── dto/
+│   │
+│   ├── sites/                    # Module sites
+│   │   ├── sites.module.ts
+│   │   ├── sites.service.ts
+│   │   ├── sites.controller.ts
+│   │   └── sites.schema.ts
+│   │
 │   └── audit/                   # Module d'audit
 │       ├── audit.module.ts
 │       ├── audit.service.ts
@@ -365,20 +456,23 @@ npm run test:e2e
 
 # Couverture de code
 npm run test:cov
+
+# Tests en mode debug
+npm run test:debug
 ```
 
 Les résultats de couverture sont disponibles dans le dossier `coverage/`.
 
 ---
 
-## 🔍 Linting
+## 🔍 Linting et Formatage
 
 ```bash
-# Vérifier le code
+# Vérifier et corriger le code
 npm run lint
 
-# Corriger automatiquement
-npm run lint:fix
+# Formater le code (Prettier)
+npm run format
 ```
 
 ---
@@ -446,17 +540,15 @@ Initialisez le replica set :
 
 ```javascript
 rs.initiate({
-  _id: "rs0",
-  members: [
-    { _id: 0, host: "localhost:27017" }
-  ]
-})
+  _id: 'rs0',
+  members: [{ _id: 0, host: 'localhost:27017' }],
+});
 ```
 
 Vérifiez le statut :
 
 ```javascript
-rs.status()
+rs.status();
 ```
 
 Vous devriez voir `"stateStr": "PRIMARY"` dans la sortie.
@@ -480,7 +572,7 @@ mongosh
 ```
 
 ```javascript
-rs.initiate()
+rs.initiate();
 ```
 
 ---
@@ -534,17 +626,15 @@ Initialisez le replica set :
 
 ```javascript
 rs.initiate({
-  _id: "rs0",
-  members: [
-    { _id: 0, host: "localhost:27017" }
-  ]
-})
+  _id: 'rs0',
+  members: [{ _id: 0, host: 'localhost:27017' }],
+});
 ```
 
 Vérifiez le statut :
 
 ```javascript
-rs.status()
+rs.status();
 ```
 
 **Méthode 2 : Démarrage manuel**
@@ -581,7 +671,7 @@ mongosh
 ```
 
 ```javascript
-rs.initiate()
+rs.initiate();
 ```
 
 ---
@@ -593,7 +683,7 @@ rs.initiate()
 Dans votre fichier `.env`, ajoutez le paramètre `replicaSet` :
 
 ```env
-MONGO_URI=mongodb://localhost:27017/api-etokisana?replicaSet=rs0
+MONGO_URI=mongodb://localhost:27017/commercegestion?replicaSet=rs0
 ```
 
 **Étape 2 : Vérifier la configuration**
@@ -606,10 +696,10 @@ mongosh
 
 ```javascript
 // Vérifier le statut du replica set
-rs.status()
+rs.status();
 
 // Vérifier la configuration
-rs.conf()
+rs.conf();
 
 // Vous devriez voir quelque chose comme :
 // {
@@ -637,7 +727,7 @@ mongosh
 ```
 
 ```javascript
-db.adminCommand({ replSetGetStatus: 1 })
+db.adminCommand({ replSetGetStatus: 1 });
 ```
 
 Vous devriez voir `"ok": 1` et `"myState": 1` (PRIMARY).
@@ -645,11 +735,11 @@ Vous devriez voir `"ok": 1` et `"myState": 1` (PRIMARY).
 2. **Tester une transaction :**
 
 ```javascript
-const session = db.getMongo().startSession()
-session.startTransaction()
+const session = db.getMongo().startSession();
+session.startTransaction();
 // Vos opérations ici
-session.commitTransaction()
-session.endSession()
+session.commitTransaction();
+session.endSession();
 ```
 
 3. **Lancer l'application et vérifier les logs :**
@@ -699,12 +789,12 @@ Ce projet est sous licence **MIT**.
 
 Pour toute question ou problème :
 
-- 📧 Email : support@etokisana.com
+- 📧 Email : support@commercegestion.com
 - 🐛 Issues : [GitHub Issues](https://github.com/your-repo/issues)
 - 📚 Documentation complète : [Wiki](https://github.com/your-repo/wiki)
 
 ---
 
 <p align="center">
-  Développé avec ❤️ par l'équipe Etokisana
+  Développé avec ❤️ par l'équipe CommerceGestion
 </p>
