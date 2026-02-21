@@ -12,6 +12,7 @@ import { SiteModule } from './sites/sites.module';
 import { ProductsModule } from './products/products.module';
 import { CpcModule } from './cpc/cpc.module';
 import { StockModule } from './stock/stock.module';
+import { NotificationsModule } from 'src/shared/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { StockModule } from './stock/stock.module';
     ProductsModule,
     CpcModule,
     StockModule,
+    
   ],
   controllers: [AppController],
   providers: [AppService, UploadService],

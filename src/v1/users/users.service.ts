@@ -21,6 +21,7 @@ import { ConfigService } from '@nestjs/config';
 import { NotifyHelper } from 'src/shared/helpers/notify.helper';
 import { AuditAction, EntityType } from 'src/v1/audit/audit-log.schema';
 import { SiteService } from '../sites/sites.service';
+import { NotificationsService } from 'src/shared/notifications/notifications.service';
 
 @Injectable()
 export class UsersService {
@@ -38,6 +39,7 @@ export class UsersService {
     @Inject(forwardRef(() => SiteService))
     private readonly siteService: SiteService,
     private readonly notifyHelper: NotifyHelper,
+    private readonly socketNotifications: NotificationsService,
   ) {
     this.baseUrl =
       this.configService.get<string>('APP_URL') || 'http://localhost:3000';
@@ -46,6 +48,7 @@ export class UsersService {
   }
 
   // ========================= CREATE =========================
+  // ========================= CREATE =========================
   async createWithFiles(
     dto: CreateUserDto,
     files: any = {},
@@ -53,49 +56,40 @@ export class UsersService {
     const uploadedFiles: string[] = [];
 
     try {
-      // 1. Unicité
+      // 1. Vérification unicité (Email)
       const exists = await this.userModel.findOne({
         userEmail: dto.userEmail.toLowerCase(),
         deletedAt: null,
       });
       if (exists) throw new ConflictException('Email déjà utilisé');
 
-      // 2. Validation Entreprise
-      if (
-        dto.userType === 'Entreprise' &&
-        (!dto.managerName || !dto.managerEmail)
-      ) {
-        throw new BadRequestException(
-          'managerName et managerEmail obligatoires',
-        );
-      }
-
-      // 3. Uploads
+      // 2. Gestion des Uploads (Avatar / Logo)
       const avatarPath = files.avatar
         ? await this.uploadService.saveFile(files.avatar, 'avatars')
         : undefined;
       if (avatarPath) uploadedFiles.push(avatarPath);
-
       const logoPath = files.logo
         ? await this.uploadService.saveFile(files.logo, 'logos')
         : undefined;
       if (logoPath) uploadedFiles.push(logoPath);
 
-      // 4. Persistence
+      // 3. Création de l'instance utilisateur
       const user = new this.userModel({
         ...dto,
         userEmail: dto.userEmail.toLowerCase(),
         userId: randomUUID(),
         userImage: avatarPath,
         logo: logoPath,
-        userValidated: false,
+        userValidated: false, // Nécessite l'activation Admin
         userEmailVerified: false,
         userTotalSolde: 0,
       });
 
       await user.save();
 
-      // 5. Audit & Notification
+      // --- NOTIFICATIONS & AUDIT ---
+
+      // A. Audit Log & Email standard
       await this.notifyHelper.notify({
         action: AuditAction.CREATE,
         entityType: EntityType.USER,
@@ -105,7 +99,15 @@ export class UsersService {
         emailData: { type: 'CREATE' },
       });
 
-      // 6. Token & Email
+      // B. 🔥 NOTIFICATION SOCKET TEMPS RÉEL AUX ADMINS
+      // On prévient tous les admins qu'un compte attend leur validation
+      await this.socketNotifications.notifyAllAdmins(
+        'Nouvelle inscription à valider',
+        `L'utilisateur ${user.userName || user.userEmail} (${user.userType}) vient de s'inscrire et attend votre activation.`,
+        { userId: user._id, userType: user.userType },
+      );
+
+      // 4. Token de vérification Email & Envoi Mail
       const token = randomBytes(32).toString('hex');
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
@@ -115,14 +117,13 @@ export class UsersService {
         token,
         expiresAt,
       });
-
       await this.mailService.verificationAccountUser(
         user.userEmail,
         user.userName ?? user.managerName ?? 'Utilisateur',
         `${this.baseUrl}/api/v1/users/verify?token=${token}`,
       );
 
-      // 7. Site par défaut
+      // 5. Création d'un site par défaut (Logic existante)
       const siteDto = {
         siteName: `${user.userName ?? 'Utilisateur'} - Site principal`,
         siteAddress: user.userAddress ?? '',
@@ -133,10 +134,11 @@ export class UsersService {
 
       return {
         status: 'success',
-        message: `Compte créé avec succès. Un e-mail de vérification a été envoyé à ${user.userEmail}.`,
+        message: `Compte créé. Notification envoyée aux administrateurs pour activation.`,
         data: [user],
       };
     } catch (err) {
+      // Nettoyage des fichiers si erreur
       for (const f of uploadedFiles) {
         if (fs.existsSync(f)) fs.unlinkSync(f);
       }
@@ -327,9 +329,7 @@ export class UsersService {
       .exec();
   }
 
-  /**
-   * Utilisé par UsersController (Erreur ligne 246)
-   */
+  // ========================= ACTIVATION PAR ADMIN =========================
   async activateAccount(userId: string): Promise<PaginationResult<User>> {
     const user = await this.userModel.findById(userId);
     if (!user) throw new NotFoundException('Utilisateur non trouvé');
@@ -337,19 +337,16 @@ export class UsersService {
     user.userValidated = true;
     await user.save();
 
-    await this.notifyHelper.notify({
-      action: AuditAction.UPDATE,
-      entityType: EntityType.USER,
-      entityId: user._id.toString(),
-      userId: user._id.toString(),
-      previousState: { userValidated: false },
-      newState: { userValidated: true },
-      emailData: { type: 'UPDATE' },
-    });
+    // Notification Socket à l'utilisateur pour lui dire qu'il est activé
+    await this.socketNotifications.notifyUser(
+      user._id.toString(),
+      'Compte Activé !',
+      'Votre compte a été validé par un administrateur. Vous pouvez maintenant accéder à tous nos services.',
+    );
 
     return {
       status: 'success',
-      message: 'Compte activé avec succès',
+      message: 'Compte activé avec succès et utilisateur notifié.',
       data: [user],
     };
   }

@@ -12,6 +12,7 @@ import { ProductsModule } from './v1/products/products.module';
 import { CpcModule } from './v1/cpc/cpc.module';
 import { SiteModule } from './v1/sites/sites.module';
 import { StockModule } from './v1/stock/stock.module';
+import { NotificationsModule } from './shared/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { StockModule } from './v1/stock/stock.module';
           { path: 'products', module: ProductsModule },
           { path: 'cpc', module: CpcModule },
           { path: 'stocks', module: StockModule },
+          { path: 'notifications', module: NotificationsModule },
         ],
       },
       {
