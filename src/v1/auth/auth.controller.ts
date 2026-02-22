@@ -19,7 +19,7 @@ import { Auth } from './decorators/auth.decorator';
 @ApiTags('Authentication')
 @Controller()
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @Post('login')
   @ApiOperation({ summary: 'Login user and get access + refresh tokens' })
@@ -145,7 +145,9 @@ export class AuthController {
   }
 
   @Post('forgot-password')
-  @ApiOperation({ summary: 'Demander un lien de réinitialisation de mot de passe' })
+  @ApiOperation({
+    summary: 'Demander un lien de réinitialisation de mot de passe',
+  })
   @ApiBody({ type: ForgotPasswordDto })
   @ApiResponse({
     status: 200,

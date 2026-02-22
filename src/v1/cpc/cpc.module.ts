@@ -9,10 +9,10 @@ import { AuditModule } from '../audit/audit.module';
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: CpcProduct.name, schema: CpcSchema }]),
-    AuditModule
+    AuditModule,
   ],
   controllers: [CpcController],
   providers: [CpcService, LoggerService],
-  exports: [CpcService]
+  exports: [CpcService],
 })
-export class CpcModule { }
+export class CpcModule {}

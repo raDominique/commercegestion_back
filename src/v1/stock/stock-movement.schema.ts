@@ -13,8 +13,14 @@ export class StockMovement {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   operatorId: Types.ObjectId;
 
+  @Prop({ type: Types.ObjectId, ref: 'Site', required: true, index: true })
+  siteOrigineId: Types.ObjectId;
+
   @Prop({ required: true, trim: true })
   depotOrigine: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'Site', required: true, index: true })
+  siteDestinationId: Types.ObjectId;
 
   @Prop({ required: true, trim: true })
   depotDestination: string;

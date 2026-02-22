@@ -4,9 +4,9 @@ import { Type } from 'class-transformer';
 import { CreateCpcDto } from './create-cpc.dto';
 
 export class BulkCreateCpcDto {
-    @ApiProperty({ type: [CreateCpcDto], description: 'Liste des CPC à créer' })
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => CreateCpcDto)
-    items: CreateCpcDto[];
+  @ApiProperty({ type: [CreateCpcDto], description: 'Liste des CPC à créer' })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateCpcDto)
+  items: CreateCpcDto[];
 }

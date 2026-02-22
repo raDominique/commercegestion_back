@@ -3,6 +3,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ProductService } from '../products/products.service';
 import { SiteService } from '../sites/sites.service';
+import { ActifsService } from '../actifs/actifs.service';
+import { PassifsService } from '../passifs/passifs.service';
 import { CreateMovementDto } from './dto/create-movement.dto';
 import {
   StockMovement,
@@ -18,12 +20,13 @@ export class StockService {
     private movementModel: Model<StockMovementDocument>,
     private readonly productService: ProductService,
     private readonly siteService: SiteService,
+    private readonly actifsService: ActifsService,
+    private readonly passifsService: PassifsService,
   ) {}
 
   async createMovement(dto: CreateMovementDto, userId: string) {
     // 1. Vérifier l'existence du produit (via ProductService)
     const product = await this.productService.findOneRaw(dto.productId);
-
 
     // 2. RÈGLE : Validation Admin requise
     if (!product.productValidation) {
@@ -33,7 +36,6 @@ export class StockService {
     // 3. Vérifier que les sites existent (via SiteService)
     const siteOrigine = await this.siteService.findOne(dto.siteOrigineId);
     const siteDest = await this.siteService.findOne(dto.siteDestinationId);
-
 
     // 4. Création du mouvement
     const movement = new this.movementModel({
@@ -50,9 +52,37 @@ export class StockService {
 
     const saved = await movement.save();
 
-    // 5. Si c'est un dépôt, marquer le produit comme stocké
-    if (dto.type === MovementType.DEPOT && !product.isStocker) {
-      await this.productService.setStockStatus(dto.productId, true);
+    // 5. GESTION DES ACTIFS/PASSIFS
+    if (dto.type === MovementType.DEPOT) {
+      // DEPOT : Augmenter les actifs du site de destination
+      await this.actifsService.addOrIncreaseActif(
+        userId,
+        dto.siteDestinationId,
+        dto.productId,
+        dto.quantite,
+      );
+
+      // Marquer le produit comme stocké si ce n'est pas déjà fait
+      if (!product.isStocker) {
+        await this.productService.setStockStatus(dto.productId, true);
+      }
+    } else if (dto.type === MovementType.RETRAIT) {
+      // RETRAIT :
+      // 1. Réduire les actifs du site d'origine
+      await this.actifsService.decreaseActif(
+        userId,
+        dto.siteOrigineId,
+        dto.productId,
+        dto.quantite,
+      );
+      // 2. Augmenter les passifs du site d'origine
+      await this.passifsService.addOrIncreasePassif(
+        userId,
+        dto.siteOrigineId,
+        dto.productId,
+        dto.quantite,
+        'Retrait',
+      );
     }
 
     return {
@@ -72,6 +102,22 @@ export class StockService {
 
   //  On peut utiliser le findAll du productService avec isStocker=true
   // src/v1/stock/stock.service.ts
+
+  /**
+   * Récupérer les actifs d'un utilisateur pour un site spécifique
+   * Directement depuis la table des actifs
+   */
+  async getSiteActifs(userId: string, siteId: string) {
+    return this.actifsService.getActifsByUserAndSite(userId, siteId);
+  }
+
+  /**
+   * Récupérer les passifs d'un utilisateur pour un site spécifique
+   * Directement depuis la table des passifs
+   */
+  async getSitePassifs(userId: string, siteId: string) {
+    return this.passifsService.getPassifsByUserAndSite(userId, siteId);
+  }
 
   async getMyAssets(
     userId: string,
@@ -144,5 +190,12 @@ export class StockService {
       page: Number(page),
       limit: Number(limit),
     };
+  }
+
+  /**
+   * Récupérer tous les passifs d'un utilisateur
+   */
+  async getMyPassifs(userId: string) {
+    return this.passifsService.getPassifsByUser(userId);
   }
 }

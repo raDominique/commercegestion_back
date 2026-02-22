@@ -5,6 +5,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { StockMovement, StockMovementSchema } from './stock-movement.schema';
 import { ProductsModule } from '../products/products.module';
 import { SiteModule } from '../sites/sites.module';
+import { ActifsModule } from '../actifs/actifs.module';
+import { PassifsModule } from '../passifs/passifs.module';
 
 @Module({
   imports: [
@@ -12,7 +14,9 @@ import { SiteModule } from '../sites/sites.module';
       { name: StockMovement.name, schema: StockMovementSchema },
     ]),
     ProductsModule,
-    SiteModule
+    SiteModule,
+    ActifsModule,
+    PassifsModule,
   ],
   controllers: [StockController],
   providers: [StockService],
