@@ -80,7 +80,7 @@ export class UsersService {
         userId: randomUUID(),
         userImage: avatarPath,
         logo: logoPath,
-        userValidated: false, // Nécessite l'activation Admin
+        userValidated: false,
         userEmailVerified: false,
         userTotalSolde: 0,
       });
