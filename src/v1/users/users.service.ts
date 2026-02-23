@@ -63,14 +63,16 @@ export class UsersService {
       });
       if (exists) throw new ConflictException('Email déjà utilisé');
 
-      // 2. Gestion des Uploads (Avatar / Logo)
-      const avatarPath = files.avatar
-        ? await this.uploadService.saveFile(files.avatar, 'avatars')
-        : undefined;
+      // 2. Gestion des Uploads EN PARALLÈLE (Avatar + Logo)
+      const [avatarPath, logoPath] = await Promise.all([
+        files.avatar
+          ? this.uploadService.saveFile(files.avatar, 'avatars')
+          : Promise.resolve(undefined),
+        files.logo
+          ? this.uploadService.saveFile(files.logo, 'logos')
+          : Promise.resolve(undefined),
+      ]);
       if (avatarPath) uploadedFiles.push(avatarPath);
-      const logoPath = files.logo
-        ? await this.uploadService.saveFile(files.logo, 'logos')
-        : undefined;
       if (logoPath) uploadedFiles.push(logoPath);
 
       // 3. Création de l'instance utilisateur
@@ -87,27 +89,7 @@ export class UsersService {
 
       await user.save();
 
-      // --- NOTIFICATIONS & AUDIT ---
-
-      // A. Audit Log & Email standard
-      await this.notifyHelper.notify({
-        action: AuditAction.CREATE,
-        entityType: EntityType.USER,
-        entityId: user._id.toString(),
-        userId: user._id.toString(),
-        newState: user.toObject(),
-        emailData: { type: 'CREATE' },
-      });
-
-      // B. 🔥 NOTIFICATION SOCKET TEMPS RÉEL AUX ADMINS
-      // On prévient tous les admins qu'un compte attend leur validation
-      await this.socketNotifications.notifyAllAdmins(
-        'Nouvelle inscription à valider',
-        `L'utilisateur ${user.userName || user.userEmail} (${user.userType}) vient de s'inscrire et attend votre activation.`,
-        { userId: user._id, userType: user.userType },
-      );
-
-      // 4. Token de vérification Email & Envoi Mail
+      // 4. Créer le token de vérification AVANT les opérations async longues
       const token = randomBytes(32).toString('hex');
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
@@ -117,24 +99,20 @@ export class UsersService {
         token,
         expiresAt,
       });
-      await this.mailService.verificationAccountUser(
-        user.userEmail,
-        user.userName ?? user.managerName ?? 'Utilisateur',
-        `${this.baseUrl}/api/v1/users/verify?token=${token}`,
-      );
 
-      // 5. Création d'un site par défaut (Logic existante)
-      const siteDto = {
-        siteName: `${user.userName ?? 'Utilisateur'} - Site principal`,
-        siteAddress: user.userAddress ?? '',
-        siteLat: Number(user.userMainLat) || 0,
-        siteLng: Number(user.userMainLng) || 0,
-      };
-      await this.siteService.create(siteDto, user._id.toString());
+      // --- OPÉRATIONS EN ARRIÈRE-PLAN (ne pas attendre) ---
+      // Fire and forget pour les notifications/emails/audits
+      this.runBackgroundTasks(user, token).catch((err) => {
+        console.error(
+          `[Background Tasks Error] User ${user._id}:`,
+          err.message,
+        );
+      });
 
+      // ✅ Retour rapide au client
       return {
         status: 'success',
-        message: `Compte créé. Notification envoyée aux administrateurs pour activation.`,
+        message: `Compte créé. Vérifiez votre email pour confirmer votre adresse.`,
         data: [user],
       };
     } catch (err) {
@@ -143,6 +121,68 @@ export class UsersService {
         if (fs.existsSync(f)) fs.unlinkSync(f);
       }
       throw err;
+    }
+  }
+
+  /**
+   * Exécute les tâches longues en arrière-plan
+   * (audit, notifications, emails, création de site)
+   * Sans bloquer la réponse HTTP
+   */
+  private async runBackgroundTasks(user: UserDocument, token: string) {
+    try {
+      // Opérations en parallèle
+      await Promise.all([
+        // A. Audit Log & Email standard
+        this.notifyHelper.notify({
+          action: AuditAction.CREATE,
+          entityType: EntityType.USER,
+          entityId: user._id.toString(),
+          userId: user._id.toString(),
+          newState: user.toObject(),
+          emailData: { type: 'CREATE' },
+        }),
+
+        // B. Notification socket aux admins
+        this.socketNotifications.notifyAllAdmins(
+          'Nouvelle inscription à valider',
+          `L'utilisateur ${user.userName || user.userEmail} (${user.userType}) vient de s'inscrire et attend votre activation.`,
+          { userId: user._id, userType: user.userType },
+        ),
+
+        // C. Envoi email de vérification
+        this.mailService.verificationAccountUser(
+          user.userEmail,
+          user.userName ?? user.managerName ?? 'Utilisateur',
+          `${this.baseUrl}/api/v1/users/verify?token=${token}`,
+        ),
+
+        // D. Création du site par défaut
+        this.createDefaultSite(user),
+      ]);
+    } catch (err) {
+      // Log l'erreur mais ne rejette pas
+      console.error(`[Background Tasks] Error for user ${user._id}:`, err);
+    }
+  }
+
+  /**
+   * Crée un site par défaut pour l'utilisateur
+   */
+  private async createDefaultSite(user: UserDocument) {
+    try {
+      const siteDto = {
+        siteName: `${user.userName ?? 'Utilisateur'} - Site principal`,
+        siteAddress: user.userAddress ?? '',
+        siteLat: Number(user.userMainLat) || 0,
+        siteLng: Number(user.userMainLng) || 0,
+      };
+      await this.siteService.create(siteDto, user._id.toString());
+    } catch (err) {
+      console.error(
+        `[Default Site Creation] Error for user ${user._id}:`,
+        err.message,
+      );
     }
   }
 
