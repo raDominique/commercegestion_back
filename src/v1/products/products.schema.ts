@@ -1,59 +1,57 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { CpcProduct } from '../cpc/cpc.schema';
 
 export type ProductDocument = Product & Document;
 
-@Schema({ timestamps: true })
-export class Product {
-  readonly _id: string;
-
-  @Prop({ 
-    required: true, 
-    unique: true, 
+@Schema({
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+})
+export class Product extends Document {
+  @Prop({
+    required: true,
     index: true,
-    description: 'Code à 5 chiffres selon la nomenclature CPC (ex: 01110 pour le blé)' 
+    unique: false,
+    trim: true,
   })
   codeCPC: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, trim: true })
   productName: string;
 
   @Prop()
   productDescription: string;
 
-  // Référence vers la catégorie (qui correspond souvent au Groupe ou à la Division CPC)
-  @Prop({ type: Types.ObjectId, ref: 'Category', required: true, index: true })
-  categoryId: string;
-
-  @Prop({ 
-    type: String, 
-    enum: ['Brut', 'Transformé', 'Conditionné'], 
-    default: 'Brut' 
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'CpcProduct',
+    required: true,
+    index: true,
   })
+  categoryId: Types.ObjectId | CpcProduct;
+
+  @Prop()
+  productCategory: string;
+
+  @Prop({ enum: ['Brut', 'Transformé', 'Conditionné'], default: 'Brut' })
   productState: string;
 
-  @Prop({ type: [String] })
-  productImage: string[];
+  @Prop({ type: String })
+  productImage: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
-  productOwnerId: string;
+  productOwnerId: Types.ObjectId;
 
   @Prop({ default: false })
   productValidation: boolean;
 
-  // --- Dimensions et Logistique ---
-  @Prop()
-  productVolume: string; // Ex: "10 m3"
-
-  @Prop()
-  productPoids: string; // Ex: "50 kg"
-
-  @Prop({ type: Object })
-  dimensions: {
-    hauteur: string;
-    largeur: string;
-    longueur: string;
-  };
+  @Prop() productVolume: string;
+  @Prop() productHauteur: string;
+  @Prop() productLargeur: string;
+  @Prop() productLongueur: string;
+  @Prop() productPoids: string;
 
   @Prop({ default: false })
   isStocker: boolean;

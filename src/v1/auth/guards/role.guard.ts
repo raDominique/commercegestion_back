@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { UserType } from '../../users/users.schema';
+import { UserAccess } from '../../users/users.schema';
 
 /**
  * Guard pour vérifier les rôles d'accès
@@ -16,17 +16,20 @@ import { UserType } from '../../users/users.schema';
  * @example
  * @Get('admin-only')
  * @Auth()
- * @Roles(UserType.ADMIN)
+ * @Roles(UserAccess.ADMIN)
  * @UseGuards(RoleGuard)
  * getAdminData() { ... }
  */
 @Injectable()
 export class RoleGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
     // Récupérer les rôles spécifiés par le décorateur @Roles()
-    const roles = this.reflector.get<UserType[]>('roles', context.getHandler());
+    const roles = this.reflector.get<UserAccess[]>(
+      'roles',
+      context.getHandler(),
+    );
 
     // Si aucun rôle n'est spécifié, laisser passer (la route n'a pas de restriction)
     if (!roles || roles.length === 0) {
@@ -41,11 +44,11 @@ export class RoleGuard implements CanActivate {
     }
 
     // Vérifier si le rôle de l'utilisateur est dans la liste des rôles autorisés
-    const hasRole = roles.includes(user.userType);
+    const hasRole = roles.includes(user.userAccess);
 
     if (!hasRole) {
       throw new ForbiddenException(
-        `Forbidden: This resource requires one of the following roles: ${roles.join(', ')}. Your current role is: ${user.userType}`,
+        `Forbidden: This resource requires one of the following roles: ${roles.join(', ')}. Your current role is: ${user.userAccess}`,
       );
     }
 

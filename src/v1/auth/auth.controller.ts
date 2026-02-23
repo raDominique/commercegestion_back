@@ -11,10 +11,13 @@ import type { Request } from 'express';
 import { ApiOperation, ApiTags, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { Auth } from './decorators/auth.decorator';
 
 @ApiTags('Authentication')
-@Controller('auth')
+@Controller()
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
@@ -139,5 +142,62 @@ export class AuthController {
       throw new UnauthorizedException('User ID not found in token');
     }
     return this.authService.getProfile(userId);
+  }
+
+  @Post('forgot-password')
+  @ApiOperation({
+    summary: 'Demander un lien de réinitialisation de mot de passe',
+  })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Lien de réinitialisation envoyé (message sécurisé)',
+  })
+  @ApiResponse({ status: 400, description: 'Email invalide' })
+  forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+    return this.authService.forgotPassword(dto.userEmail, req);
+  }
+
+  @Post('reset-password')
+  @ApiOperation({ summary: 'Réinitialiser le mot de passe avec le token' })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Mot de passe réinitialisé avec succès',
+  })
+  @ApiResponse({ status: 400, description: 'Token invalide ou expiré' })
+  resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
+    return this.authService.resetPassword(
+      dto.resetToken,
+      dto.newPassword,
+      dto.confirmPassword,
+      req,
+    );
+  }
+
+  @Post('change-password')
+  @Auth()
+  @ApiOperation({
+    summary: 'Changer le mot de passe pour un utilisateur authentifié',
+  })
+  @ApiBody({ type: ChangePasswordDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Mot de passe changé avec succès',
+  })
+  @ApiResponse({ status: 400, description: 'Mot de passe actuel incorrect' })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  changePassword(@Body() dto: ChangePasswordDto, @Req() req: any) {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException('User ID not found in token');
+    }
+    return this.authService.changePassword(
+      userId,
+      dto.currentPassword,
+      dto.newPassword,
+      dto.confirmPassword,
+      req,
+    );
   }
 }

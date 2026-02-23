@@ -13,12 +13,15 @@ export enum AuditAction {
   VERIFY_EMAIL = 'VERIFY_EMAIL',
   ACTIVATE_ACCOUNT = 'ACTIVATE_ACCOUNT',
   CHANGE_ROLE = 'CHANGE_ROLE',
+  PASSWORD_RESET = 'PASSWORD_RESET',
+  PASSWORD_CHANGED = 'PASSWORD_CHANGED',
 }
 
 export enum EntityType {
   USER = 'USER',
   SITE = 'SITE',
   PRODUCT = 'PRODUCT',
+  CPC = 'CPC',
 }
 
 @Schema({ timestamps: { createdAt: 'timestamp', updatedAt: false } })

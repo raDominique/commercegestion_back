@@ -169,6 +169,28 @@ export class MailService {
   }
 
   /* =========================================================================
+   * PASSWORD RESET
+   * ========================================================================= */
+
+  async sendPasswordResetEmail(
+    to: string,
+    username: string,
+    resetLink: string,
+  ) {
+    await this.sendMailSafe(
+      to,
+      `Réinitialisation de votre mot de passe - ${this.appName}`,
+      'password-reset',
+      {
+        username,
+        resetLink,
+        expirationTime: '24 heures',
+        supportLink: `${this.appUrl}/support`,
+      },
+    );
+  }
+
+  /* =========================================================================
    * EMAIL GÉNÉRIQUE
    * ========================================================================= */
 

@@ -9,8 +9,11 @@ import { UploadService } from '../shared/upload/upload.service';
 import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
 import { SiteModule } from './sites/sites.module';
-import { CategoryModule } from './category/category.module';
 import { ProductsModule } from './products/products.module';
+import { CpcModule } from './cpc/cpc.module';
+import { StockModule } from './stock/stock.module';
+import { ActifsModule } from './actifs/actifs.module';
+import { PassifsModule } from './passifs/passifs.module';
 
 @Module({
   imports: [
@@ -21,8 +24,11 @@ import { ProductsModule } from './products/products.module';
     AuthModule,
     AuditModule,
     SiteModule,
-    CategoryModule,
     ProductsModule,
+    CpcModule,
+    StockModule,
+    ActifsModule,
+    PassifsModule,
   ],
   controllers: [AppController],
   providers: [AppService, UploadService],

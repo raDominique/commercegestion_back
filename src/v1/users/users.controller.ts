@@ -11,6 +11,9 @@ import {
   HttpStatus,
   UploadedFiles,
   UseInterceptors,
+  Res,
+  Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,11 +21,9 @@ import {
   ApiResponse,
   ApiParam,
   ApiBody,
-  ApiBadRequestResponse,
   ApiNotFoundResponse,
   ApiQuery,
   ApiConsumes,
-  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -31,9 +32,11 @@ import { User, UserAccess, UserType } from './users.schema';
 import { Auth, AuthRole } from '../auth';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { multerMemoryConfig } from 'src/shared/upload/multer.memory';
+import express from 'express';
+import { UsersQueryDto } from './dto/users-query.dto';
 
 @ApiTags('Users')
-@Controller('users')
+@Controller()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -209,29 +212,39 @@ export class UsersController {
 
   // ========================= DELETE (SOFT) =========================
   @Delete('delete/:id')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.NO_CONTENT) // 204 No Content
   @AuthRole(UserAccess.ADMIN)
   @ApiOperation({
     summary: 'Suppression logique (ADMIN)',
     description:
-      'Désactive le compte sans supprimer les données de la base (Soft Delete).',
+      'Désactive le compte (Soft Delete). Un admin ne peut pas supprimer son propre compte.',
   })
   @ApiParam({ name: 'id', description: "ID MongoDB de l'utilisateur" })
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(id);
+  async remove(@Req() req: any, @Param('id') id: string) {
+    // 1. Empêcher l'auto-suppression
+    if (req.user.userId === id) {
+      throw new ForbiddenException(
+        'Vous ne pouvez pas supprimer votre propre compte admin.',
+      );
+    }
+
+    // 2. Appeler le service
+    return await this.usersService.remove(id);
   }
 
   // ========================= VERIFY ACCOUNT SECURISE =========================
   @Get('verify')
   @ApiOperation({
-    summary: "Vérifier l'adresse email",
-    description: 'Endpoint appelé lors du clic sur le lien reçu par email.',
+    summary: "Vérifier l'adresse email et rediriger",
   })
   @ApiQuery({ name: 'token', description: 'Jeton de sécurité unique' })
-  @ApiResponse({ status: 200, description: 'Compte marqué comme vérifié.' })
-  @ApiBadRequestResponse({ description: 'Lien expiré ou invalide.' })
-  async verifyAccount(@Query('token') token: string) {
-    return this.usersService.verifyAccountToken(token);
+  @ApiResponse({ status: 302 })
+  async verifyAccount(
+    @Query('token') token: string,
+    @Res() res: express.Response,
+  ) {
+    const redirectUrl = await this.usersService.verifyAccountToken(token);
+    return res.redirect(redirectUrl);
   }
 
   // ========================= ACTIVATE ACCOUNT =========================
@@ -264,16 +277,17 @@ export class UsersController {
   @ApiQuery({ name: 'userType', required: false, enum: UserType })
   @ApiQuery({ name: 'isActive', required: false, type: Boolean })
   @ApiQuery({ name: 'isVerified', required: false, type: Boolean })
-  findAllPaginated(
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-    @Query('search') search?: string,
-    @Query('sortBy') sortBy = 'createdAt',
-    @Query('order') order: 'asc' | 'desc' = 'desc',
-    @Query('userType') userType?: UserType,
-    @Query('isActive') isActive?: boolean,
-    @Query('isVerified') isVerified?: boolean,
-  ) {
+  findAllPaginated(@Query() query: UsersQueryDto) {
+    const {
+      page = '1',
+      limit = '10',
+      search,
+      sortBy = 'createdAt',
+      order = 'desc',
+      userType,
+      isActive,
+      isVerified,
+    } = query;
     const filter = {
       userType,
       isActive:
@@ -289,5 +303,12 @@ export class UsersController {
       order,
       filter,
     );
+  }
+
+  @Patch('toggle-role/:id')
+  @AuthRole(UserAccess.ADMIN)
+  @ApiOperation({ summary: 'Basculer rôle ADMIN/UTILISATEUR' })
+  toggleRole(@Param('id') id: string) {
+    return this.usersService.toggleAdminRole(id);
   }
 }

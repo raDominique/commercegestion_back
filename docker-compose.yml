@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  api:
+    image: ${IMAGE_NAME}:${IMAGE_TAG}
+    container_name: api-etokisana
+    restart: unless-stopped
+    ports:
+      - "${PORT}:${PORT}"
+
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${PORT}
+      MONGO_URI: ${MONGO_URI}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      APP_NAME: ${APP_NAME}
+      APP_URL: ${APP_URL}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      CORS_ALLOWLIST: ${CORS_ALLOWLIST}
+      FRONTEND_URL: ${FRONTEND_URL}
+      SUPERADMIN_EMAIL: ${SUPERADMIN_EMAIL}
+      SUPERADMIN_PASSWORD: ${SUPERADMIN_PASSWORD}
+
+    volumes:
+      - api_upload:/app/upload
+      - api_logs:/var/log/api-etokisana
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  api_upload:
+  api_logs:
