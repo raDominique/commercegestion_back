@@ -26,7 +26,10 @@ export class RoleGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     // Récupérer les rôles spécifiés par le décorateur @Roles()
-    const roles = this.reflector.get<UserAccess[]>('roles', context.getHandler());
+    const roles = this.reflector.get<UserAccess[]>(
+      'roles',
+      context.getHandler(),
+    );
 
     // Si aucun rôle n'est spécifié, laisser passer (la route n'a pas de restriction)
     if (!roles || roles.length === 0) {

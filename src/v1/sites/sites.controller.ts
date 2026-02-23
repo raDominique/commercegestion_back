@@ -32,7 +32,7 @@ export class SiteController {
   constructor(
     private readonly siteService: SiteService,
     private readonly loggerService: LoggerService,
-  ) { }
+  ) {}
 
   /* ===================== CREATE ===================== */
   @Post()

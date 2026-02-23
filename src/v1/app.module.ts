@@ -12,7 +12,8 @@ import { SiteModule } from './sites/sites.module';
 import { ProductsModule } from './products/products.module';
 import { CpcModule } from './cpc/cpc.module';
 import { StockModule } from './stock/stock.module';
-import { NotificationsModule } from 'src/shared/notifications/notifications.module';
+import { ActifsModule } from './actifs/actifs.module';
+import { PassifsModule } from './passifs/passifs.module';
 
 @Module({
   imports: [
@@ -26,9 +27,10 @@ import { NotificationsModule } from 'src/shared/notifications/notifications.modu
     ProductsModule,
     CpcModule,
     StockModule,
-    
+    ActifsModule,
+    PassifsModule,
   ],
   controllers: [AppController],
   providers: [AppService, UploadService],
 })
-export class AppModuleV1 { }
+export class AppModuleV1 {}

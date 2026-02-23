@@ -13,7 +13,6 @@ import {
   UseInterceptors,
   Res,
   Req,
-  UnauthorizedException,
   ForbiddenException,
 } from '@nestjs/common';
 import {

@@ -13,6 +13,8 @@ import { CpcModule } from './v1/cpc/cpc.module';
 import { SiteModule } from './v1/sites/sites.module';
 import { StockModule } from './v1/stock/stock.module';
 import { NotificationsModule } from './shared/notifications/notifications.module';
+import { ActifsModule } from './v1/actifs/actifs.module';
+import { PassifsModule } from './v1/passifs/passifs.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { NotificationsModule } from './shared/notifications/notifications.module
           { path: 'cpc', module: CpcModule },
           { path: 'stocks', module: StockModule },
           { path: 'notifications', module: NotificationsModule },
+          { path: 'actifs', module: ActifsModule },
+          { path: 'passifs', module: PassifsModule },
         ],
       },
       {
