@@ -24,7 +24,11 @@ export class StockService {
     private readonly passifsService: PassifsService,
   ) {}
 
-  async createMovement(dto: CreateMovementDto, userId: string, type: MovementType) {
+  async createMovement(
+    dto: CreateMovementDto,
+    userId: string,
+    type: MovementType,
+  ) {
     // 1. Vérifier l'existence du produit (via ProductService)
     const product = await this.productService.findOneRaw(dto.productId);
 
@@ -101,8 +105,107 @@ export class StockService {
       .exec();
   }
 
-  //  On peut utiliser le findAll du productService avec isStocker=true
-  // src/v1/stock/stock.service.ts
+  /**
+   * Construire un filtre pour les mouvements
+   */
+  private buildMovementFilter(
+    userId: string,
+    query: any,
+    movementType?: MovementType,
+  ) {
+    const filter: any = { operatorId: new Types.ObjectId(userId) };
+
+    if (movementType) {
+      filter.type = movementType;
+    }
+
+    const { siteId, productId, startDate, endDate } = query;
+
+    if (siteId) {
+      filter.$or = [
+        { siteOrigineId: new Types.ObjectId(siteId) },
+        { siteDestinationId: new Types.ObjectId(siteId) },
+      ];
+    }
+
+    if (productId) filter.productId = new Types.ObjectId(productId);
+
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) filter.createdAt.$gte = new Date(startDate);
+      if (endDate) filter.createdAt.$lte = new Date(endDate);
+    }
+
+    return filter;
+  }
+
+  /**
+   * Agrégation des soldes par type de mouvement
+   */
+  private aggregateMovements(userId: string, movementType: MovementType) {
+    return this.movementModel.aggregate([
+      { $match: { operatorId: new Types.ObjectId(userId) } },
+      {
+        $group: {
+          _id: '$productId',
+          solde: {
+            $sum: {
+              $cond: [
+                { $eq: ['$type', movementType] },
+                '$quantite',
+                { $multiply: ['$quantite', -1] },
+              ],
+            },
+          },
+        },
+      },
+    ]);
+  }
+
+  /**
+   * Récupérer les actifs/passifs d'un utilisateur
+   */
+  private async getMovements(
+    userId: string,
+    query: any,
+    movementType: MovementType,
+  ): Promise<PaginationResult<any>> {
+    const { page = 1, limit = 10 } = query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const filter = this.buildMovementFilter(userId, query, movementType);
+
+    const [movements, total, aggregateStock] = await Promise.all([
+      this.movementModel
+        .find(filter)
+        .populate(
+          'operatorId',
+          'userNickName userName userFirstname userPhone userImage',
+        )
+        .populate('siteOrigineId', 'siteName siteAddress')
+        .populate('siteDestinationId', 'siteName siteAddress')
+        .populate('productId', 'productName codeCPC productImage prixUnitaire')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .exec(),
+      this.movementModel.countDocuments(filter),
+      this.aggregateMovements(userId, movementType),
+    ]);
+
+    return {
+      status: 'success',
+      message:
+        movementType === MovementType.DEPOT
+          ? 'Actifs récupérés'
+          : 'Passifs récupérés',
+      data: movements,
+      summary: aggregateStock,
+      total,
+      page: Number(page),
+      limit: Number(limit),
+    };
+  }
 
   /**
    * Récupérer les actifs d'un utilisateur pour un site spécifique
@@ -120,83 +223,41 @@ export class StockService {
     return this.passifsService.getPassifsByUserAndSite(userId, siteId);
   }
 
+  /**
+   * Récupérer tous les actifs d'un utilisateur
+   */
   async getMyAssets(
     userId: string,
     query: any,
   ): Promise<PaginationResult<any>> {
-    const {
-      siteId,
-      productId,
-      startDate,
-      endDate,
-      page = 1,
-      limit = 10,
-    } = query;
-    const skip = (Number(page) - 1) * Number(limit);
-
-    // 1. Filtre de base
-    const filter: any = { operatorId: new Types.ObjectId(userId) };
-
-    if (siteId) {
-      filter.$or = [
-        { siteOrigineId: new Types.ObjectId(siteId) },
-        { siteDestinationId: new Types.ObjectId(siteId) },
-      ];
-    }
-
-    if (productId) filter.productId = new Types.ObjectId(productId);
-
-    if (startDate || endDate) {
-      filter.createdAt = {};
-      if (startDate) filter.createdAt.$gte = new Date(startDate);
-      if (endDate) filter.createdAt.$lte = new Date(endDate);
-    }
-
-    // 2. Exécution parallèle : Mouvements + Total + Calcul des soldes (Summary)
-    const [movements, total, aggregateStock] = await Promise.all([
-      this.movementModel
-        .find(filter)
-        .populate('productId', 'productName codeCPC productImage')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(Number(limit))
-        .exec(),
-      this.movementModel.countDocuments(filter),
-      this.movementModel.aggregate([
-        { $match: { operatorId: new Types.ObjectId(userId) } },
-        {
-          $group: {
-            _id: '$productId',
-            solde: {
-              $sum: {
-                $cond: [
-                  { $eq: ['$type', MovementType.DEPOT] },
-                  '$quantite',
-                  { $multiply: ['$quantite', -1] },
-                ],
-              },
-            },
-          },
-        },
-      ]),
-    ]);
-
-    // 3. Retour aplati (Flat Response)
-    return {
-      status: 'success',
-      message: 'Actifs récupérés',
-      data: movements, // Directement la liste ici
-      summary: aggregateStock, // Les soldes sont au même niveau que data
-      total,
-      page: Number(page),
-      limit: Number(limit),
-    };
+    return this.getMovements(userId, query, MovementType.DEPOT);
   }
 
   /**
    * Récupérer tous les passifs d'un utilisateur
    */
-  async getMyPassifs(userId: string) {
-    return this.passifsService.getPassifsByUser(userId);
+  async getMyPassifs(
+    userId: string,
+    query: any,
+  ): Promise<PaginationResult<any>> {
+    const result = await this.getMovements(userId, query, MovementType.RETRAIT);
+
+    return {
+      status: result.status,
+      message: 'Passifs récupérés',
+      data: (result.data || []).map((movement: any) => ({
+        date: movement.createdAt,
+        situation: movement.productId?.productName || 'N/A',
+        type: movement.type,
+        montant: movement.quantite * movement.prixUnitaire,
+        departDe: movement.depotOrigine,
+        arrivee: movement.depotDestination,
+        action: movement.observations || '-',
+      })),
+      summary: result.summary,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
   }
 }

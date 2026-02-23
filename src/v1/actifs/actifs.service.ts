@@ -20,6 +20,7 @@ export class ActifsService {
     depotId: string,
     productId: string,
     quantite: number,
+    prixUnitaire?: number,
   ) {
     try {
       const actif = await this.actifModel.findOneAndUpdate(
@@ -30,6 +31,7 @@ export class ActifsService {
         },
         {
           $inc: { quantite: quantite },
+          ...(prixUnitaire !== undefined && { prixUnitaire }),
         },
         { upsert: true, new: true },
       );
@@ -149,7 +151,7 @@ export class ActifsService {
           'userNickName userName userFirstname userPhone userImage',
         )
         .populate('depotId', 'siteName')
-        .populate('productId', 'productName codeCPC productImage')
+        .populate('productId', 'productName codeCPC productImage prixUnitaire')
         .sort(sort)
         .skip(skip)
         .limit(Number(limit))
@@ -249,7 +251,7 @@ export class ActifsService {
         'userNickName userName userFirstname userPhone userImage',
       )
       .populate('depotId', 'siteName siteAddress siteLat siteLng location')
-      .populate('productId', 'productName codeCPC productImage')
+      .populate('productId', 'productName codeCPC productImage prixUnitaire')
       .exec();
 
     if (!actif)

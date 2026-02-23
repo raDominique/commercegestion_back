@@ -19,6 +19,9 @@ export class Actif {
   @Prop({ required: true })
   quantite: number;
 
+  @Prop({ type: Number, default: null })
+  prixUnitaire: number; // Prix unitaire du produit au moment du dépôt
+
   @Prop({ default: true, index: true })
   isActive: boolean; // Marque si l'actif est actif (quantité > 0)
 
