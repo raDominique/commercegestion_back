@@ -8,7 +8,7 @@ import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 export class PassifsService {
   constructor(
     @InjectModel(Passif.name)
-    private passifModel: Model<PassifDocument>,
+    private readonly passifModel: Model<PassifDocument>,
   ) {}
 
   /**
@@ -87,6 +87,10 @@ export class PassifsService {
     const [items, total] = await Promise.all([
       this.passifModel
         .find(filter)
+        .populate(
+          'userId',
+          'userNickName userName userFirstname userPhone userImage',
+        )
         .populate('depotId', 'siteName')
         .populate('productId', 'productName codeCPC productImage')
         .sort(sort)
@@ -146,6 +150,11 @@ export class PassifsService {
     const [items, total] = await Promise.all([
       this.passifModel
         .find(filter)
+        .populate(
+          'userId',
+          'userNickName userName userFirstname userPhone userImage',
+        )
+        .populate('depotId', 'siteName')
         .populate('productId', 'productName codeCPC productImage')
         .sort(sort)
         .skip(skip)
@@ -191,12 +200,29 @@ export class PassifsService {
   /**
    * Récupérer un passif par ID
    */
-  async findOne(id: string) {
-    return this.passifModel
+  async findOne(id: string): Promise<PaginationResult<Passif>> {
+    const passif = await this.passifModel
       .findById(id)
-      .populate('userId', 'email firstName lastName')
-      .populate('depotId', 'siteName')
-      .populate('productId', 'productName codeCPC')
+      .populate(
+        'userId',
+        'userNickName userName userFirstname userPhone userImage',
+      )
+      .populate('depotId', 'siteName siteAddress siteLat siteLng location')
+      .populate('productId', 'productName codeCPC productImage')
       .exec();
+
+    if (!passif)
+      return {
+        status: 'error',
+        message: 'Passif non trouvé',
+        data: null,
+      };
+
+    // Retour enrichi
+    return {
+      status: 'success',
+      message: 'Passif récupéré',
+      data: [passif],
+    };
   }
 }
