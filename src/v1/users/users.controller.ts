@@ -109,6 +109,28 @@ export class UsersController {
           items: { type: 'string', format: 'binary' },
           description: 'Justificatifs fiscaux (NIF)',
         },
+        managerName: {
+          type: 'string',
+          example: 'Jean Dupont',
+          description: "Nom du gérant (obligatoire si userType = 'Entreprise')",
+        },
+        managerEmail: {
+          type: 'string',
+          format: 'email',
+          example: 'manager@entreprise.com',
+        },
+        parrain1ID: {
+          type: 'string',
+          example: '64d2f3b9e7b9c9b1f1c12345',
+          description:
+            'ID MongoDB du parrain 1 (optionnel, mais doit être un utilisateur existant)',
+        },
+        parrain2ID: {
+          type: 'string',
+          example: '64d2f3b9e7b9c9b1f1c12345',
+          description:
+            'ID MongoDB du parrain 2 (optionnel, mais doit être un utilisateur existant)',
+        },
       },
     },
   })
