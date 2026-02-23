@@ -57,7 +57,7 @@ export class StockController {
   }
 
   // GET: /stock/my-assets -> Liste des produits validés et stockés
-  @Get('my-assets')
+  @Get('my-actifs')
   @Auth()
   @ApiOperation({ summary: 'Voir mes actifs (Produits validés et en stock)' })
   @ApiQuery({
@@ -104,8 +104,44 @@ export class StockController {
   // GET: /stock/my-passifs -> Liste de tous les passifs de l'utilisateur
   @Get('my-passifs')
   @Auth()
+  @ApiQuery({
+    name: 'siteId',
+    required: false,
+    description: 'Filtrer par site (optionnel)',
+  })
+  @ApiQuery({
+    name: 'productId',
+    required: false,
+    description: 'Filtrer par produit (optionnel)',
+  })
+  @ApiQuery({
+    name: 'movementType',
+    required: false,
+    enum: MovementType,
+    description: 'Filtrer par type de mouvement (optionnel)',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    description: 'Filtrer par date de début (optionnel)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description: 'Filtrer par date de fin (optionnel)',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Numéro de page pour la pagination (optionnel)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: "Nombre d'éléments par page pour la pagination (optionnel)",
+  })
   @ApiOperation({ summary: 'Voir mes passifs (Produits retraitées)' })
-  async getMyPassifs(@Req() req: any) {
-    return this.stockService.getMyPassifs(req.user.userId);
+  async getMyPassifs(@Req() req: any, @Query() query: any) {
+    return this.stockService.getMyPassifs(req.user.userId, query);
   }
 }

@@ -20,6 +20,7 @@ export class ActifsService {
     depotId: string,
     productId: string,
     quantite: number,
+    prixUnitaire?: number,
   ) {
     try {
       const actif = await this.actifModel.findOneAndUpdate(
@@ -30,6 +31,7 @@ export class ActifsService {
         },
         {
           $inc: { quantite: quantite },
+          ...(prixUnitaire !== undefined && { prixUnitaire }),
         },
         { upsert: true, new: true },
       );
