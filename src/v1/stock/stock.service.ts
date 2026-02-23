@@ -104,8 +104,12 @@ export class StockService {
   /**
    * Construire un filtre pour les mouvements
    */
-  private buildMovementFilter(userId: string, query: any) {
+  private buildMovementFilter(userId: string, query: any, movementType?: MovementType) {
     const filter: any = { operatorId: new Types.ObjectId(userId) };
+
+    if (movementType) {
+      filter.type = movementType;
+    }
 
     const { siteId, productId, startDate, endDate } = query;
 
@@ -161,7 +165,7 @@ export class StockService {
     const { page = 1, limit = 10 } = query;
     const skip = (Number(page) - 1) * Number(limit);
 
-    const filter = this.buildMovementFilter(userId, query);
+    const filter = this.buildMovementFilter(userId, query, movementType);
 
     const [movements, total, aggregateStock] = await Promise.all([
       this.movementModel
