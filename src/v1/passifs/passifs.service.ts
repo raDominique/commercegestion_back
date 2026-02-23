@@ -155,7 +155,7 @@ export class PassifsService {
           'userNickName userName userFirstname userPhone userImage',
         )
         .populate('depotId', 'siteName')
-        .populate('productId', 'productName codeCPC productImage')
+        .populate('productId', 'productName codeCPC productImage prixUnitaire')
         .sort(sort)
         .skip(skip)
         .limit(Number(limit))
@@ -165,7 +165,7 @@ export class PassifsService {
 
     return {
       status: 'success',
-      message: 'Liste des passifs du site récupérée',
+      message: 'Liste des passifs récupérée',
       data: items,
       total,
       page: Number(page),
@@ -208,7 +208,7 @@ export class PassifsService {
         'userNickName userName userFirstname userPhone userImage',
       )
       .populate('depotId', 'siteName siteAddress siteLat siteLng location')
-      .populate('productId', 'productName codeCPC productImage')
+      .populate('productId', 'productName codeCPC productImage prixUnitaire')
       .exec();
 
     if (!passif)

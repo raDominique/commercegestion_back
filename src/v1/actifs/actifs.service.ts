@@ -149,7 +149,7 @@ export class ActifsService {
           'userNickName userName userFirstname userPhone userImage',
         )
         .populate('depotId', 'siteName')
-        .populate('productId', 'productName codeCPC productImage')
+        .populate('productId', 'productName codeCPC productImage prixUnitaire')
         .sort(sort)
         .skip(skip)
         .limit(Number(limit))
@@ -249,7 +249,7 @@ export class ActifsService {
         'userNickName userName userFirstname userPhone userImage',
       )
       .populate('depotId', 'siteName siteAddress siteLat siteLng location')
-      .populate('productId', 'productName codeCPC productImage')
+      .populate('productId', 'productName codeCPC productImage prixUnitaire')
       .exec();
 
     if (!actif)
