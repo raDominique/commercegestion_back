@@ -21,8 +21,11 @@ export class StockController {
   @Auth()
   @ApiOperation({ summary: 'Déposer un produit dans un site de destination' })
   async deposit(@Body() dto: CreateMovementDto, @Req() req: any) {
-    dto.type = MovementType.DEPOT; // Force le type en dépôt
-    return this.stockService.createMovement(dto, req.user.userId);
+    return this.stockService.createMovement(
+      dto,
+      req.user.userId,
+      MovementType.DEPOT,
+    );
   }
 
   // POST: /stock/withdraw -> Pour retirer un produit d'un site
@@ -30,8 +33,11 @@ export class StockController {
   @Auth()
   @ApiOperation({ summary: "Retirer un produit d'un site (Opération inverse)" })
   async withdraw(@Body() dto: CreateMovementDto, @Req() req: any) {
-    dto.type = MovementType.RETRAIT; // Force le type en retrait
-    return this.stockService.createMovement(dto, req.user.userId);
+    return this.stockService.createMovement(
+      dto,
+      req.user.userId,
+      MovementType.RETRAIT,
+    );
   }
 
   // GET: /stock/site-actifs -> Actifs pour un site spécifique de l'utilisateur

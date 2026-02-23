@@ -20,7 +20,7 @@ export enum DocumentType {
   PASSPORT = 'passport',
   PERMIS_DE_CONDUIRE = 'permis-de-conduire',
 }
-
+ 
 @Schema({ timestamps: true })
 export class User {
   readonly _id?: any;

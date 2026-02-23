@@ -8,7 +8,7 @@ import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 export class ActifsService {
   constructor(
     @InjectModel(Actif.name)
-    private actifModel: Model<ActifDocument>,
+    private readonly actifModel: Model<ActifDocument>,
   ) {}
 
   /**
@@ -144,6 +144,10 @@ export class ActifsService {
     const [items, total] = await Promise.all([
       this.actifModel
         .find(filter)
+        .populate(
+          'userId',
+          'userNickName userName userFirstname userPhone userImage',
+        )
         .populate('depotId', 'siteName')
         .populate('productId', 'productName codeCPC productImage')
         .sort(sort)
@@ -235,27 +239,31 @@ export class ActifsService {
   }
 
   /**
-   * Récupérer tous les actifs (Admin)
-   */
-  async findAll() {
-    return this.actifModel
-      .find()
-      .populate('userId', 'email firstName lastName')
-      .populate('depotId', 'siteName')
-      .populate('productId', 'productName codeCPC')
-      .sort({ createdAt: -1 })
-      .exec();
-  }
-
-  /**
    * Récupérer un actif par ID
    */
-  async findOne(id: string) {
-    return this.actifModel
+  async findOne(id: string): Promise<PaginationResult<Actif>> {
+    const actif = await this.actifModel
       .findById(id)
-      .populate('userId', 'email firstName lastName')
-      .populate('depotId', 'siteName')
-      .populate('productId', 'productName codeCPC')
+      .populate(
+        'userId',
+        'userNickName userName userFirstname userPhone userImage',
+      )
+      .populate('depotId', 'siteName siteAddress siteLat siteLng location')
+      .populate('productId', 'productName codeCPC productImage')
       .exec();
+
+    if (!actif)
+      return {
+        status: 'error',
+        message: 'Actif non trouvé',
+        data: null,
+      };
+
+    // Retour enrichi
+    return {
+      status: 'success',
+      message: 'Actif récupéré',
+      data: [actif],
+    };
   }
 }

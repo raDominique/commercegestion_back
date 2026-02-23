@@ -17,14 +17,14 @@ import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 export class StockService {
   constructor(
     @InjectModel(StockMovement.name)
-    private movementModel: Model<StockMovementDocument>,
+    private readonly movementModel: Model<StockMovementDocument>,
     private readonly productService: ProductService,
     private readonly siteService: SiteService,
     private readonly actifsService: ActifsService,
     private readonly passifsService: PassifsService,
   ) {}
 
-  async createMovement(dto: CreateMovementDto, userId: string) {
+  async createMovement(dto: CreateMovementDto, userId: string, type: MovementType) {
     // 1. Vérifier l'existence du produit (via ProductService)
     const product = await this.productService.findOneRaw(dto.productId);
 
@@ -46,14 +46,15 @@ export class StockService {
       siteOrigineId: siteOrigine._id,
       siteDestinationId: siteDest._id,
       quantite: dto.quantite,
-      type: dto.type,
+      prixUnitaire: dto.prixUnitaire,
+      type: type,
       observations: dto.observations,
     });
 
     const saved = await movement.save();
 
     // 5. GESTION DES ACTIFS/PASSIFS
-    if (dto.type === MovementType.DEPOT) {
+    if (type === MovementType.DEPOT) {
       // DEPOT : Augmenter les actifs du site de destination
       await this.actifsService.addOrIncreaseActif(
         userId,
@@ -66,7 +67,7 @@ export class StockService {
       if (!product.isStocker) {
         await this.productService.setStockStatus(dto.productId, true);
       }
-    } else if (dto.type === MovementType.RETRAIT) {
+    } else if (type === MovementType.RETRAIT) {
       // RETRAIT :
       // 1. Réduire les actifs du site d'origine
       await this.actifsService.decreaseActif(
@@ -87,7 +88,7 @@ export class StockService {
 
     return {
       status: 'success',
-      message: `Opération de ${dto.type} effectuée sur le site ${siteDest.siteName}`,
+      message: `Opération de ${type} effectuée sur le site ${siteDest.siteName}`,
       data: saved,
     };
   }

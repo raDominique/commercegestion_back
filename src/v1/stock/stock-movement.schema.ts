@@ -31,6 +31,9 @@ export class StockMovement {
   @Prop({ required: true, min: 1 })
   quantite: number;
 
+  @Prop({ required: true })
+  prixUnitaire: number;
+
   @Prop({ enum: MovementType, required: true })
   type: MovementType;
 

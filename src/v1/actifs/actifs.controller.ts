@@ -1,7 +1,6 @@
 import { Controller, Get, Param, Query, Req } from '@nestjs/common';
 import {
   ApiTags,
-  ApiBearerAuth,
   ApiOperation,
   ApiQuery,
   ApiResponse,
@@ -64,3 +63,4 @@ export class ActifsController {
     return this.actifsService.findOne(id);
   }
 }
+ 
