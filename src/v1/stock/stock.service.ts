@@ -24,7 +24,11 @@ export class StockService {
     private readonly passifsService: PassifsService,
   ) {}
 
-  async createMovement(dto: CreateMovementDto, userId: string, type: MovementType) {
+  async createMovement(
+    dto: CreateMovementDto,
+    userId: string,
+    type: MovementType,
+  ) {
     // 1. Vérifier l'existence du produit (via ProductService)
     const product = await this.productService.findOneRaw(dto.productId);
 
@@ -104,7 +108,11 @@ export class StockService {
   /**
    * Construire un filtre pour les mouvements
    */
-  private buildMovementFilter(userId: string, query: any, movementType?: MovementType) {
+  private buildMovementFilter(
+    userId: string,
+    query: any,
+    movementType?: MovementType,
+  ) {
     const filter: any = { operatorId: new Types.ObjectId(userId) };
 
     if (movementType) {
@@ -228,7 +236,28 @@ export class StockService {
   /**
    * Récupérer tous les passifs d'un utilisateur
    */
-  async getMyPassifs(userId: string, query: any) {
-    return this.getMovements(userId, query, MovementType.RETRAIT);
+  async getMyPassifs(
+    userId: string,
+    query: any,
+  ): Promise<PaginationResult<any>> {
+    const result = await this.getMovements(userId, query, MovementType.RETRAIT);
+
+    return {
+      status: result.status,
+      message: 'Passifs récupérés',
+      data: (result.data || []).map((movement: any) => ({
+        date: movement.createdAt,
+        situation: movement.productId?.productName || 'N/A',
+        type: movement.type,
+        montant: movement.quantite * movement.prixUnitaire,
+        departDe: movement.depotOrigine,
+        arrivee: movement.depotDestination,
+        action: movement.observations || '-',
+      })),
+      summary: result.summary,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
   }
 }
