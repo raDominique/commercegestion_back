@@ -167,7 +167,7 @@ export class ProductController {
   })
   async findAll(@Query() query: any, @Req() req: any) {
     const userId = req.user?.userId;
-    const isAdmin = req.user?.userAccess === 'admin';
+    const isAdmin = req.user?.userAccess === UserAccess.ADMIN;
     return this.productService.findAll(query, userId, isAdmin);
   }
 
