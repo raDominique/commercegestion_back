@@ -130,9 +130,9 @@ export class ProductController {
   // ==========================================
 
   @Get()
-  @Auth()
+  @AuthRole(UserAccess.ADMIN)
   @ApiOperation({
-    summary: 'Lister tous les produits (Admin/Global)',
+    summary: 'Lister tous les produits (Admin)',
     description: 'Récupère la liste globale triée (Hors stock en premier).',
   })
   @ApiQuery({ name: 'page', required: false, type: Number })
@@ -167,7 +167,7 @@ export class ProductController {
   })
   async findAll(@Query() query: any, @Req() req: any) {
     const userId = req.user?.userId;
-    const isAdmin = req.user?.role === 'admin';
+    const isAdmin = req.user?.userAccess === 'admin';
     return this.productService.findAll(query, userId, isAdmin);
   }
 
