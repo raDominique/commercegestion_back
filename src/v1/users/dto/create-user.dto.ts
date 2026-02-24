@@ -4,6 +4,7 @@ import {
   IsString,
   MinLength,
   ValidateIf,
+  IsNumber,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -48,16 +49,16 @@ export class CreateUserDto {
   @IsString()
   userAddress?: string;
 
-  @ApiPropertyOptional({ example: 48.8566 })
+  @ApiPropertyOptional({ example: -21.4478 }) // Coordonnées Fianarantsoa pour l'exemple
   @IsOptional()
   userMainLat?: number;
 
-  @ApiPropertyOptional({ example: 2.3522 })
+  @ApiPropertyOptional({ example: 47.0858 })
   @IsOptional()
   userMainLng?: number;
 
   // ==================== DOCUMENTS ====================
-  @ApiPropertyOptional({ example: '303' })
+  @ApiPropertyOptional({ example: '301011000123' })
   @IsOptional()
   @IsString()
   identityCardNumber?: string;
@@ -86,18 +87,18 @@ export class CreateUserDto {
   @IsString()
   rcs?: string;
 
-  @ApiPropertyOptional({ example: 'Entreprise' })
+  @ApiPropertyOptional({ example: 'S.A.R.L' })
   @IsOptional()
   @IsString()
   type?: string;
 
   // ------------------ Manager obligatoire si Entreprise ------------------
-  @ApiPropertyOptional({ example: 'Manager' })
+  @ApiPropertyOptional({ example: 'Jean Marc' })
   @ValidateIf((o) => o.userType === 'Entreprise')
   @IsString({ message: 'managerName est obligatoire pour les entreprises' })
   managerName?: string;
 
-  @ApiPropertyOptional({ example: 'manager@example.com' })
+  @ApiPropertyOptional({ example: 'manager@randrian.mg' })
   @ValidateIf((o) => o.userType === 'Entreprise')
   @IsEmail(
     {},
@@ -105,13 +106,17 @@ export class CreateUserDto {
   )
   managerEmail?: string;
 
-  // ==================== PARRAINAGE ====================
-  @ApiPropertyOptional({ example: 'userId1' })
+  // ==================== PARRAINAGE (ID 8 CHARS) ====================
+  /**
+   * CORRECTION : On utilise des exemples de 8 caractères majuscules/chiffres
+   * pour correspondre à votre nouveau middleware.
+   */
+  @ApiPropertyOptional({ example: 'K7B9X2W4' })
   @IsOptional()
   @IsString()
   parrain1ID?: string;
 
-  @ApiPropertyOptional({ example: 'userId2' })
+  @ApiPropertyOptional({ example: 'R4N9M1J8' })
   @IsOptional()
   @IsString()
   parrain2ID?: string;

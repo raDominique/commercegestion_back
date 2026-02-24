@@ -121,15 +121,13 @@ export class UsersController {
         },
         parrain1ID: {
           type: 'string',
-          example: '64d2f3b9e7b9c9b1f1c12345',
-          description:
-            'ID MongoDB du parrain 1 (optionnel, mais doit être un utilisateur existant)',
+          example: 'XJ8K2P9W',
+          description: 'Code de parrainage (8 caractères) du premier parrain',
         },
         parrain2ID: {
           type: 'string',
-          example: '64d2f3b9e7b9c9b1f1c12345',
-          description:
-            'ID MongoDB du parrain 2 (optionnel, mais doit être un utilisateur existant)',
+          example: 'L4N7M1Q5',
+          description: 'Code de parrainage (8 caractères) du deuxième parrain',
         },
       },
     },
