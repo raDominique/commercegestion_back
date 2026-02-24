@@ -5,6 +5,7 @@ import {
   ConflictException,
   forwardRef,
   Inject,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -13,7 +14,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { UploadService } from 'src/shared/upload/upload.service';
-import { randomUUID, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import { MailService } from 'src/shared/mail/mail.service';
 import { UserVerificationToken } from './user-verification.schema';
@@ -24,7 +25,7 @@ import { SiteService } from '../sites/sites.service';
 import { NotificationsService } from 'src/shared/notifications/notifications.service';
 
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
   private readonly baseUrl: string;
   private readonly frontendUrl: string;
 
@@ -47,7 +48,38 @@ export class UsersService {
       this.configService.get<string>('FRONTEND_URL') || 'http://localhost:4200';
   }
 
-  // ========================= CREATE =========================
+  async onModuleInit() {
+    await this.migrateExistingUsers();
+  }
+
+  /**
+   * Migration : Convertit les anciens IDs qui ne font pas 8 caractères
+   */
+  private async migrateExistingUsers() {
+    // Utilisation d'une Regex pour trouver les IDs qui n'ont PAS exactement 8 caractères
+    // Cela évite les erreurs de type complexes avec $where ou $expr
+    const usersToMigrate = await this.userModel
+      .find({
+        $or: [
+          { userId: { $exists: false } },
+          { userId: null },
+          { userId: { $not: /^[A-Z0-9]{8}$/ } }, // Tout ce qui n'est pas 8 caractères Alphanumériques
+        ],
+      })
+      .exec();
+
+    if (usersToMigrate.length > 0) {
+      console.log(
+        `[Migration] Mise à jour de ${usersToMigrate.length} utilisateurs...`,
+      );
+      for (const user of usersToMigrate) {
+        // En forçant la sauvegarde, le middleware .pre('save') du schéma générera le nouvel ID
+        await user.save();
+      }
+      console.log(`[Migration] Terminée.`);
+    }
+  }
+
   // ========================= CREATE =========================
   async createWithFiles(
     dto: CreateUserDto,
@@ -56,14 +88,12 @@ export class UsersService {
     const uploadedFiles: string[] = [];
 
     try {
-      // 1. Vérification unicité (Email)
       const exists = await this.userModel.findOne({
         userEmail: dto.userEmail.toLowerCase(),
         deletedAt: null,
       });
       if (exists) throw new ConflictException('Email déjà utilisé');
 
-      // 2. Gestion des Uploads EN PARALLÈLE (Avatar + Logo)
       const [avatarPath, logoPath] = await Promise.all([
         files.avatar
           ? this.uploadService.saveFile(files.avatar, 'avatars')
@@ -72,14 +102,13 @@ export class UsersService {
           ? this.uploadService.saveFile(files.logo, 'logos')
           : Promise.resolve(undefined),
       ]);
+
       if (avatarPath) uploadedFiles.push(avatarPath);
       if (logoPath) uploadedFiles.push(logoPath);
 
-      // 3. Création de l'instance utilisateur
       const user = new this.userModel({
         ...dto,
         userEmail: dto.userEmail.toLowerCase(),
-        userId: randomUUID(),
         userImage: avatarPath,
         logo: logoPath,
         userValidated: false,
@@ -87,9 +116,9 @@ export class UsersService {
         userTotalSolde: 0,
       });
 
+      // L'ID court est généré automatiquement par le middleware du schéma
       await user.save();
 
-      // 4. Créer le token de vérification AVANT les opérations async longues
       const token = randomBytes(32).toString('hex');
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
@@ -100,23 +129,16 @@ export class UsersService {
         expiresAt,
       });
 
-      // --- OPÉRATIONS EN ARRIÈRE-PLAN (ne pas attendre) ---
-      // Fire and forget pour les notifications/emails/audits
       this.runBackgroundTasks(user, token).catch((err) => {
-        console.error(
-          `[Background Tasks Error] User ${user._id}:`,
-          err.message,
-        );
+        console.error(`[Background Error]:`, err.message);
       });
 
-      // ✅ Retour rapide au client
       return {
         status: 'success',
-        message: `Compte créé. Vérifiez votre email pour confirmer votre adresse.`,
+        message: `Compte créé. Votre code parrainage est ${user.userId}`,
         data: [user],
       };
     } catch (err) {
-      // Nettoyage des fichiers si erreur
       for (const f of uploadedFiles) {
         if (fs.existsSync(f)) fs.unlinkSync(f);
       }
@@ -124,16 +146,9 @@ export class UsersService {
     }
   }
 
-  /**
-   * Exécute les tâches longues en arrière-plan
-   * (audit, notifications, emails, création de site)
-   * Sans bloquer la réponse HTTP
-   */
   private async runBackgroundTasks(user: UserDocument, token: string) {
     try {
-      // Opérations en parallèle
       await Promise.all([
-        // A. Audit Log & Email standard
         this.notifyHelper.notify({
           action: AuditAction.CREATE,
           entityType: EntityType.USER,
@@ -142,62 +157,47 @@ export class UsersService {
           newState: user.toObject(),
           emailData: { type: 'CREATE' },
         }),
-
-        // B. Notification socket aux admins
         this.socketNotifications.notifyAllAdmins(
-          'Nouvelle inscription à valider',
-          `L'utilisateur ${user.userName || user.userEmail} (${user.userType}) vient de s'inscrire et attend votre activation.`,
-          { userId: user._id, userType: user.userType },
+          'Nouvelle inscription',
+          `L'utilisateur ${user.userEmail} attend validation.`,
+          { userId: user._id },
         ),
-
-        // C. Envoi email de vérification
         this.mailService.verificationAccountUser(
           user.userEmail,
-          user.userName ?? user.managerName ?? 'Utilisateur',
+          user.userName ?? 'Utilisateur',
           `${this.baseUrl}/api/v1/users/verify?token=${token}`,
         ),
-
-        // D. Création du site par défaut
         this.createDefaultSite(user),
       ]);
     } catch (err) {
-      // Log l'erreur mais ne rejette pas
-      console.error(`[Background Tasks] Error for user ${user._id}:`, err);
+      console.error(`[Background Tasks Error]:`, err);
     }
   }
 
-  /**
-   * Crée un site par défaut pour l'utilisateur
-   */
-  private async createDefaultSite(user: UserDocument) {
+  private async createDefaultSite(user: any) {
     try {
       const siteDto = {
         siteName: `${user.userName ?? 'Utilisateur'} - Site principal`,
         siteAddress: user.userAddress ?? '',
-        siteLat: Number(user.userMainLat) || 0,
-        siteLng: Number(user.userMainLng) || 0,
+        siteLat: Number(user['userMainLat']) || 0,
+        siteLng: Number(user['userMainLng']) || 0,
       };
       await this.siteService.create(siteDto, user._id.toString());
     } catch (err) {
-      console.error(
-        `[Default Site Creation] Error for user ${user._id}:`,
-        err.message,
-      );
+      console.error(`[Default Site Creation Error]:`, err.message);
     }
   }
 
-  // ========================= READ (PAGINATED) =========================
+  // ========================= AUTRES MÉTHODES =========================
+
+  // ========================= READ (Correction Arguments) =========================
   async findAllPaginated(
     page = 1,
     limit = 10,
     search?: string,
     sortBy = 'createdAt',
     order: 'asc' | 'desc' = 'desc',
-    filter?: Partial<{
-      userType: UserType;
-      isActive: boolean;
-      isVerified: boolean;
-    }>,
+    filter?: any,
   ): Promise<PaginationResult<User>> {
     const query: any = { deletedAt: null };
 
@@ -212,13 +212,11 @@ export class UsersService {
       query.$or = [
         { userEmail: regex },
         { userName: regex },
-        { managerName: regex },
+        { userId: regex },
       ];
     }
 
-    const p = Number(page);
-    const l = Number(limit);
-    const skip = (p - 1) * l;
+    const skip = (Number(page) - 1) * Number(limit);
 
     const [data, total] = await Promise.all([
       this.userModel
@@ -226,22 +224,26 @@ export class UsersService {
         .select('-userPassword')
         .sort({ [sortBy]: order === 'asc' ? 1 : -1 })
         .skip(skip)
-        .limit(l)
+        .limit(Number(limit))
         .exec(),
       this.userModel.countDocuments(query),
     ]);
 
     return {
       status: 'success',
-      message: 'Utilisateurs récupérés',
+      message: 'OK',
       data,
       total,
-      page: p,
-      limit: l,
+      page: Number(page),
+      limit: Number(limit),
     };
   }
+  async findOne(id: string): Promise<PaginationResult<User>> {
+    const user = await this.userModel.findById(id).select('-userPassword');
+    if (!user) throw new NotFoundException('Utilisateur introuvable');
+    return { status: 'success', message: 'Utilisateur récupéré', data: [user] };
+  }
 
-  // ========================= UPDATE =========================
   async update(
     id: string,
     dto: UpdateUserDto,
@@ -251,115 +253,35 @@ export class UsersService {
     if (!user) throw new NotFoundException('Utilisateur non trouvé');
 
     const previousState = user.toObject();
-    const uploadedFiles: string[] = [];
-
-    try {
-      // Gestion Avatar
-      if (files.avatar) {
-        if (user.userImage && fs.existsSync(user.userImage))
-          fs.unlinkSync(user.userImage);
-        user.userImage = await this.uploadService.saveFile(
-          files.avatar,
-          'avatars',
-        );
-        uploadedFiles.push(user.userImage);
-      }
-
-      // Merge des autres champs
-      Object.keys(dto).forEach((key) => {
-        if (dto[key] !== undefined) user[key] = dto[key];
-      });
-
-      const updated = await user.save();
-
-      await this.notifyHelper.notify({
-        action: AuditAction.UPDATE,
-        entityType: EntityType.USER,
-        entityId: updated._id.toString(),
-        userId: id, // Ou l'ID de l'admin via le controller
-        previousState,
-        newState: updated.toObject(),
-      });
-
-      return {
-        status: 'success',
-        message: 'Mise à jour réussie',
-        data: [updated],
-      };
-    } catch (err) {
-      for (const f of uploadedFiles) {
-        if (fs.existsSync(f)) fs.unlinkSync(f);
-      }
-      throw err;
-    }
-  }
-
-  // ========================= UTILS =========================
-  async findOne(id: string): Promise<PaginationResult<User>> {
-    const user = await this.userModel.findById(id).select('-userPassword');
-    if (!user) throw new NotFoundException('Utilisateur introuvable');
-    return { status: 'success', message: 'OK', data: [user] };
-  }
-
-  // ========================= VERIFY ACCOUNT TOKEN =========================
-  async verifyAccountToken(token: string): Promise<string> {
-    const tokenDoc = await this.verificationTokenModel.findOne({ token });
-
-    if (!tokenDoc || tokenDoc.expiresAt < new Date()) {
-      // Optionnel : rediriger vers une page d'erreur spécifique sur le Front
-      // return `${this.frontendUrl}/login?error=expired`;
-      throw new BadRequestException('Token invalide ou expiré');
+    if (files.avatar) {
+      if (user.userImage && fs.existsSync(user.userImage))
+        fs.unlinkSync(user.userImage);
+      user.userImage = await this.uploadService.saveFile(
+        files.avatar,
+        'avatars',
+      );
     }
 
-    const user = await this.userModel.findById(tokenDoc.userId);
-    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+    Object.keys(dto).forEach((key) => {
+      if (dto[key] !== undefined) (user as any)[key] = dto[key];
+    });
 
-    user.userEmailVerified = true;
-    await user.save();
-    await tokenDoc.deleteOne();
-
-    // On retourne l'URL complète
-    return `${this.frontendUrl}/login?verified=true`;
+    const updated = await user.save();
+    return {
+      status: 'success',
+      message: 'Utilisateur mis à jour',
+      data: [updated],
+    };
   }
 
-  // ========================= REMOVE =========================
   async remove(id: string): Promise<PaginationResult<null>> {
     const user = await this.userModel.findById(id);
     if (!user) throw new NotFoundException('Utilisateur non trouvé');
-
     user.deletedAt = new Date();
     await user.save();
-
-    await this.notifyHelper.notify({
-      action: AuditAction.DELETE,
-      entityType: EntityType.USER,
-      entityId: user._id.toString(),
-      userId: id,
-      previousState: user.toObject(),
-      emailData: { type: 'DELETE' },
-    });
-
     return { status: 'success', message: 'Utilisateur supprimé', data: null };
   }
 
-  // ========================= MÉTHODES REQUISES PAR LES AUTRES SERVICES =========================
-
-  /**
-   * Utilisé par NotifyHelper et SiteService (Erreurs lignes 61 et 41)
-   */
-  async getById(userId: string): Promise<User | null> {
-    return this.userModel
-      .findOne({
-        _id: new Types.ObjectId(userId),
-        deletedAt: null,
-      })
-      .exec();
-  }
-
-  /**
-   * Utilisé par AuthService pour le Login (Erreur ligne 31)
-   * On utilise .select('+userPassword') car le mot de passe est souvent en "select: false"
-   */
   async findByEmailWithPassword(
     userEmail: string,
   ): Promise<UserDocument | null> {
@@ -369,46 +291,49 @@ export class UsersService {
       .exec();
   }
 
-  // ========================= ACTIVATION PAR ADMIN =========================
-  async activateAccount(userId: string): Promise<PaginationResult<User>> {
-    const user = await this.userModel.findById(userId);
-    if (!user) throw new NotFoundException('Utilisateur non trouvé');
-
-    user.userValidated = true;
-    await user.save();
-
-    // Notification Socket à l'utilisateur pour lui dire qu'il est activé
-    await this.socketNotifications.notifyUser(
-      user._id.toString(),
-      'Compte Activé !',
-      'Votre compte a été validé par un administrateur. Vous pouvez maintenant accéder à tous nos services.',
-    );
-
+  async findByEmail(userEmail: string): Promise<PaginationResult<User>> {
+    const user = await this.userModel.findOne({
+      userEmail: userEmail.toLowerCase(),
+      deletedAt: null,
+    });
     return {
       status: 'success',
-      message: 'Compte activé avec succès et utilisateur notifié.',
-      data: [user],
+      message: 'Utilisateur récupéré',
+      data: user ? [user] : [],
     };
   }
 
-  /**
-   * Méthode utilitaire interne pour vérifier l'existence
-   */
-  async existsById(userId: string): Promise<boolean> {
-    const count = await this.userModel.countDocuments({
-      _id: new Types.ObjectId(userId),
-      deletedAt: null,
-    });
-    return count > 0;
+  async updatePasswordReset(
+    userId: string,
+    resetToken: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: new Types.ObjectId(userId) },
+      { resetPasswordToken: resetToken, resetPasswordExpires: expiresAt },
+    );
+  }
+
+  async updatePassword(userId: string, newPassword: string): Promise<void> {
+    const user = await this.userModel.findById(userId);
+    if (user) {
+      user.userPassword = newPassword;
+      await user.save();
+    }
+  }
+
+  async clearPasswordReset(userId: string): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: new Types.ObjectId(userId) },
+      { resetPasswordToken: null, resetPasswordExpires: null },
+    );
   }
 
   /**
-   * Toggle du rôle entre ADMIN et UTILISATEUR
-   * - Si ADMIN => UTILISATEUR
-   * - Sinon => ADMIN
-   * - SUPERADMIN non modifiable
+   * Alterne le rôle d'un utilisateur entre ADMIN et UTILISATEUR
    */
   async toggleAdminRole(userId: string): Promise<PaginationResult<User>> {
+    // 1. Recherche de l'utilisateur
     const user = await this.userModel.findOne({
       _id: userId,
       deletedAt: null,
@@ -420,23 +345,39 @@ export class UsersService {
 
     const previousRole = user.userAccess;
 
-    // 🔁 Toggle logique
-    user.userAccess =
+    // 2. Logique de bascule (Toggle)
+    // On utilise un cast 'as any' si les enums causent des soucis de typage strict
+    const newRole =
       user.userAccess === UserAccess.ADMIN
         ? UserAccess.UTILISATEUR
         : UserAccess.ADMIN;
 
+    user.userAccess = newRole;
+
+    // 3. Sauvegarde (déclenche le middleware si nécessaire, mais ici userId ne changera pas car length === 8)
     await user.save();
 
-    await this.notifyHelper.notify({
-      action: AuditAction.UPDATE,
-      entityType: EntityType.USER,
-      entityId: user._id.toString(),
-      userId: user._id.toString(),
-      previousState: { userAccess: previousRole },
-      newState: { userAccess: user.userAccess },
-      emailData: { type: 'UPDATE' },
-    });
+    // 4. Audit et Notifications
+    try {
+      await this.notifyHelper.notify({
+        action: AuditAction.UPDATE,
+        entityType: EntityType.USER,
+        entityId: user._id.toString(),
+        userId: user._id.toString(), // ID de l'exécuteur
+        previousState: { userAccess: previousRole },
+        newState: { userAccess: user.userAccess },
+        emailData: { type: 'UPDATE' },
+      });
+
+      // Notification en temps réel via Socket
+      await this.socketNotifications.notifyUser(
+        user._id.toString(),
+        'Mise à jour de vos accès',
+        `Votre rôle a été modifié en : ${user.userAccess}`,
+      );
+    } catch (error) {
+      console.error(`[ToggleAdminRole Notification Error]:`, error.message);
+    }
 
     return {
       status: 'success',
@@ -445,105 +386,77 @@ export class UsersService {
     };
   }
 
-  /**
-   * Trouver un utilisateur par email
-   */
-  async findByEmail(userEmail: string): Promise<PaginationResult<User>> {
-    const user = await this.userModel.findOne({
-      userEmail: userEmail.toLowerCase(),
-      deletedAt: null,
-    });
+  // ========================= VERIFICATION & ACTIVATION (Méthodes manquantes) =========================
 
-    if (!user) {
-      return { status: 'success', message: 'Utilisateur non trouvé', data: [] };
-    }
+  async verifyAccountToken(token: string): Promise<string> {
+    const tokenDoc = await this.verificationTokenModel.findOne({ token });
+    if (!tokenDoc || tokenDoc.expiresAt < new Date())
+      throw new BadRequestException('Token invalide ou expiré');
 
-    return {
-      status: 'success',
-      message: 'Utilisateur trouvé',
-      data: [user],
-    };
+    const user = await this.userModel.findById(tokenDoc.userId);
+    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+
+    user.userEmailVerified = true;
+    await user.save();
+    await tokenDoc.deleteOne();
+
+    return `${this.frontendUrl}/login?verified=true`;
   }
 
-  /**
-   * Trouver un utilisateur par ID avec le mot de passe
-   */
+  async activateAccount(userId: string): Promise<PaginationResult<User>> {
+    const user = await this.userModel.findById(userId);
+    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+
+    user.userValidated = true;
+    await user.save();
+
+    await this.socketNotifications.notifyUser(
+      user._id.toString(),
+      'Compte Activé',
+      'Votre compte a été validé.',
+    );
+    return { status: 'success', message: 'Compte activé', data: [user] };
+  }
+
+  async getById(id: string): Promise<UserDocument> {
+    const user = await this.userModel.findOne({ _id: id, deletedAt: null });
+    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+    return user;
+  }
+
   async findByIdWithPassword(userId: string): Promise<PaginationResult<User>> {
     const user = await this.userModel
       .findOne({
         _id: new Types.ObjectId(userId),
         deletedAt: null,
       })
-      .select('+userPassword');
-
-    if (!user) {
-      return { status: 'success', message: 'Utilisateur non trouvé', data: [] };
-    }
+      .select('+userPassword')
+      .exec();
 
     return {
       status: 'success',
-      message: 'Utilisateur trouvé',
-      data: [user],
+      message: user ? 'Utilisateur trouvé' : 'Utilisateur non trouvé',
+      data: user ? [user] : [],
     };
   }
 
   /**
-   * Trouver un utilisateur par token de réinitialisation
+   * Recherche un utilisateur par son token de réinitialisation de mot de passe.
+   * Utilisé lors de la phase finale de "Mot de passe oublié".
    */
   async findByResetToken(resetToken: string): Promise<PaginationResult<User>> {
     const user = await this.userModel.findOne({
       resetPasswordToken: resetToken,
+      resetPasswordExpires: { $gt: new Date() },
       deletedAt: null,
     });
 
-    if (!user) {
-      return { status: 'success', message: 'Utilisateur non trouvé', data: [] };
-    }
-
     return {
       status: 'success',
-      message: 'Utilisateur trouvé',
-      data: [user],
+      message: user
+        ? 'Utilisateur trouvé'
+        : 'Lien de réinitialisation invalide ou expiré',
+      data: user ? [user] : [],
     };
-  }
-
-  /**
-   * Mettre à jour le token de réinitialisation du mot de passe
-   */
-  async updatePasswordReset(
-    userId: string,
-    resetToken: string,
-    expiresAt: Date,
-  ): Promise<void> {
-    await this.userModel.updateOne(
-      { _id: new Types.ObjectId(userId) },
-      {
-        resetPasswordToken: resetToken,
-        resetPasswordExpires: expiresAt,
-      },
-    );
-  }
-
-  /**
-   * Mettre à jour le mot de passe
-   */
-  async updatePassword(userId: string, newPassword: string): Promise<void> {
-    await this.userModel.updateOne(
-      { _id: new Types.ObjectId(userId) },
-      { userPassword: newPassword },
-    );
-  }
-
-  /**
-   * Nettoyer les tokens de réinitialisation
-   */
-  async clearPasswordReset(userId: string): Promise<void> {
-    await this.userModel.updateOne(
-      { _id: new Types.ObjectId(userId) },
-      {
-        resetPasswordToken: null,
-        resetPasswordExpires: null,
-      },
-    );
   }
 }
