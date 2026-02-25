@@ -41,7 +41,7 @@ export class CreateProductDto {
   @IsNotEmpty()
   productCategory: string;
 
-  @ApiProperty({
+  /* @ApiProperty({
     description: 'État physique du produit',
     enum: ['Brut', 'Transformé', 'Conditionné'],
     example: 'Brut',
@@ -49,6 +49,7 @@ export class CreateProductDto {
   @IsEnum(['Brut', 'Transformé', 'Conditionné'])
   @IsOptional()
   productState?: string;
+  */
 
   @ApiPropertyOptional({ description: 'Volume total', example: '1000 L' })
   @IsString()
