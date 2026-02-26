@@ -95,9 +95,9 @@ export class UsersController {
           description: 'Logo pour les entreprises',
         },
         carteStat: {
-          type: 'string',
-          format: 'binary',
-          description: 'Image de la carte statistique',
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: 'Image de la carte statistique( recto/verso)',
         },
         documents: {
           type: 'array',
@@ -141,7 +141,7 @@ export class UsersController {
       [
         { name: 'avatar', maxCount: 1 },
         { name: 'logo', maxCount: 1 },
-        { name: 'carteStat', maxCount: 1 },
+        { name: 'carteStat', maxCount: 2 },
         { name: 'documents', maxCount: 5 },
         { name: 'carteFiscal', maxCount: 5 },
       ],
@@ -162,7 +162,7 @@ export class UsersController {
     return this.usersService.createWithFiles(dto, {
       avatar: files.avatar?.[0],
       logo: files.logo?.[0],
-      carteStat: files.carteStat?.[0],
+      carteStat: files.carteStat,
       documents: files.documents,
       carteFiscal: files.carteFiscal,
     });

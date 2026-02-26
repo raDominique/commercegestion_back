@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -12,6 +14,8 @@ import { AuditService } from 'src/v1/audit/audit.service';
 import { AuditAction, EntityType } from 'src/v1/audit/audit-log.schema';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { NotificationsService } from 'src/shared/notifications/notifications.service';
+import { MailService } from 'src/shared/mail/mail.service';
+import { UsersService } from 'src/v1/users/users.service';
 
 @Injectable()
 export class ProductService {
@@ -21,6 +25,9 @@ export class ProductService {
     private readonly uploadService: UploadService,
     private readonly auditService: AuditService,
     private readonly socketNotifications: NotificationsService,
+    private readonly mailService: MailService,
+    @Inject(forwardRef(() => UsersService))
+    private readonly usersService: UsersService,
   ) {}
 
   /**
@@ -83,6 +90,25 @@ export class ProductService {
       `Le produit "${saved.productName}" a été créé et nécessite une validation admin.`,
       { productId: saved._id, ownerId: userId },
     );
+
+    // Envoyer mail au utilisateur pour le notifier que le produit a été créé et est en attente de validation
+    try {
+      const userResult = await this.usersService.findOne(userId);
+      if (userResult?.data?.[0]) {
+        const user = userResult.data[0];
+        await this.mailService.notificationProductCreated(
+          user.userEmail,
+          user.userName,
+          saved.productName,
+        );
+      }
+    } catch (error) {
+      // Si l'envoi du mail échoue, on continue quand même sans lever d'erreur
+      console.error(
+        "Erreur lors de l'envoi du mail de notification produit:",
+        error,
+      );
+    }
 
     return {
       status: 'success',
@@ -158,6 +184,24 @@ export class ProductService {
       previousState,
       newState: updated.toObject(),
     });
+
+    // 6. Envoyer email de notification au propriétaire
+    try {
+      const userResult = await this.usersService.findOne(userId);
+      if (userResult?.data?.[0]) {
+        const user = userResult.data[0];
+        await this.mailService.notificationProductUpdated(
+          user.userEmail,
+          user.userName,
+          updated.productName,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Erreur lors de l'envoi du mail de mise à jour du produit:",
+        error,
+      );
+    }
 
     return {
       status: 'success',
@@ -270,19 +314,39 @@ export class ProductService {
     if (!Types.ObjectId.isValid(id))
       throw new BadRequestException('ID invalide.');
 
-    const product = await this.productModel.findById(id);
+    const product = await this.productModel
+      .findById(id)
+      .populate('productOwnerId');
     if (!product) throw new NotFoundException('Produit introuvable');
 
     product.productValidation = !product.productValidation;
     await product.save();
 
-    // 🔥 OPTIONNEL : Notifier l'utilisateur que son produit est validé
+    // Notifier l'utilisateur que son produit est validé
     if (product.productValidation) {
+      // Notification socket
       await this.socketNotifications.notifyUser(
-        product.productOwnerId.toString(),
+        product.productOwnerId._id.toString(),
         'Produit Validé !',
         `Votre produit "${product.productName}" a été validé par l'administration.`,
       );
+
+      // Envoi du mail de validation au propriétaire du produit
+      try {
+        const owner = product.productOwnerId as any;
+        if (owner?.userEmail) {
+          await this.mailService.notificationProductValidated(
+            owner.userEmail,
+            owner.userName,
+            product.productName,
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Erreur lors de l'envoi du mail de validation du produit:",
+          error,
+        );
+      }
     }
 
     return {
@@ -331,15 +395,38 @@ export class ProductService {
    * Supprimer un produit
    */
   async delete(id: string, userId: string): Promise<PaginationResult<null>> {
-    const product = await this.productModel.findByIdAndDelete(id);
+    // 1. Récupérer le produit avant suppression (pour obtenir le nom et envoyer email)
+    const product = await this.productModel.findById(id);
     if (!product) throw new NotFoundException('Produit introuvable');
 
+    // 2. Supprimer le produit
+    await this.productModel.findByIdAndDelete(id);
+
+    // 3. Audit Log
     await this.auditService.log({
       action: AuditAction.DELETE,
       entityType: EntityType.PRODUCT,
       entityId: id,
       userId,
     });
+
+    // 4. Envoyer email de notification au propriétaire
+    try {
+      const userResult = await this.usersService.findOne(userId);
+      if (userResult?.data?.[0]) {
+        const user = userResult.data[0];
+        await this.mailService.notificationProductDeleted(
+          user.userEmail,
+          user.userName,
+          product.productName,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Erreur lors de l'envoi du mail de suppression du produit:",
+        error,
+      );
+    }
 
     return { status: 'success', message: 'Produit supprimé', data: null };
   }

@@ -112,8 +112,8 @@ export class User {
   @Prop()
   logo?: string;
 
-  @Prop()
-  carteStat?: string;
+  @Prop({ type: [String], default: [] })
+  carteStat?: string[];
 
   @Prop({ type: [String], default: [] })
   carteFiscal?: string[];

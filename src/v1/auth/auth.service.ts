@@ -6,7 +6,6 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { Request } from 'express';
-// S7772: Prefer node:crypto
 import * as crypto from 'node:crypto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';

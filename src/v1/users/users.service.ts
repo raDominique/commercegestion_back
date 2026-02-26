@@ -83,42 +83,65 @@ export class UsersService implements OnModuleInit {
   // ========================= CREATE =========================
   async createWithFiles(
     dto: CreateUserDto,
-    files: any = {},
+    files: {
+      avatar?: any;
+      logo?: any;
+      documents?: any[];
+      carteStat?: any[];
+      carteFiscal?: any[];
+    } = {},
   ): Promise<PaginationResult<User>> {
     const uploadedFiles: string[] = [];
 
     try {
+      // 1. Vérification d'existence
       const exists = await this.userModel.findOne({
         userEmail: dto.userEmail.toLowerCase(),
         deletedAt: null,
       });
       if (exists) throw new ConflictException('Email déjà utilisé');
 
-      const [avatarPath, logoPath] = await Promise.all([
-        files.avatar
-          ? this.uploadService.saveFile(files.avatar, 'avatars')
-          : Promise.resolve(undefined),
-        files.logo
-          ? this.uploadService.saveFile(files.logo, 'logos')
-          : Promise.resolve(undefined),
-      ]);
+      // 2. Gestion des Uploads (Simples et Tableaux)
+      // Fonction helper pour uploader et tracker
+      const safeUpload = async (file: any, folder: string) => {
+        const path = await this.uploadService.saveFile(file, folder);
+        if (path) uploadedFiles.push(path);
+        return path;
+      };
 
-      if (avatarPath) uploadedFiles.push(avatarPath);
-      if (logoPath) uploadedFiles.push(logoPath);
+      const safeUploadMany = async (filesArray: any[], folder: string) => {
+        if (!filesArray || !filesArray.length) return [];
+        return Promise.all(filesArray.map((f) => safeUpload(f, folder)));
+      };
 
+      // Dans votre bloc Promise.all du service :
+
+      const [avatarPath, logoPath, docPaths, statPaths, fiscalPaths] =
+        await Promise.all([
+          files.avatar ? safeUpload(files.avatar, 'avatars') : null,
+          files.logo ? safeUpload(files.logo, 'logos') : null,
+          safeUploadMany(files.documents ?? [], 'documents'),
+          safeUploadMany(files.carteStat ?? [], 'statistiques'),
+          safeUploadMany(files.carteFiscal ?? [], 'fiscalite'),
+        ]);
+
+      // 3. Création de l'utilisateur
       const user = new this.userModel({
         ...dto,
         userEmail: dto.userEmail.toLowerCase(),
         userImage: avatarPath,
         logo: logoPath,
+        identityDocument: docPaths,
+        carteStat: statPaths,
+        carteFiscal: fiscalPaths,
         userValidated: false,
         userEmailVerified: false,
         userTotalSolde: 0,
       });
 
-      // L'ID court est généré automatiquement par le middleware du schéma
       await user.save();
 
+      // 4. Token de vérification
       const token = randomBytes(32).toString('hex');
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
@@ -129,9 +152,11 @@ export class UsersService implements OnModuleInit {
         expiresAt,
       });
 
+      // 5. Tâches de fond (Email, etc.)
       this.runBackgroundTasks(user, token).catch((err) => {
         console.error(`[Background Error]:`, err.message);
       });
+
 
       return {
         status: 'success',
@@ -139,8 +164,13 @@ export class UsersService implements OnModuleInit {
         data: [user],
       };
     } catch (err) {
+      // Nettoyage en cas d'échec
       for (const f of uploadedFiles) {
-        if (fs.existsSync(f)) fs.unlinkSync(f);
+        try {
+          if (fs.existsSync(f)) fs.unlinkSync(f);
+        } catch (e) {
+          console.error(`Erreur lors de la suppression de ${f}`, e);
+        }
       }
       throw err;
     }
@@ -286,14 +316,20 @@ export class UsersService implements OnModuleInit {
     userEmail: string,
   ): Promise<UserDocument | null> {
     return this.userModel
-      .findOne({ userEmail: userEmail.toLowerCase(), deletedAt: null })
-      .select('+userPassword')
+      .findOne({
+        $or: [
+          { userEmail: userEmail.toLowerCase() },
+          { managerEmail: userEmail.toLowerCase() },
+        ],
+        deletedAt: null,
+      })
+      .select('+userPassword') // Inclut le champ password qui est en "select: false"
       .exec();
   }
 
   async findByEmail(userEmail: string): Promise<PaginationResult<User>> {
     const user = await this.userModel.findOne({
-      userEmail: userEmail.toLowerCase(),
+      userEmail: userEmail,
       deletedAt: null,
     });
     return {

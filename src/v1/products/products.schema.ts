@@ -12,9 +12,6 @@ export type ProductDocument = Product & Document;
 export class Product extends Document {
   @Prop({
     required: true,
-    index: true,
-    unique: false,
-    trim: true,
   })
   codeCPC: string;
 
@@ -34,9 +31,6 @@ export class Product extends Document {
 
   @Prop()
   productCategory: string;
-
-  @Prop({ enum: ['Brut', 'Transformé', 'Conditionné'], default: 'Brut' })
-  productState: string;
 
   @Prop({ type: String })
   productImage: string;

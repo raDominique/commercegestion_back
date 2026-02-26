@@ -169,6 +169,85 @@ export class MailService {
   }
 
   /* =========================================================================
+   * PRODUCTS NOTIFICATIONS
+   * ========================================================================= */
+
+  /** 🔹 Notification création produit en attente de validation */
+  async notificationProductCreated(
+    to: string,
+    userName: string,
+    productName: string,
+  ) {
+    await this.sendMailSafe(
+      to,
+      `Produit créé et en attente de validation - ${this.appName}`,
+      'product-created',
+      {
+        userName,
+        productName,
+        supportLink: `${this.frontUrl}/support`,
+      },
+    );
+  }
+
+  /** 🔹 Notification validation produit */
+  async notificationProductValidated(
+    to: string,
+    userName: string,
+    productName: string,
+  ) {
+    await this.sendMailSafe(
+      to,
+      `Votre produit a été validé - ${this.appName}`,
+      'product-validated',
+      {
+        userName,
+        productName,
+        dashboardLink: `${this.frontUrl}/products`,
+        supportLink: `${this.frontUrl}/support`,
+      },
+    );
+  }
+
+  /** 🔹 Notification mise à jour produit */
+  async notificationProductUpdated(
+    to: string,
+    userName: string,
+    productName: string,
+  ) {
+    await this.sendMailSafe(
+      to,
+      `Votre produit a été mis à jour - ${this.appName}`,
+      'product-updated',
+      {
+        userName,
+        productName,
+        dashboardLink: `${this.frontUrl}/products`,
+        supportLink: `${this.frontUrl}/support`,
+      },
+    );
+  }
+
+  /** 🔹 Notification suppression produit */
+  async notificationProductDeleted(
+    to: string,
+    userName: string,
+    productName: string,
+  ) {
+    await this.sendMailSafe(
+      to,
+      `Votre produit a été supprimé - ${this.appName}`,
+      'product-deleted',
+      {
+        userName,
+        productName,
+        dashboardLink: `${this.frontUrl}/products`,
+        supportLink: `${this.frontUrl}/support`,
+      },
+    );
+  }
+
+  /* =========================================================================
    * PASSWORD RESET
    * ========================================================================= */
 
