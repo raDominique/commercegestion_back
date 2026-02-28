@@ -307,6 +307,7 @@ export class ProductService {
   }
   /**
    * Basculer l'état de validation d'un produit (Admin)
+   * Une fois validé, un produit ne peut plus être désactivé
    */
   async toggleProductValidation(
     id: string,
@@ -318,6 +319,13 @@ export class ProductService {
       .findById(id)
       .populate('productOwnerId');
     if (!product) throw new NotFoundException('Produit introuvable');
+
+    // Empêcher la désactivation d'un produit déjà validé
+    if (product.productValidation === true) {
+      throw new BadRequestException(
+        'Ce produit a été validé et ne peut plus être désactivé.',
+      );
+    }
 
     product.productValidation = !product.productValidation;
     await product.save();
@@ -476,5 +484,56 @@ export class ProductService {
     const product = await this.productModel.findById(id);
     if (!product) throw new NotFoundException('Produit introuvable');
     return product;
+  }
+
+  /**
+   * Recuperer tous les produits activer pour afficher dans la boutique avec pagination, limit, tri et filter
+   */
+  async getActiveProducts(query: any = {}): Promise<PaginationResult<Product>> {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      sort = 'createdAt',
+      order = -1,
+    } = query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // Uniquement les produits validés et physiquement en stock
+    const filter: any = { isStocker: true, productValidation: true };
+
+    if (search) {
+      filter.$or = [
+        { productName: { $regex: search, $options: 'i' } },
+        { codeCPC: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const sortQuery: Record<string, any> = { [sort]: Number(order) };
+
+    const [data, total] = await Promise.all([
+      this.productModel
+        .find(filter)
+        .populate('categoryId', 'nom')
+        .populate('productOwnerId', 'userName userFirstname userNickName')
+        // AJOUT DES CHAMPS MANQUANTS POUR LA BOUTIQUE
+        .select(
+          'productImage productName productDescription categoryId productOwnerId codeCPC productVolume productPoids createdAt',
+        )
+        .sort(sortQuery)
+        .skip(skip)
+        .limit(Number(limit))
+        .exec(),
+      this.productModel.countDocuments(filter),
+    ]);
+
+    return {
+      status: 'success',
+      message: 'Produits actifs récupérés',
+      data: this.formatProductResponse(data),
+      total,
+      page: Number(page),
+      limit: Number(limit),
+    };
   }
 }

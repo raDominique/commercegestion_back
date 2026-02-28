@@ -198,4 +198,52 @@ export class ProductController {
   async findById(@Param('id') id: string, @Req() req: any) {
     return this.productService.findById(id, req.user?.userId);
   }
+
+  @Get('shop')
+  @ApiOperation({
+    summary: 'Récupérer les produits disponibles pour le shop',
+    description:
+      'Récupère les produits validés par un admin et actuellement en stock.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des produits récupérée avec succès.',
+  })
+  @ApiResponse({ status: 400, description: 'Paramètres de requête invalides.' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Numéro de la page (défaut: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Nombre de produits par page (défaut: 10)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Recherche par nom ou code CPC',
+  })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    type: String,
+    description: 'Champ pour le tri',
+    example: 'createdAt',
+    enum: ['createdAt', 'productName', 'codeCPC'],
+  })
+  @ApiQuery({
+    name: 'order',
+    required: false,
+    type: Number,
+    description: 'Ordre de tri: 1 pour Ascendant, -1 pour Descendant',
+    example: -1,
+  })
+  async getShopProducts(@Query() query: any) {
+    return this.productService.getActiveProducts(query);
+  }
 }

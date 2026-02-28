@@ -6,6 +6,8 @@ export type StockMovementDocument = StockMovement & Document;
 export enum MovementType {
   DEPOT = 'Depot',
   RETRAIT = 'Retrait',
+  TRANSFERT = 'Transfert',
+  VIREMENT = 'Virement',
 }
 
 @Schema({ timestamps: true }) // Enregistre auto createdAt (date/heure)

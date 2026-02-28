@@ -19,14 +19,20 @@ export class Passif {
   @Prop({ required: true })
   quantite: number;
 
-  @Prop({ enum: ['Retrait', 'Vente', 'Perte', 'Autre'], default: 'Retrait' })
-  reason: string; // Raison du passif (retrait, vente, perte, etc.)
+  @Prop({ type: Number, default: null })
+  prixUnitaire: number; // Prix unitaire du produit au moment du dépôt
 
   @Prop({ default: true, index: true })
-  isActive: boolean; // Marque si le passif est actif
+  isActive: boolean; // Marque si l'actif est actif (quantité > 0)
 
   @Prop({ type: Date, default: null })
-  closedAt?: Date; // Date de clôture du passif (quand il est résolu)
+  archivedAt?: Date; // Date d'archivage (quand quantité devient 0)
+  
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  detentaire: Types.ObjectId; // Localisation physique (Qui a le produit ?)
+
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  ayant_droit: Types.ObjectId; // Propriété légale (À qui appartient-il ?)
 }
 
 export const PassifSchema = SchemaFactory.createForClass(Passif);
