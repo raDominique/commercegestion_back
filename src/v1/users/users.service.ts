@@ -157,7 +157,6 @@ export class UsersService implements OnModuleInit {
         console.error(`[Background Error]:`, err.message);
       });
 
-
       return {
         status: 'success',
         message: `Compte créé. Votre code parrainage est ${user.userId}`,
@@ -494,5 +493,31 @@ export class UsersService implements OnModuleInit {
         : 'Lien de réinitialisation invalide ou expiré',
       data: user ? [user] : [],
     };
+  }
+
+  async findAllNoPaginated(): Promise<PaginationResult<any>> {
+    try {
+      const users = await this.userModel
+        .find({ deletedAt: null, userValidated: true, userEmailVerified: true })
+        .select('_id userName userFirstname userId')
+        .lean()
+        .exec();
+
+      const mapped = users.map((u) => ({
+        _id: u._id,
+        name: [u.userName, u.userFirstname].filter(Boolean).join(' '),
+        userId: u.userId,
+      }));
+
+      return {
+        status: 'success',
+        message: 'Utilisateurs récupérés',
+        data: mapped,
+      };
+    } catch (error) {
+      throw new BadRequestException(
+        'Erreur lors de la récupération des utilisateurs',
+      );
+    }
   }
 }
