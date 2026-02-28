@@ -40,6 +40,31 @@ export class StockController {
     );
   }
 
+  // POST: /stock/transfer -> Pour transférer un produit d'un site à un autre
+  @Post('transfer')
+  @Auth()
+  @ApiOperation({ summary: 'Transférer un produit d’un site à un autre' })
+  async transfer(@Body() dto: CreateMovementDto, @Req() req: any) {
+    return this.stockService.createMovement(
+      dto,
+      req.user.userId,
+      MovementType.TRANSFERT,
+    );
+  }
+
+  @Post('virement')
+  @Auth()
+  @ApiOperation({
+    summary: 'Virement de stock entre deux sites (Débit et Crédit)',
+  })
+  async virement(@Body() dto: CreateMovementDto, @Req() req: any) {
+    return this.stockService.createMovement(
+      dto,
+      req.user.userId,
+      MovementType.VIREMENT,
+    );
+  }
+
   // GET: /stock/site-actifs -> Actifs pour un site spécifique de l'utilisateur
   @Get('site-actifs/:siteId')
   @Auth()

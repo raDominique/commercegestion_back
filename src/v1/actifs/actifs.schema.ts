@@ -1,4 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Type } from 'class-transformer';
 import { Document, Types } from 'mongoose';
 
 export type ActifDocument = Actif & Document;
@@ -27,6 +28,12 @@ export class Actif {
 
   @Prop({ type: Date, default: null })
   archivedAt?: Date; // Date d'archivage (quand quantité devient 0)
+
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  detentaire: Types.ObjectId; // Localisation physique (Qui a le produit ?)
+
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  ayant_droit: Types.ObjectId; // Propriété légale (À qui appartient-il ?)
 }
 
 export const ActifSchema = SchemaFactory.createForClass(Actif);

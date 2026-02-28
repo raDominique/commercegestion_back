@@ -21,4 +21,19 @@ export class CreateActifDto {
   @IsNumber()
   @Min(1)
   quantite: number; // Quantité en stock
+
+  @ApiProperty({
+    example: '69989c5cdff25ef7fe0a4611',
+    description:
+      "ID de l'utilisateur qui détient actuellement l'actif (optionnel)",
+  })
+  @IsMongoId()
+  detentaire?: string; // ID de l'utilisateur qui détient actuellement l'actif (optionnel)
+
+  @ApiProperty({
+    example: '69989c5cdff25ef7fe0a4612',
+    description: "ID de l'utilisateur ayant droit sur l'actif (optionnel)",
+  })
+  @IsMongoId()
+  ayant_droit?: string; // ID de l'utilisateur ayant droit sur l'actif (optionnel)
 }

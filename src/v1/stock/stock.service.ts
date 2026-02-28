@@ -29,72 +29,81 @@ export class StockService {
     userId: string,
     type: MovementType,
   ) {
-    // 1. Vérifier l'existence du produit (via ProductService)
-    const product = await this.productService.findOneRaw(dto.productId);
-
-    // 2. RÈGLE : Validation Admin requise
-    if (!product.productValidation) {
-      throw new BadRequestException("Produit non validé par l'admin.");
-    }
-
-    // 3. Vérifier que les sites existent (via SiteService)
     const siteOrigine = await this.siteService.findOne(dto.siteOrigineId);
     const siteDest = await this.siteService.findOne(dto.siteDestinationId);
+    const userBId = siteDest.siteUserID.toString(); // Le propriétaire du site cible
 
-    // 4. Création du mouvement
-    const movement = new this.movementModel({
-      operatorId: new Types.ObjectId(userId),
-      productId: new Types.ObjectId(dto.productId),
-      depotOrigine: siteOrigine.siteName,
-      depotDestination: siteDest.siteName,
-      siteOrigineId: siteOrigine._id,
-      siteDestinationId: siteDest._id,
-      quantite: dto.quantite,
-      prixUnitaire: dto.prixUnitaire,
-      type: type,
-      observations: dto.observations,
-    });
-
-    const saved = await movement.save();
-
-    // 5. GESTION DES ACTIFS/PASSIFS
+    // --- LOGIQUE DEPOT ---
     if (type === MovementType.DEPOT) {
-      // DEPOT : Augmenter les actifs du site de destination
+      // Situation : Je dépose chez moi. Détenteur = Moi, Ayant-droit = Moi.
       await this.actifsService.addOrIncreaseActif(
         userId,
         dto.siteDestinationId,
         dto.productId,
         dto.quantite,
+        dto.prixUnitaire,
+        userId,
+        userId,
       );
+    }
 
-      // Marquer le produit comme stocké si ce n'est pas déjà fait
-      if (!product.isStocker) {
-        await this.productService.setStockStatus(dto.productId, true);
-      }
-    } else if (type === MovementType.RETRAIT) {
-      // RETRAIT :
-      // 1. Réduire les actifs du site d'origine
+    // --- LOGIQUE RETRAIT (Transfert Physique) ---
+    else if (type === MovementType.RETRAIT) {
+      // 1. Sortie de mon stock physique (où je suis ayant-droit)
       await this.actifsService.decreaseActif(
         userId,
         dto.siteOrigineId,
         dto.productId,
         dto.quantite,
+        userId,
       );
-      // 2. Augmenter les passifs du site d'origine
+
+      // 2. Création d'un passif (trace de sortie)
       await this.passifsService.addOrIncreasePassif(
         userId,
         dto.siteOrigineId,
         dto.productId,
         dto.quantite,
-        'Retrait',
+        'Transfert vers tiers',
+        userId,
+      );
+
+      // 3. Entrée chez User B : Il est DETENTAIRE, mais JE reste AYANT-DROIT
+      await this.actifsService.addOrIncreaseActif(
+        userBId,
+        dto.siteDestinationId,
+        dto.productId,
+        dto.quantite,
+        dto.prixUnitaire,
+        userBId,
+        userId,
       );
     }
 
-    return {
-      status: 'success',
-      message: `Opération de ${type} effectuée sur le site ${siteDest.siteName}`,
-      data: saved,
-    };
+    // --- LOGIQUE VIREMENT (Cession de Propriété) ---
+    else if (type === MovementType.VIREMENT) {
+      // Situation : Le produit est déjà chez User B. Je lui cède la propriété.
+      // On change l'ayant-droit de Moi -> User B sur le site de User B.
+      await this.actifsService.updateProperty(
+        userBId,
+        dto.siteDestinationId,
+        dto.productId,
+        dto.quantite,
+        userId,
+        userBId,
+      );
+    }
+
+    // Enregistrement du journal
+    const movement = new this.movementModel({
+      ...dto,
+      operatorId: new Types.ObjectId(userId),
+      type: type,
+      depotOrigine: siteOrigine.siteName,
+      depotDestination: siteDest.siteName,
+    });
+
+    return await movement.save();
   }
 
   async getHistory(userId: string) {
