@@ -63,7 +63,7 @@ export class PassifsService {
    */
   async findOne(id: string): Promise<PaginationResult<Passif>> {
     const passif = await this.passifModel
-      .findById(id)
+      .findById(new Types.ObjectId(id))
       .populate(
         'userId',
         'userNickName userName userFirstname userPhone userImage',

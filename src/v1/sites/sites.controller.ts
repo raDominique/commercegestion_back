@@ -146,4 +146,12 @@ export class SiteController {
   ): Promise<PaginationResult<Site>> {
     return this.siteService.findByLocation(lat, lng, radiusKm, page, limit);
   }
+
+  @Get('select/all')
+  @ApiOperation({ summary: 'Récupérer tous les sites (sans pagination)' })
+  @ApiResponse({ status: 200, description: 'Liste de tous les sites' })
+  async findAllSelect() {
+    const sites = await this.siteService.findAllSelect();
+    return sites;
+  }
 }
