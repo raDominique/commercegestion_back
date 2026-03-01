@@ -322,7 +322,7 @@ export class UsersService implements OnModuleInit {
         ],
         deletedAt: null,
       })
-      .select('+userPassword') // Inclut le champ password qui est en "select: false"
+      .select('+userPassword')
       .exec();
   }
 
@@ -452,13 +452,15 @@ export class UsersService implements OnModuleInit {
         'Compte Activé',
         'Votre compte a été validé.',
       ),
-      this.mailService.notificationAccountUserActive(
-        user.userEmail,
-        user.userName ?? 'Utilisateur',
-        `${this.frontendUrl}/login`,
-      ).catch((err) => {
-        console.error(`[Account Activation Email Error]:`, err.message);
-      }),
+      this.mailService
+        .notificationAccountUserActive(
+          user.userEmail,
+          user.userName ?? 'Utilisateur',
+          `${this.frontendUrl}/login`,
+        )
+        .catch((err) => {
+          console.error(`[Account Activation Email Error]:`, err.message);
+        }),
     ]);
 
     return { status: 'success', message: 'Compte activé', data: [user] };
@@ -506,6 +508,9 @@ export class UsersService implements OnModuleInit {
     };
   }
 
+  /**
+   * Récupère tous les utilisateurs validés et vérifiés sans pagination.
+   */
   async findAllNoPaginated(): Promise<PaginationResult<any>> {
     try {
       const users = await this.userModel
