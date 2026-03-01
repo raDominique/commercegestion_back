@@ -269,4 +269,29 @@ export class SiteService {
       total,
     };
   }
+
+  /**
+   * recuperer la liste site avec Nom du site et leur propriétaire (user)
+   */
+  async findAllSelect(): Promise<PaginationResult<any>> {
+    const sites = await this.siteModel
+      .find({}, { siteName: 1, siteUserID: 1 })
+      .populate('siteUserID', 'userNickName userName')
+      .exec();
+
+    const formattedData = sites
+      .filter(site => site.siteUserID !== null)
+      .map(site => ({
+        _id: site._id,
+        siteName: site.siteName,
+        siteUserID: (site.siteUserID as any)?._id,
+        userNickName: (site.siteUserID as any)?.userNickName + ' ' + (site.siteUserID as any)?.userName,
+      }));
+
+    return {
+      status: 'success',
+      message: 'Liste des sites récupérée',
+      data: formattedData,
+    };
+  }
 }

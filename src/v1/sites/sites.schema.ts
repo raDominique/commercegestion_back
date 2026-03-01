@@ -43,7 +43,7 @@ export class Site {
       default: 'Point',
     },
     coordinates: {
-      type: [Number], // [longitude, latitude]
+      type: [Number],
       required: true,
       index: '2dsphere',
     },
