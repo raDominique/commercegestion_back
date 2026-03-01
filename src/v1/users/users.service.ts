@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { User, UserAccess, UserDocument, UserType } from './users.schema';
+import { User, UserAccess, UserDocument } from './users.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
@@ -156,7 +156,6 @@ export class UsersService implements OnModuleInit {
       this.runBackgroundTasks(user, token).catch((err) => {
         console.error(`[Background Error]:`, err.message);
       });
-
 
       return {
         status: 'success',
@@ -494,5 +493,31 @@ export class UsersService implements OnModuleInit {
         : 'Lien de réinitialisation invalide ou expiré',
       data: user ? [user] : [],
     };
+  }
+
+  async findAllNoPaginated(): Promise<PaginationResult<any>> {
+    try {
+      const users = await this.userModel
+        .find({ deletedAt: null, userValidated: true, userEmailVerified: true })
+        .select('_id userName userFirstname userId')
+        .lean()
+        .exec();
+
+      const mapped = users.map((u) => ({
+        _id: u._id,
+        name: [u.userName, u.userFirstname].filter(Boolean).join(' '),
+        userId: u.userId,
+      }));
+
+      return {
+        status: 'success',
+        message: 'Utilisateurs récupérés',
+        data: mapped,
+      };
+    } catch (error) {
+      throw new BadRequestException(
+        'Erreur lors de la récupération des utilisateurs',
+      );
+    }
   }
 }

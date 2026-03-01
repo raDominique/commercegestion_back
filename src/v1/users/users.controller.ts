@@ -331,4 +331,10 @@ export class UsersController {
   toggleRole(@Param('id') id: string) {
     return this.usersService.toggleAdminRole(id);
   }
+
+  @Get('select/all')
+  @ApiOperation({ summary: 'Liste de tous les utilisateurs (sans pagination)' })
+  findAll() {
+    return this.usersService.findAllNoPaginated();
+  }
 }
