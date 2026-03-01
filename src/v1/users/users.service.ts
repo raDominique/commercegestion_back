@@ -445,11 +445,22 @@ export class UsersService implements OnModuleInit {
     user.userValidated = true;
     await user.save();
 
-    await this.socketNotifications.notifyUser(
-      user._id.toString(),
-      'Compte Activé',
-      'Votre compte a été validé.',
-    );
+    // Envoyer les notifications (socket + email) en parallèle
+    await Promise.all([
+      this.socketNotifications.notifyUser(
+        user._id.toString(),
+        'Compte Activé',
+        'Votre compte a été validé.',
+      ),
+      this.mailService.notificationAccountUserActive(
+        user.userEmail,
+        user.userName ?? 'Utilisateur',
+        `${this.frontendUrl}/login`,
+      ).catch((err) => {
+        console.error(`[Account Activation Email Error]:`, err.message);
+      }),
+    ]);
+
     return { status: 'success', message: 'Compte activé', data: [user] };
   }
 
