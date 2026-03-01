@@ -144,7 +144,7 @@ export class ActifsService {
    */
   async findOne(id: string): Promise<PaginationResult<Actif>> {
     const actif = await this.actifModel
-      .findById(id)
+      .findById(new Types.ObjectId(id))
       .populate(
         'userId',
         'userNickName userName userFirstname userPhone userImage',
