@@ -49,7 +49,7 @@ export class CreateUserDto {
   @IsString()
   userAddress?: string;
 
-  @ApiPropertyOptional({ example: -21.4478 }) // Coordonnées Fianarantsoa pour l'exemple
+  @ApiPropertyOptional({ example: -21.4478 })
   @IsOptional()
   userMainLat?: number;
 

@@ -38,14 +38,9 @@ export class AuthService {
       throw new UnauthorizedException(AuthErrorMessage.INVALID_CREDENTIALS);
     }
 
-    if (!user.userEmailVerified && !user.userValidated) {
+    if (!user.userEmailVerified) {
       await this.logAudit(user._id.toString(), AuditAction.LOGIN, req);
       throw new UnauthorizedException(AuthErrorMessage.ACCOUNT_NOT_VERIFIED);
-    }
-
-    if (user.userEmailVerified && !user.userValidated) {
-      await this.logAudit(user._id.toString(), AuditAction.LOGIN, req);
-      throw new UnauthorizedException(AuthErrorMessage.ACCOUNT_INACTIVE);
     }
 
     const match = await bcrypt.compare(userPassword, user.userPassword);
