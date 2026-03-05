@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ProductService } from '../products/products.service';
@@ -258,9 +258,12 @@ export class StockService {
         date: movement.createdAt,
         situation: movement.productId?.productName || 'N/A',
         type: movement.type,
+        productId: movement.productId?._id,
         montant: movement.quantite * movement.prixUnitaire,
         departDe: movement.depotOrigine,
+        departDeId: movement.siteOrigineId._id,
         arrivee: movement.depotDestination,
+        arriveeId: movement.siteDestinationId._id,
         action: movement.observations || '-',
       })),
       summary: result.summary,
