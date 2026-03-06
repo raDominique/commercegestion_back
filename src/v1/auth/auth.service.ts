@@ -17,9 +17,11 @@ import { JwtConfig } from './config/jwt.config';
 import { AuditAction, EntityType } from '../audit/audit-log.schema';
 import { AuthErrorMessage } from './errors/auth-error.messages';
 import { MailService } from 'src/shared/mail/mail.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
+  private readonly frontUrl: string;
   constructor(
     private readonly usersService: UsersService,
     private readonly auditService: AuditService,
@@ -27,7 +29,10 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly jwtConfig: JwtConfig,
     private readonly mailService: MailService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.frontUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
+  }
 
   /** Login utilisateur */
   async login(userEmail: string, userPassword: string, req: Request) {
@@ -210,7 +215,7 @@ export class AuthService {
       new Date(Date.now() + expiresIn),
     );
 
-    const resetLink = `${process.env.FRONT_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+    const resetLink = `${this.frontUrl}/reset-password?token=${resetToken}`;
 
     try {
       await this.mailService.sendPasswordResetEmail(
