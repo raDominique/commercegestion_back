@@ -264,7 +264,6 @@ export class MailService {
         username,
         resetLink,
         expirationTime: '24 heures',
-        supportLink: `${this.appUrl}/support`,
       },
     );
   }
