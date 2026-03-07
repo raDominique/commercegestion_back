@@ -1,178 +1,255 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Actif, ActifDocument } from './actifs.schema';
-import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
+import { ProductService } from '../products/products.service';
 
 @Injectable()
 export class ActifsService {
   constructor(
-    @InjectModel(Actif.name)
-    private readonly actifModel: Model<ActifDocument>,
+    @InjectModel(Actif.name) private readonly actifModel: Model<ActifDocument>,
+    private readonly productService: ProductService,
   ) {}
 
   /**
-   * Ajoute ou augmente un actif avec gestion du détenteur et de l'ayant-droit
+   * Ajoute ou augmente un actif existant.
+   * C'est la fonction centrale pour les Dépôts et les Réceptions.
    */
   async addOrIncreaseActif(
-    userId: string,
-    depotId: string,
-    productId: string,
+    userId: string, // Propriétaire du bilan
+    depotId: string, // Site physique
+    productId: string, // Le produit
     quantite: number,
     prixUnitaire: number,
-    detentaire: string,
-    ayant_droit: string,
+    detentaireId: string, // Qui garde le produit (Hangar ou User)
+    ayantDroitId: string, // Qui possède le produit (User)
   ) {
-    const filter = {
+    // On cherche si un actif identique existe déjà (Même pro²priétaire, même site, même ayant-droit)
+    const existingActif = await this.actifModel.findOne({
       userId: new Types.ObjectId(userId),
-      depotId: new Types.ObjectId(depotId),
       productId: new Types.ObjectId(productId),
-      ayant_droit: new Types.ObjectId(ayant_droit), // Important pour différencier les stocks tiers
-    };
-
-    const update = {
-      $inc: { quantite: quantite },
-      $set: {
-        prixUnitaire,
-        detentaire: new Types.ObjectId(detentaire),
-        isActive: true,
-        archivedAt: null,
-      },
-    };
-
-    return await this.actifModel.findOneAndUpdate(filter, update, {
-      upsert: true,
-      new: true,
+      depotId: new Types.ObjectId(depotId),
+      ayant_droit: new Types.ObjectId(ayantDroitId),
     });
+
+    if (existingActif) {
+      existingActif.quantite += quantite;
+      existingActif.isActive = true;
+      existingActif.archivedAt = undefined;
+      return await existingActif.save();
+    } else {
+      const newActif = new this.actifModel({
+        userId: new Types.ObjectId(userId),
+        productId: new Types.ObjectId(productId),
+        depotId: new Types.ObjectId(depotId),
+        quantite,
+        prixUnitaire,
+        detentaire: new Types.ObjectId(detentaireId),
+        ayant_droit: new Types.ObjectId(ayantDroitId),
+        isActive: true,
+      });
+      return await newActif.save();
+    }
   }
 
   /**
-   * Réduit un actif spécifique selon son ayant-droit
+   * Diminue la quantité d'un actif (Retrait ou Vente).
+   * Si la quantité tombe à 0, l'actif est archivé.
    */
   async decreaseActif(
     userId: string,
     depotId: string,
     productId: string,
     quantite: number,
-    ayantDroitId: string,
   ) {
     const actif = await this.actifModel.findOne({
       userId: new Types.ObjectId(userId),
       depotId: new Types.ObjectId(depotId),
       productId: new Types.ObjectId(productId),
-      ayant_droit: new Types.ObjectId(ayantDroitId),
       isActive: true,
     });
 
     if (!actif || actif.quantite < quantite) {
-      throw new BadRequestException('Stock insuffisant pour cet ayant-droit.');
-    }
-
-    if (actif.quantite === quantite) {
-      return await this.actifModel.findByIdAndUpdate(
-        actif._id,
-        {
-          $set: { quantite: 0, isActive: false, archivedAt: new Date() },
-        },
-        { new: true },
+      throw new NotFoundException(
+        'Stock insuffisant ou actif inexistant pour cette opération',
       );
     }
 
-    return await this.actifModel.findByIdAndUpdate(
-      actif._id,
-      { $inc: { quantite: -quantite } },
-      { new: true },
-    );
+    actif.quantite -= quantite;
+
+    if (actif.quantite === 0) {
+      actif.isActive = false;
+      actif.archivedAt = new Date();
+    }
+
+    return await actif.save();
   }
 
   /**
-   * Change l'ayant-droit (Virement de propriété)
+   * Met à jour la propriété (Ayant-droit) sans mouvement physique.
+   * Correspond à l'étape 4c (Virement de marchandise).
    */
   async updateProperty(
-    userId: string,
-    depotId: string,
+    siteId: string,
     productId: string,
     quantite: number,
-    oldOwnerId: string,
-    newOwnerId: string,
+    ancienAyantDroitId: string,
+    ayant_droit: string,
+    prixUnitaire: number,
+    detentaireId: string,
   ) {
-    await this.decreaseActif(userId, depotId, productId, quantite, oldOwnerId);
-    return await this.addOrIncreaseActif(
-      userId,
-      depotId,
+    // 1. Sortie de l'actif pour l'ancien propriétaire
+    await this.decreaseActif(ancienAyantDroitId, siteId, productId, quantite);
+
+    // 2. Entrée de l'actif pour le nouveau propriétaire
+    // Le détenteur (le hangar) reste le même
+    await this.addOrIncreaseActif(
+      ayant_droit,
+      siteId,
       productId,
       quantite,
-      0,
-      userId,
-      newOwnerId,
+      prixUnitaire,
+      detentaireId,
+      ayant_droit,
     );
   }
 
   /**
-   * Récupère les actifs d'un site (résout l'erreur TS)
+   * Récupère les actifs d'un utilisateur sur un site précis
    */
-  async getActifsByUserAndSite(
-    userId: string,
-    siteId: string,
-    query: any = {},
-  ) {
-    const { page = 1, limit = 10, includeArchived = false } = query;
-    const filter: any = {
-      userId: new Types.ObjectId(userId),
-      depotId: new Types.ObjectId(siteId),
-    };
-
-    if (includeArchived !== 'true' && includeArchived !== true)
-      filter.isActive = true;
-
-    const [items, total] = await Promise.all([
-      this.actifModel
-        .find(filter)
-        .populate('productId', 'productName codeCPC productImage')
-        .populate('ayant_droit', 'userName userFirstname')
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
-      this.actifModel.countDocuments(filter),
-    ]);
-
-    return { status: 'success', data: items, total, page, limit };
+  async getActifsByUserAndSite(userId: string, siteId: string) {
+    return this.actifModel
+      .find({
+        userId: new Types.ObjectId(userId),
+        depotId: new Types.ObjectId(siteId),
+        isActive: true,
+      })
+      .populate('productId')
+      .exec();
   }
 
   /**
-   * Récupérer un actif par son ID avec détails complets
+   * Récupère la liste de tous les actifs "Hors site"
+   * (Où l'utilisateur est propriétaire mais n'est pas le détenteur physique)
    */
-  async findOne(id: string): Promise<PaginationResult<Actif>> {
+  async getExternalAssets(userId: string) {
+    return this.actifModel
+      .find({
+        userId: new Types.ObjectId(userId),
+        detentaire: { $ne: new Types.ObjectId(userId) },
+        isActive: true,
+      })
+      .populate('productId')
+      .populate('detentaire', 'userName userNickName')
+      .populate('depotId', 'siteName siteAddress')
+      .exec();
+  }
+
+  async getActifDetails(actifId: string) {
     const actif = await this.actifModel
-      .findById(new Types.ObjectId(id))
-      .populate(
-        'userId',
-        'userNickName userName userFirstname userPhone userImage',
-      )
-      .populate('depotId', 'siteName siteAddress siteLat siteLng location')
-      .populate('productId', 'productName codeCPC productImage prixUnitaire')
-      .populate(
-        'detentaire',
-        'userNickName userName userFirstname userPhone userImage',
-      )
-      .populate(
-        'ayant_droit',
-        'userNickName userName userFirstname userPhone userImage',
-      )
+      .findById(actifId)
+      .populate('productId', 'productName codeCPC productImage prixUnitaire') // Détails techniques du produit
+      .populate('ayant_droit', 'userNickName userName userPhone') // Le propriétaire (souvent l'utilisateur lui-même)
+      .populate('detentaire', 'userNickName userName userPhone') // Le gardien actuel (ex: Hangar ou Transporteur)
+      .populate('depotId', 'siteName siteAddress location') // Localisation géographique
       .exec();
 
     if (!actif) {
-      return {
-        status: 'error',
-        message: 'Actif non trouvé',
-        data: null,
-      } as any;
+      throw new NotFoundException(`Actif avec l'ID ${actifId} non trouvé`);
+    }
+
+    return actif;
+  }
+  async getAvailableValidatedProducts(query: any) {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      fournisseurId,
+      sort = 'prixUnitaire',
+      order = 1,
+    } = query;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // 1. Filtrage et TRI des produits si nécessaire
+    const productFilter: any = { productValidation: true };
+    if (search) {
+      productFilter.$or = [
+        { productName: { $regex: search, $options: 'i' } },
+        { codeCPC: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    // On prépare le tri pour les produits
+    let productSort = {};
+    if (['productName', 'codeCPC'].includes(sort)) {
+      productSort = { [sort]: Number(order) };
+    }
+
+    // Récupérer les IDs triés
+    const validatedProductIds =
+      await this.productService.findValidatedIdsByFilter(
+        productFilter,
+        productSort,
+      );
+
+    // 2. Filtrage des Actifs
+    const actifFilter: any = {
+      productId: { $in: validatedProductIds },
+      quantite: { $gt: 0 },
+      isActive: true,
+    };
+
+    if (fournisseurId) {
+      actifFilter.ayant_droit = new Types.ObjectId(fournisseurId);
+    }
+
+    // 3. Préparation du tri pour l'Actif
+    // Si le tri n'était pas sur le produit, on l'applique sur l'actif
+    let finalSort: any = {};
+    if (!['productName', 'codeCPC'].includes(sort)) {
+      finalSort[sort] = Number(order);
+    }
+
+    const [actifs, total] = await Promise.all([
+      this.actifModel
+        .find(actifFilter)
+        .populate('productId')
+        .populate('ayant_droit', 'userNickName raisonSocial')
+        .populate('depotId', 'siteName siteAddress')
+        .sort(finalSort) // Trie sur prixUnitaire ou createdAt
+        .skip(skip)
+        .limit(Number(limit))
+        .exec(),
+      this.actifModel.countDocuments(actifFilter),
+    ]);
+
+    // 4. TRI MANUEL
+    if (['productName', 'codeCPC'].includes(sort)) {
+      actifs.sort((a: any, b: any) => {
+        const valA = a.productId?.[sort] || '';
+        const valB = b.productId?.[sort] || '';
+        return Number(order) === 1
+          ? valA.localeCompare(valB)
+          : valB.localeCompare(valA);
+      });
     }
 
     return {
       status: 'success',
-      message: 'Actif récupéré',
-      data: [actif],
-    } as any;
+      data: actifs.map((a) => ({
+        id: a._id,
+        produit: a.productId,
+        vendeur: a.ayant_droit,
+        site: a.depotId,
+        quantite: a.quantite,
+        prixUnitaire: a.prixUnitaire,
+        totalValeur: a.quantite * a.prixUnitaire,
+      })),
+      total,
+      page: Number(page),
+      limit: Number(limit),
+    };
   }
 }

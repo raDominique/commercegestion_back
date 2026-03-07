@@ -537,7 +537,10 @@ export class ProductService {
     };
   }
 
-  // Dans ProductService
+  /**
+   * Récupère les IDs des produits correspondant à un nom (pour la recherche dans les actifs)
+   * Permet de faire le lien entre les produits validés et les actifs disponibles en stock
+   */
   async findIdsByName(productName: string): Promise<Types.ObjectId[]> {
     const products = await this.productModel
       .find({ productName: { $regex: productName, $options: 'i' } })
@@ -546,5 +549,26 @@ export class ProductService {
       .exec();
 
     return products.map((p) => p._id as Types.ObjectId);
+  }
+
+  /**
+   * Récupère les IDs des produits validés par l'admin, avec option de filtrage par nom
+   */
+  async findValidatedIds(name?: string) {
+    const filter: any = { productValidation: true };
+    if (name) filter.productName = { $regex: name, $options: 'i' };
+
+    const products = await this.productModel.find(filter).select('_id').lean();
+    return products.map((p) => p._id);
+  }
+
+  /**
+   * Récupère les IDs des produits validés par l'admin, avec option de filtrage par nom et code CPC
+   */
+  async findValidatedIdsByFilter(productFilter, productSort) {
+    return this.productModel
+      .find(productFilter)
+      .sort(productSort)
+      .distinct('_id');
   }
 }

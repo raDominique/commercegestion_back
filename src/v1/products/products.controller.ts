@@ -100,19 +100,6 @@ export class ProductController {
   // ==========================================
   // SECTION : ACTIONS DE BASCULE (TOGGLES)
   // ==========================================
-
-  /*
-  @Patch('toggle-stock/:id')
-  @Auth()
-  @ApiOperation({
-    summary: 'Basculer le statut de stockage',
-    description: 'Inverse l\'état "En stock / Hors stock" du produit.',
-  })
-  @ApiResponse({ status: 200, description: 'Statut mis à jour.' })
-  async toggleStock(@Param('id') id: string, @Req() req: any) {
-    return this.productService.toggleStock(id, req.user?.userId);
-  }
-  */
   @Patch('toggle-validation/:id')
   @AuthRole(UserAccess.ADMIN)
   @ApiOperation({

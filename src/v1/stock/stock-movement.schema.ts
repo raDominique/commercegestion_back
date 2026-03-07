@@ -10,37 +10,36 @@ export enum MovementType {
   VIREMENT = 'Virement',
 }
 
-@Schema({ timestamps: true }) // Enregistre auto createdAt (date/heure)
+@Schema({ timestamps: true })
 export class StockMovement {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
-  operatorId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  operatorId: Types.ObjectId; // Qui a validé (Admin, Vendeur, Hangar)
 
-  @Prop({ type: Types.ObjectId, ref: 'Site', required: true, index: true })
-  siteOrigineId: Types.ObjectId;
-
-  @Prop({ required: true, trim: true })
-  depotOrigine: string;
-
-  @Prop({ type: Types.ObjectId, ref: 'Site', required: true, index: true })
-  siteDestinationId: Types.ObjectId;
-
-  @Prop({ required: true, trim: true })
-  depotDestination: string;
-
-  @Prop({ type: Types.ObjectId, ref: 'Product', required: true, index: true })
-  productId: Types.ObjectId;
-
-  @Prop({ required: true, min: 1 })
-  quantite: number;
-
-  @Prop({ required: true })
-  prixUnitaire: number;
-
-  @Prop({ enum: MovementType, required: true })
+  @Prop({
+    enum: ['DEPOT', 'RETRAIT', 'TRANSFERT', 'VIREMENT_PROPRIETE'],
+    required: true,
+  })
   type: MovementType;
 
-  @Prop({ trim: true })
-  observations: string;
+  @Prop({ type: Types.ObjectId, ref: 'Product', required: true })
+  productId: Types.ObjectId;
+
+  @Prop({ required: true })
+  quantite: number;
+
+  // Tracer le mouvement de propriété (Ayant-droit)
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  detentaire: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  nouveau_ayant_droit: Types.ObjectId;
+
+  // Tracer le mouvement physique (Détenteur)
+  @Prop({ type: Types.ObjectId, ref: 'Site' })
+  siteOrigineId: Types.ObjectId;
+  
+  @Prop({ type: Types.ObjectId, ref: 'Site' })
+  siteDestinationId: Types.ObjectId;
 }
 
 export const StockMovementSchema = SchemaFactory.createForClass(StockMovement);
