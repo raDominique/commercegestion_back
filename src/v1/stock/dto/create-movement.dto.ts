@@ -6,15 +6,17 @@ import {
   Min,
   IsOptional,
   IsString,
+  IsEnum,
 } from 'class-validator';
+import { MovementType } from '../stock-movement.schema';
 
 export class CreateMovementDto {
-  @ApiProperty({ example: '69989c5cdff25ef7fe0a460f' })
+  @ApiProperty({ example: '69989c5cdff25ef7fe0a460f', description: "Site de départ (null si dépôt initial)" })
   @IsMongoId()
-  @IsNotEmpty()
-  siteOrigineId: string;
+  @IsOptional() // Optionnel car pour un DEPOT initial, il n'y a pas forcément d'origine système
+  siteOrigineId?: string;
 
-  @ApiProperty({ example: '69989c5cdff25ef7fe0a4610' })
+  @ApiProperty({ example: '69989c5cdff25ef7fe0a4610', description: "Site d'arrivée" })
   @IsMongoId()
   @IsNotEmpty()
   siteDestinationId: string;
@@ -34,25 +36,27 @@ export class CreateMovementDto {
   @Min(0)
   prixUnitaire: number;
 
+  // --- AJOUTS POUR LA LOGIQUE AYANT-DROIT / DETENTAIRE ---
+
   @ApiProperty({
     required: false,
     example: '69989c5cdff25ef7fe0a4611',
-    description: "ID de l'utilisateur qui détient physiquement le produit",
+    description: "Le gardien physique (Hangar, Transporteur, ou Soi-même)",
   })
   @IsMongoId()
   @IsOptional()
-  detentaire?: string;
+  detentaireId?: string;
 
   @ApiProperty({
     required: false,
     example: '69989c5cdff25ef7fe0a4612',
-    description: "ID de l'utilisateur propriétaire légal",
+    description: "Le nouveau propriétaire (en cas de VIREMENT / Etape 4c)",
   })
   @IsMongoId()
   @IsOptional()
   ayant_droit?: string;
 
-  @ApiProperty({ required: false, example: 'Cession de stock ou transfert' })
+  @ApiProperty({ required: false, example: 'Cession de stock suite étape 4c' })
   @IsOptional()
   @IsString()
   observations?: string;

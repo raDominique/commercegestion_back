@@ -15,6 +15,6 @@ export class PassifsController {
   @ApiResponse({ status: 401, description: 'Non autorisé' })
   @ApiResponse({ status: 403, description: 'Accès refusé' })
   async findOne(@Param('id') id: string) {
-    return this.passifsService.findOne(id);
+    return this.passifsService.getPassifDetails(id);
   }
 }

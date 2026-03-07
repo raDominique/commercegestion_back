@@ -9,17 +9,27 @@ import { Auth } from '../auth';
 import { CreateMovementDto } from './dto/create-movement.dto';
 import { MovementType } from './stock-movement.schema';
 import { StockService } from './stock.service';
+import { ActifsService } from '../actifs/actifs.service';
+import { PassifsService } from '../passifs/passifs.service';
 
 @ApiTags('Stocks & Mouvements')
-@ApiBearerAuth()
 @Controller()
 export class StockController {
-  constructor(private readonly stockService: StockService) {}
+  constructor(
+    private readonly stockService: StockService,
+    private readonly actifsService: ActifsService,
+    private readonly passifsService: PassifsService,
+  ) {}
 
-  // POST: /stock/deposit -> Pour déposer un produit dans un site
+  // ==========================================
+  // ÉTAPES DE MOUVEMENTS (FLUX 0 À 12)
+  // ==========================================
+
   @Post('deposit')
   @Auth()
-  @ApiOperation({ summary: 'Déposer un produit dans un site de destination' })
+  @ApiOperation({
+    summary: 'Étape 0 : Déposer un produit (Initialisation Actif/Passif)',
+  })
   async deposit(@Body() dto: CreateMovementDto, @Req() req: any) {
     return this.stockService.createMovement(
       dto,
@@ -28,10 +38,9 @@ export class StockController {
     );
   }
 
-  // POST: /stock/withdraw -> Pour retirer un produit d'un site
   @Post('withdraw')
   @Auth()
-  @ApiOperation({ summary: "Retirer un produit d'un site (Opération inverse)" })
+  @ApiOperation({ summary: 'Retirer un produit (Sortie de stock physique)' })
   async withdraw(@Body() dto: CreateMovementDto, @Req() req: any) {
     return this.stockService.createMovement(
       dto,
@@ -40,10 +49,12 @@ export class StockController {
     );
   }
 
-  // POST: /stock/transfer -> Pour transférer un produit d'un site à un autre
   @Post('transfer')
   @Auth()
-  @ApiOperation({ summary: 'Transférer un produit d’un site à un autre' })
+  @ApiOperation({
+    summary:
+      'Étape 10 : Transférer physiquement un produit (Changement de détenteur)',
+  })
   async transfer(@Body() dto: CreateMovementDto, @Req() req: any) {
     return this.stockService.createMovement(
       dto,
@@ -55,7 +66,8 @@ export class StockController {
   @Post('virement')
   @Auth()
   @ApiOperation({
-    summary: 'Virement de stock entre deux sites (Débit et Crédit)',
+    summary:
+      'Étape 4c : Virement de propriété (Changement d’Ayant-droit sans mouvement physique)',
   })
   async virement(@Body() dto: CreateMovementDto, @Req() req: any) {
     return this.stockService.createMovement(
@@ -65,108 +77,92 @@ export class StockController {
     );
   }
 
-  // GET: /stock/site-actifs -> Actifs pour un site spécifique de l'utilisateur
+  // ==========================================
+  // RÉCUPÉRATION DES ACTIFS (CE QUE JE POSSÈDE)
+  // ==========================================
+
+  @Get('my-actifs')
+  @Auth()
+  @ApiOperation({ summary: 'Liste globale de mes actifs (Bilan de propriété)' })
+  async getMyAssets(@Req() req: any, @Query() query: any) {
+    return this.stockService.getMyAssets(req.user.userId, query);
+  }
+
+  @Get('actif/:id')
+  @Auth()
+  @ApiOperation({
+    summary: 'Détails d’un actif spécifique (Populate Ayant-droit/Détenteur)',
+  })
+  async getActifDetails(@Param('id') id: string) {
+    return this.actifsService.getActifDetails(id);
+  }
+
   @Get('site-actifs/:siteId')
   @Auth()
-  @ApiOperation({ summary: 'Voir les actifs pour un site spécifique' })
+  @ApiOperation({ summary: 'Voir les actifs stockés sur un site spécifique' })
   async getSiteActifs(@Req() req: any, @Param('siteId') siteId: string) {
     return this.stockService.getSiteActifs(req.user.userId, siteId);
   }
 
-  // GET: /stock/site-passifs -> Passifs pour un site spécifique de l'utilisateur
+  // ==========================================
+  // RÉCUPÉRATION DES PASSIFS (CE QUE JE DOIS)
+  // ==========================================
+
+  @Get('my-passifs')
+  @Auth()
+  @ApiOperation({
+    summary: 'Liste de mes passifs (Dettes de marchandises envers des tiers)',
+  })
+  async getMyPassifs(@Req() req: any, @Query() query: any) {
+    return this.stockService.getMyPassifs(req.user.userId, query);
+  }
+
+  @Get('passif/:id')
+  @Auth()
+  @ApiOperation({
+    summary: 'Détails d’un passif spécifique (Populate Créancier)',
+  })
+  async getPassifDetails(@Param('id') id: string) {
+    return this.passifsService.getPassifDetails(id);
+  }
+
   @Get('site-passifs/:siteId')
   @Auth()
-  @ApiOperation({ summary: 'Voir les passifs pour un site spécifique' })
+  @ApiOperation({
+    summary: 'Voir les dettes de marchandises pour un site spécifique',
+  })
   async getSitePassifs(@Req() req: any, @Param('siteId') siteId: string) {
     return this.stockService.getSitePassifs(req.user.userId, siteId);
   }
 
-  // GET: /stock/my-assets -> Liste des produits validés et stockés
-  @Get('my-actifs')
+  // ==========================================
+  // HISTORIQUE DES MOUVEMENTS
+  // ==========================================
+
+  @Get('history')
   @Auth()
-  @ApiOperation({ summary: 'Voir mes actifs (Produits validés et en stock)' })
-  @ApiQuery({
-    name: 'siteId',
-    required: false,
-    description: 'Filtrer par site (optionnel)',
-  })
-  @ApiQuery({
-    name: 'productId',
-    required: false,
-    description: 'Filtrer par produit (optionnel)',
-  })
-  @ApiQuery({
-    name: 'movementType',
-    required: false,
-    enum: MovementType,
-    description: 'Filtrer par type de mouvement (optionnel)',
-  })
-  @ApiQuery({
-    name: 'startDate',
-    required: false,
-    description: 'Filtrer par date de début (optionnel)',
-  })
-  @ApiQuery({
-    name: 'endDate',
-    required: false,
-    description: 'Filtrer par date de fin (optionnel)',
-  })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    description: 'Numéro de page pour la pagination (optionnel)',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: "Nombre d'éléments par page pour la pagination (optionnel)",
-  })
-  async getMyAssets(@Req() req: any, @Query() query: any) {
-    // On peut utiliser le findAll du productService avec isStocker=true
-    return this.stockService.getMyAssets(req.user.userId, query);
+  @ApiOperation({ summary: 'Journal complet des mouvements de l’utilisateur' })
+  async getHistory(@Req() req: any) {
+    return this.stockService.getHistory(req.user.userId);
   }
 
-  // GET: /stock/my-passifs -> Liste de tous les passifs de l'utilisateur
-  @Get('my-passifs')
+  // GET: /stock/deposits
+  @Get('deposits')
   @Auth()
-  @ApiQuery({
-    name: 'siteId',
-    required: false,
-    description: 'Filtrer par site (optionnel)',
-  })
-  @ApiQuery({
-    name: 'productId',
-    required: false,
-    description: 'Filtrer par produit (optionnel)',
-  })
-  @ApiQuery({
-    name: 'movementType',
-    required: false,
-    enum: MovementType,
-    description: 'Filtrer par type de mouvement (optionnel)',
-  })
-  @ApiQuery({
-    name: 'startDate',
-    required: false,
-    description: 'Filtrer par date de début (optionnel)',
-  })
-  @ApiQuery({
-    name: 'endDate',
-    required: false,
-    description: 'Filtrer par date de fin (optionnel)',
-  })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    description: 'Numéro de page pour la pagination (optionnel)',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: "Nombre d'éléments par page pour la pagination (optionnel)",
-  })
-  @ApiOperation({ summary: 'Voir mes passifs (Produits retraitées)' })
-  async getMyPassifs(@Req() req: any, @Query() query: any) {
-    return this.stockService.getMyPassifs(req.user.userId, query);
+  @ApiOperation({ summary: 'Liste de tous les dépôts effectués (Entrées)' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  async getDeposits(@Req() req: any, @Query() query: any) {
+    return this.stockService.getDepositList(req.user.userId, query);
+  }
+
+  // GET: /stock/withdrawals
+  @Get('withdrawals')
+  @Auth()
+  @ApiOperation({ summary: 'Liste de tous les retraits effectués (Sorties)' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  async getWithdrawals(@Req() req: any, @Query() query: any) {
+    return this.stockService.getWithdrawList(req.user.userId, query);
   }
 }
