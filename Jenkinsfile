@@ -14,6 +14,8 @@ pipeline {
         SMTP_PORT          = credentials('SMTP_PORT_HIQAODY')
         SMTP_USER          = credentials('SMTP_USER_HIQAODY')
         SMTP_PASS          = credentials('SMTP_PASS_HIQAODY')
+        SMTP_SECURE        = 'false'
+        SMTP_FROM_NAME     = 'CommerceGestion-dev'
 
         JWT_EXPIRES_IN         = '15m'
         JWT_REFRESH_EXPIRES_IN = '7d'
