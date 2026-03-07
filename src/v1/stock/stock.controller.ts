@@ -91,7 +91,7 @@ export class StockController {
     description: 'Filtrer par site (optionnel)',
   })
   @ApiQuery({
-    name: 'productId',
+    name: 'productName',
     required: false,
     description: 'Filtrer par produit (optionnel)',
   })
@@ -135,7 +135,7 @@ export class StockController {
     description: 'Filtrer par site (optionnel)',
   })
   @ApiQuery({
-    name: 'productId',
+    name: 'productName',
     required: false,
     description: 'Filtrer par produit (optionnel)',
   })

@@ -536,4 +536,15 @@ export class ProductService {
       limit: Number(limit),
     };
   }
+
+  // Dans ProductService
+  async findIdsByName(productName: string): Promise<Types.ObjectId[]> {
+    const products = await this.productModel
+      .find({ productName: { $regex: productName, $options: 'i' } })
+      .select('_id')
+      .lean()
+      .exec();
+
+    return products.map((p) => p._id as Types.ObjectId);
+  }
 }

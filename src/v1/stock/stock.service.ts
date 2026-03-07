@@ -116,8 +116,9 @@ export class StockService {
 
   /**
    * Construire un filtre pour les mouvements
+   * NOTE: Cette méthode est maintenant asynchrone pour gérer la recherche de produits
    */
-  private buildMovementFilter(
+  private async buildMovementFilter(
     userId: string,
     query: any,
     movementType?: MovementType,
@@ -128,7 +129,7 @@ export class StockService {
       filter.type = movementType;
     }
 
-    const { siteId, productId, startDate, endDate } = query;
+    const { siteId, productName, startDate, endDate } = query;
 
     if (siteId) {
       filter.$or = [
@@ -137,7 +138,13 @@ export class StockService {
       ];
     }
 
-    if (productId) filter.productId = new Types.ObjectId(productId);
+    if (productName) {
+      // 1. On cherche les IDs des produits qui correspondent au nom via le ProductService
+      const productIds = await this.productService.findIdsByName(productName);
+
+      // 2. On filtre les mouvements dont le productId est dans cette liste
+      filter.productId = { $in: productIds };
+    }
 
     if (startDate || endDate) {
       filter.createdAt = {};
@@ -182,7 +189,7 @@ export class StockService {
     const { page = 1, limit = 10 } = query;
     const skip = (Number(page) - 1) * Number(limit);
 
-    const filter = this.buildMovementFilter(userId, query, movementType);
+    const filter = await this.buildMovementFilter(userId, query, movementType);
 
     const [movements, total, aggregateStock] = await Promise.all([
       this.movementModel
