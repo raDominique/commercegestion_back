@@ -61,20 +61,63 @@ export class UsersController {
         'userPassword',
       ],
       properties: {
-        userNickName: { type: 'string', example: 'jacquinot' },
-        userName: { type: 'string', example: 'RANDRIANOMENJANAHARY' },
-        userFirstname: { type: 'string', example: 'Jacquinot' },
-        userEmail: { type: 'string', example: 'jacquinot@gmail.com' },
-        userPassword: { type: 'string', example: 'StrongPassword123' },
-        userPhone: { type: 'string', example: '+261340179345' },
+        userNickName: {
+          type: 'string',
+          example: 'jacquinot',
+          description: "Surnom ou pseudo de l'utilisateur",
+        },
+        userName: {
+          type: 'string',
+          example: 'RANDRIANOMENJANAHARY',
+          description: "Nom de famille de l'utilisateur",
+        },
+        userFirstname: {
+          type: 'string',
+          example: 'Jacquinot',
+          description: "Prénom de l'utilisateur",
+        },
+        userEmail: {
+          type: 'string',
+          example: 'jacquinot@gmail.com',
+          description: "Adresse email de l'utilisateur",
+        },
+        userPassword: {
+          type: 'string',
+          example: 'StrongPassword123',
+          description: "Mot de passe de l'utilisateur",
+        },
+        userPhone: {
+          type: 'string',
+          example: '+261340179345',
+          description: "Numéro de téléphone de l'utilisateur",
+        },
+        userDateOfBirth: {
+          type: 'string',
+          format: 'date',
+          example: '1990-01-01',
+          description: "Date de naissance de l'utilisateur",
+        },
         userType: {
           type: 'string',
           enum: Object.values(UserType),
           example: 'Particulier',
+          description: "Type d'utilisateur (Particulier, Entreprise)",
         },
-        userAddress: { type: 'string', example: 'Andrainjato, Fianarantsoa' },
-        userMainLat: { type: 'number', example: -21.45267 },
-        userMainLng: { type: 'number', example: 47.08569 },
+        userAddress: {
+          type: 'string',
+          example: 'Andrainjato, Fianarantsoa',
+          description: "Adresse principale de l'utilisateur",
+        },
+        userMainLat: {
+          type: 'number',
+          example: -21.45267,
+          description: "Latitude de l'adresse principale",
+        },
+        userMainLng: {
+          type: 'number',
+          example: 47.08569,
+          description: "Longitude de l'adresse principale",
+        },
         identityCardNumber: {
           type: 'string',
           example: '201011000123',
@@ -84,6 +127,7 @@ export class UsersController {
           type: 'string',
           enum: ['cin', 'passport', 'permis-de-conduire'],
           example: 'cin',
+          description: 'Type de document d’identité fourni',
         },
         avatar: {
           type: 'string',
@@ -119,6 +163,8 @@ export class UsersController {
           type: 'string',
           format: 'email',
           example: 'manager@entreprise.com',
+          description:
+            "Email du gérant (obligatoire si userType = 'Entreprise')",
         },
         parrain1ID: {
           type: 'string',
@@ -199,9 +245,116 @@ export class UsersController {
     schema: {
       type: 'object',
       properties: {
-        userNickName: { type: 'string' },
-        userPhone: { type: 'string', example: '+261320011122' },
-        avatar: { type: 'string', format: 'binary' },
+        userNickName: {
+          type: 'string',
+          example: 'jacquinot',
+          description: "Surnom ou pseudo de l'utilisateur",
+        },
+        userName: {
+          type: 'string',
+          example: 'RANDRIANOMENJANAHARY',
+          description: "Nom de famille de l'utilisateur",
+        },
+        userFirstname: {
+          type: 'string',
+          example: 'Jacquinot',
+          description: "Prénom de l'utilisateur",
+        },
+        userPassword: {
+          type: 'string',
+          example: 'StrongPassword123',
+          description: "Mot de passe de l'utilisateur",
+        },
+        userPhone: {
+          type: 'string',
+          example: '+261340179345',
+          description: "Numéro de téléphone de l'utilisateur",
+        },
+        userDateOfBirth: {
+          type: 'string',
+          format: 'date',
+          example: '1990-01-01',
+          description: "Date de naissance de l'utilisateur",
+        },
+        userType: {
+          type: 'string',
+          enum: Object.values(UserType),
+          example: 'Particulier',
+          description: "Type d'utilisateur (Particulier, Entreprise)",
+        },
+        userAddress: {
+          type: 'string',
+          example: 'Andrainjato, Fianarantsoa',
+          description: "Adresse principale de l'utilisateur",
+        },
+        userMainLat: {
+          type: 'number',
+          example: -21.45267,
+          description: "Latitude de l'adresse principale",
+        },
+        userMainLng: {
+          type: 'number',
+          example: 47.08569,
+          description: "Longitude de l'adresse principale",
+        },
+        identityCardNumber: {
+          type: 'string',
+          example: '201011000123',
+          description: 'Numéro CIN ou Passport',
+        },
+        documentType: {
+          type: 'string',
+          enum: ['cin', 'passport', 'permis-de-conduire'],
+          example: 'cin',
+          description: 'Type de document d’identité fourni',
+        },
+        avatar: {
+          type: 'string',
+          format: 'binary',
+          description: 'Photo de profil',
+        },
+        logo: {
+          type: 'string',
+          format: 'binary',
+          description: 'Logo pour les entreprises',
+        },
+        carteStat: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: 'Image de la carte statistique( recto/verso)',
+        },
+        documents: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: 'Documents complémentaires (max 5)',
+        },
+        carteFiscal: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: 'Justificatifs fiscaux (NIF)',
+        },
+        managerName: {
+          type: 'string',
+          example: 'Jean Dupont',
+          description: "Nom du gérant (obligatoire si userType = 'Entreprise')",
+        },
+        managerEmail: {
+          type: 'string',
+          format: 'email',
+          example: 'manager@entreprise.com',
+          description:
+            "Email du gérant (obligatoire si userType = 'Entreprise')",
+        },
+        parrain1ID: {
+          type: 'string',
+          example: 'XJ8K2P9W',
+          description: 'Code de parrainage (8 caractères) du premier parrain',
+        },
+        parrain2ID: {
+          type: 'string',
+          example: 'L4N7M1Q5',
+          description: 'Code de parrainage (8 caractères) du deuxième parrain',
+        },
       },
     },
   })
@@ -345,5 +498,4 @@ export class UsersController {
   findAll() {
     return this.usersService.findAllNoPaginated();
   }
-
 }
