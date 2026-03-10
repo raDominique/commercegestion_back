@@ -130,6 +130,22 @@ export class MailService {
     );
   }
 
+  async sendParrainValidationEmail(
+    to: string,
+    filleulName: string,
+    validationLink: string,
+  ) {
+    await this.mailerService.sendMail({
+      to,
+      subject: 'Validation de parrainage requise',
+      template: './parrain-validation',
+      context: {
+        filleulName,
+        validationLink,
+      },
+    });
+  }
+
   /* =========================================================================
    * SITE NOTIFICATIONS (UTILISÉES PAR NotifyHelper)
    * ========================================================================= */

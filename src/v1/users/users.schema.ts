@@ -132,6 +132,19 @@ export class User {
   @Prop()
   parrain2ID?: string;
 
+  // À ajouter dans votre classe User
+  @Prop({ default: false })
+  isParrain1Validated: boolean;
+
+  @Prop({ default: false })
+  isParrain2Validated: boolean;
+
+  @Prop()
+  parrain1Token?: string;
+
+  @Prop()
+  parrain2Token?: string;
+
   // ==================== SOFT DELETE & TIMESTAMPS ====================
   @Prop({ default: null })
   deletedAt?: Date;

@@ -33,6 +33,7 @@ export class SiteService {
   async create(
     dto: CreateSiteDto,
     userId: string,
+    isInscription = false,
   ): Promise<PaginationResult<Site>> {
     if (!Types.ObjectId.isValid(userId)) {
       throw new BadRequestException('ID utilisateur invalide');
@@ -52,18 +53,20 @@ export class SiteService {
       },
     });
 
-    // 🔔 Audit + Notification (via Helper)
-    await this.notifyHelper.notify({
-      action: AuditAction.CREATE,
-      entityType: EntityType.SITE,
-      entityId: site._id.toString(),
-      userId,
-      newState: site.toObject(),
-      emailData: {
-        type: 'CREATE',
-        siteName: site.siteName,
-      },
-    });
+    if (isInscription === false) {
+      // 🔔 Audit + Notification (via Helper)
+      await this.notifyHelper.notify({
+        action: AuditAction.CREATE,
+        entityType: EntityType.SITE,
+        entityId: site._id.toString(),
+        userId,
+        newState: site.toObject(),
+        emailData: {
+          type: 'CREATE',
+          siteName: site.siteName,
+        },
+      });
+    }
 
     return {
       status: 'success',
@@ -280,12 +283,15 @@ export class SiteService {
       .exec();
 
     const formattedData = sites
-      .filter(site => site.siteUserID !== null)
-      .map(site => ({
+      .filter((site) => site.siteUserID !== null)
+      .map((site) => ({
         _id: site._id,
         siteName: site.siteName,
         siteUserID: (site.siteUserID as any)?._id,
-        userNickName: (site.siteUserID as any)?.userNickName + ' ' + (site.siteUserID as any)?.userName,
+        userNickName:
+          (site.siteUserID as any)?.userNickName +
+          ' ' +
+          (site.siteUserID as any)?.userName,
       }));
 
     return {

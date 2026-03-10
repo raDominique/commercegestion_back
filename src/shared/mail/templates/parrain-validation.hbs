@@ -1,0 +1,88 @@
+<html>
+  <head>
+    <meta charset='utf-8' />
+    <style>
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f4f7f6;
+        color: #333;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        width: 100%;
+        max-width: 600px;
+        margin: 20px auto;
+        background-color: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background-color: #2c3e50;
+        color: #ffffff;
+        padding: 30px;
+        text-align: center;
+      }
+      .content {
+        padding: 30px;
+        line-height: 1.6;
+      }
+      .footer {
+        background-color: #f8f9fa;
+        color: #777;
+        padding: 20px;
+        text-align: center;
+        font-size: 12px;
+      }
+      .button-container {
+        text-align: center;
+        margin-top: 30px;
+      }
+      .btn {
+        background-color: #27ae60;
+        color: white !important;
+        padding: 15px 25px;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: bold;
+        display: inline-block;
+      }
+      .highlight {
+        color: #2c3e50;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='container'>
+      <div class='header'>
+        <h1>Validation de Parrainage</h1>
+      </div>
+      <div class='content'>
+        <p>Bonjour,</p>
+        <p>L'utilisateur
+          <span class='highlight'>{{filleulName}}</span>
+          souhaite rejoindre notre plateforme et vous a désigné comme parrain.</p>
+        <p>Pour que son compte soit activé, nous avons besoin de votre
+          confirmation. Une fois que vous et l'autre parrain aurez validé, le
+          compte de
+          <span class='highlight'>{{filleulName}}</span>
+          sera automatiquement opérationnel.</p>
+
+        <div class='button-container'>
+          <a href='{{validationLink}}' class='btn'>Valider ce parrainage</a>
+        </div>
+
+        <p style='margin-top: 30px;'>Si vous ne connaissez pas cette personne ou
+          si vous avez reçu cet email par erreur, vous pouvez simplement ignorer
+          ce message.</p>
+        <p>Cordialement,<br />L'équipe de gestion.</p>
+      </div>
+      <div class='footer'>
+        <p>&copy; 2026 Votre Application. Tous droits réservés.</p>
+        <p>Ceci est un message automatique, merci de ne pas y répondre.</p>
+      </div>
+    </div>
+  </body>
+</html>
