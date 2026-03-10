@@ -31,7 +31,6 @@ export class StockService {
     userId: string,
     type: MovementType,
   ) {
-
     this.validateMovement(dto, type);
 
     const siteOrigine = dto.siteOrigineId
@@ -84,7 +83,11 @@ export class StockService {
       depotDestination: siteDest.siteName,
     });
 
-    return await movement.save();
+    const savedMovement = await movement.save();
+
+    // Mise à jour du status produit isStocker === true
+    await this.productService.updateIsStocker(dto.productId, true);
+    return savedMovement;
   }
 
   private validateMovement(dto: CreateMovementDto, type: MovementType): void {
