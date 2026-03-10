@@ -14,6 +14,7 @@ import {
   Res,
   Req,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -344,4 +345,5 @@ export class UsersController {
   findAll() {
     return this.usersService.findAllNoPaginated();
   }
+
 }
