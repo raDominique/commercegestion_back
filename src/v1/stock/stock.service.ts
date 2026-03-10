@@ -420,28 +420,7 @@ export class StockService {
     userId: string,
     query: any,
   ): Promise<PaginationResult<any>> {
-    const result = await this.getMovements(userId, query, MovementType.RETRAIT);
-
-    return {
-      status: result.status,
-      message: 'Passifs récupérés',
-      data: (result.data || []).map((movement: any) => ({
-        date: movement.createdAt,
-        situation: movement.productId?.productName || 'N/A',
-        type: movement.type,
-        productId: movement.productId?._id,
-        montant: movement.quantite * movement.prixUnitaire,
-        departDe: movement.depotOrigine,
-        departDeId: movement.siteOrigineId._id,
-        arrivee: movement.depotDestination,
-        arriveeId: movement.siteDestinationId._id,
-        action: movement.observations || '-',
-      })),
-      summary: result.summary,
-      total: result.total,
-      page: result.page,
-      limit: result.limit,
-    };
+    return await this.getMovements(userId, query, MovementType.RETRAIT);
   }
 
   /**

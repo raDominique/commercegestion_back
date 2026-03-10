@@ -548,7 +548,7 @@ export class ProductService {
       .lean()
       .exec();
 
-    return products.map((p) => p._id as Types.ObjectId);
+    return products.map((p) => p._id);
   }
 
   /**
