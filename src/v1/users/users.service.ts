@@ -154,7 +154,7 @@ export class UsersService implements OnModuleInit {
 
       // Envoi des emails aux parrains
       if (user.parrain1ID && user.parrain1Token) {
-        const p1 = await this.userModel.findById(user.parrain1ID);
+        const p1 = await this.userModel.findOne({ userId: user.parrain1ID });
         if (p1) {
           tasks.push(
             this.mailService.sendParrainValidationEmail(
@@ -167,7 +167,7 @@ export class UsersService implements OnModuleInit {
       }
 
       if (user.parrain2ID && user.parrain2Token) {
-        const p2 = await this.userModel.findById(user.parrain2ID);
+        const p2 = await this.userModel.findOne({ userId: user.parrain2ID });
         if (p2) {
           tasks.push(
             this.mailService.sendParrainValidationEmail(
