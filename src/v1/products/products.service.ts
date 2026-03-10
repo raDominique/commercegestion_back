@@ -571,4 +571,15 @@ export class ProductService {
       .sort(productSort)
       .distinct('_id');
   }
+  // Mise à jour du status produit isStocker === true
+  async updateIsStocker(productId, isStocker) {
+    const product = await this.productModel.findById(
+      new Types.ObjectId(productId),
+    );
+    if (!product) {
+      throw new NotFoundException('Produit introuvable');
+    }
+    product.isStocker = isStocker;
+    await product.save();
+  }
 }
