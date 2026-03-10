@@ -1,5 +1,4 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Type } from 'class-transformer';
 import { Document, Types } from 'mongoose';
 
 export type ActifDocument = Actif & Document;

@@ -4,16 +4,16 @@ import { Document, Types } from 'mongoose';
 export type StockMovementDocument = StockMovement & Document;
 
 export enum MovementType {
-  DEPOT = 'Depot',
-  RETRAIT = 'Retrait',
-  TRANSFERT = 'Transfert',
-  VIREMENT = 'Virement',
+  DEPOT = 'DEPOT',
+  RETRAIT = 'RETRAIT',
+  TRANSFERT = 'TRANSFERT',
+  VIREMENT = 'VIREMENT_PROPRIETE',
 }
 
 @Schema({ timestamps: true })
 export class StockMovement {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  operatorId: Types.ObjectId; // Qui a validé (Admin, Vendeur, Hangar)
+  operatorId: Types.ObjectId;
 
   @Prop({
     enum: ['DEPOT', 'RETRAIT', 'TRANSFERT', 'VIREMENT_PROPRIETE'],
@@ -27,17 +27,19 @@ export class StockMovement {
   @Prop({ required: true })
   quantite: number;
 
-  // Tracer le mouvement de propriété (Ayant-droit)
+  @Prop({ type: Number, default: null })
+  prixUnitaire: number;
+
   @Prop({ type: Types.ObjectId, ref: 'User' })
   detentaire: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
-  nouveau_ayant_droit: Types.ObjectId;
+  ayant_droit: Types.ObjectId;
 
   // Tracer le mouvement physique (Détenteur)
   @Prop({ type: Types.ObjectId, ref: 'Site' })
   siteOrigineId: Types.ObjectId;
-  
+
   @Prop({ type: Types.ObjectId, ref: 'Site' })
   siteDestinationId: Types.ObjectId;
 }

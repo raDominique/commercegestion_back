@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Actif, ActifDocument } from './actifs.schema';
@@ -54,7 +54,7 @@ export class ActifsService {
 
   /**
    * Diminue la quantité d'un actif (Retrait ou Vente).
-   * Si la quantité tombe à 0, l'actif est archivé.
+   * Correction : Ajout de ayantDroitId pour correspondre à la clé unique de l'actif
    */
   async decreaseActif(
     userId: string,
@@ -62,16 +62,30 @@ export class ActifsService {
     productId: string,
     quantite: number,
   ) {
+    console.log('DEBUG decreaseActif called with:', {
+      userId,
+      depotId,
+      productId,
+      quantite,
+    });
     const actif = await this.actifModel.findOne({
       userId: new Types.ObjectId(userId),
-      depotId: new Types.ObjectId(depotId),
       productId: new Types.ObjectId(productId),
       isActive: true,
     });
 
+    console.log('DEBUG decreaseActif:', {
+      userId: new Types.ObjectId(userId),
+      depotId: new Types.ObjectId(depotId),
+      productId: new Types.ObjectId(productId),
+      quantite,
+      actif,
+      actifQuantite: actif?.quantite,
+    });
+
     if (!actif || actif.quantite < quantite) {
       throw new NotFoundException(
-        'Stock insuffisant ou actif inexistant pour cette opération',
+        `Stock insuffisant ou actif inexistant. (Demandé: ${quantite}, Dispo: ${actif?.quantite || 0})`,
       );
     }
 

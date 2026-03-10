@@ -23,7 +23,7 @@ pipeline {
         APP_NAME               = 'CommerceGestion'
         APP_URL                = 'https://api-etokisana.tsirylab.com'
         ADMIN_EMAIL            = 'randrianomenjanaharyjacquinot@gmail.com'
-        CORS_ALLOWLIST         = 'http://localhost:3000,https://api-etokisana.tsirylab.com'
+        CORS_ALLOWLIST         = 'http://localhost:3000,https://api-etokisana.tsirylab.com,http://192.168.88.13:3000'
         FRONTEND_URL           = 'http://localhost:3000'
         SUPERADMIN_EMAIL       = 'superadmin@commercegestion.com'
         SUPERADMIN_PASSWORD    = 'SuperSecurePassword2026!'

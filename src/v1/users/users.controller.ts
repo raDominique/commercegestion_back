@@ -168,6 +168,13 @@ export class UsersController {
     });
   }
 
+  // ========================= VALIDATE PARRAINAGE TOKEN =========================
+  @Get('validate-parrain')
+  async validateParrain(@Query('token') token: string, @Res() res) {
+    const redirectUrl = await this.usersService.validateByParrainToken(token);
+    return res.redirect(redirectUrl);
+  }
+
   // ========================= FIND ONE =========================
   @Get('get-by-id/:id')
   @ApiOperation({ summary: "Détails d'un utilisateur" })
