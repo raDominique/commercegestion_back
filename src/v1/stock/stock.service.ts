@@ -29,6 +29,29 @@ export class StockService {
     userId: string,
     type: MovementType,
   ) {
+    this.validateMovement(dto, type);
+
+    const siteOrigine = dto.siteOrigineId
+      ? await this.siteService.findOne(dto.siteOrigineId)
+      : null;
+    const siteDest = await this.siteService.findOne(dto.siteDestinationId);
+    const siteDestOwnerId = siteDest.siteUserID.toString();
+
+    await this.processMovementByType(dto, userId, type, siteOrigine, siteDestOwnerId);
+
+    // Enregistrement du mouvement
+    const movement = new this.movementModel({
+      ...dto,
+      operatorId: new Types.ObjectId(userId),
+      type: type,
+      depotOrigine: siteOrigine?.siteName || 'EXTERIEUR',
+      depotDestination: siteDest.siteName,
+    });
+
+    return await movement.save();
+  }
+
+  private validateMovement(dto: CreateMovementDto, type: MovementType): void {
     if (
       dto.siteOrigineId &&
       dto.siteDestinationId &&
@@ -44,151 +67,136 @@ export class StockService {
         "Le site d'origine ne peut être null que pour un dépôt initial.",
       );
     }
-    const siteOrigine = dto.siteOrigineId
-      ? await this.siteService.findOne(dto.siteOrigineId)
-      : null;
-    const siteDest = await this.siteService.findOne(dto.siteDestinationId);
+  }
 
-    // Le propriétaire du site cible (Le gestionnaire du hangar ou UserB)
-    const siteDestOwnerId = siteDest.siteUserID.toString();
-
-    // --- LOGIQUE DEPOT (Étape 0 du document) ---
+  private async processMovementByType(
+    dto: CreateMovementDto,
+    userId: string,
+    type: MovementType,
+    siteOrigine: any,
+    siteDestOwnerId: string,
+  ): Promise<void> {
     if (type === MovementType.DEPOT) {
-      /**
-       * Règle : Si je dépose chez un tiers (Hangar),
-       * 1. J'augmente mon ACTIF (Ayant-droit = Moi, Détenteur = Hangar)
-       * 2. J'augmente le PASSIF du Hangar (Il me doit la marchandise)
-       */
-
-      // 1. Mon Actif (Je suis l'ayant droit, le site est le détenteur)
-      await this.actifsService.addOrIncreaseActif(
-        userId, // Pour mon bilan
-        dto.siteDestinationId, // Localisation
-        dto.productId,
-        dto.quantite,
-        dto.prixUnitaire,
-        siteDestOwnerId, // Détenteur actuel (Gestionnaire)
-        userId, // Ayant-droit (Moi)
-      );
-
-      // 2. Le Passif du Gestionnaire (S'il n'est pas l'ayant-droit)
-      if (userId !== siteDestOwnerId) {
-        await this.passifsService.addOrIncreasePassif(
-          siteDestOwnerId, // Le détenteur qui a une dette
-          dto.siteDestinationId,
-          dto.productId,
-          dto.quantite,
-          userId, // Créancier (Moi)
-        );
-      }
+      await this.processDepot(dto, userId, siteDestOwnerId);
+    } else if (type === MovementType.TRANSFERT || type === MovementType.RETRAIT) {
+      await this.processTransferOrWithdraw(dto, userId, siteOrigine, siteDestOwnerId);
+    } else if (type === MovementType.VIREMENT) {
+      await this.processVirement(dto, userId, siteDestOwnerId);
     }
+  }
 
-    // --- LOGIQUE TRANSFERT / RETRAIT (Physique) ---
-    else if (type === MovementType.TRANSFERT || type === MovementType.RETRAIT) {
-      /**
-       * Règle : Déplacement physique sans changement de propriété (Ayant-droit constant)
-       */
+  private async processDepot(
+    dto: CreateMovementDto,
+    userId: string,
+    siteDestOwnerId: string,
+  ): Promise<void> {
+    await this.actifsService.addOrIncreaseActif(
+      userId,
+      dto.siteDestinationId,
+      dto.productId,
+      dto.quantite,
+      dto.prixUnitaire,
+      siteDestOwnerId,
+      userId,
+    );
 
-      if (!dto.siteOrigineId) {
-        throw new Error(
-          "Le site d'origine ne peut pas être null pour un transfert ou un retrait.",
-        );
-      }
-
-      // 1. Diminuer l'actif au point de départ (Détenteur A)
-      await this.actifsService.decreaseActif(
-        userId,
-        dto.siteOrigineId,
-        dto.productId,
-        dto.quantite,
-      );
-
-      // 2. Si le départ était chez un tiers, diminuer son PASSIF
-      if (siteOrigine && userId !== siteOrigine.siteUserID.toString()) {
-        await this.passifsService.decreasePassif(
-          siteOrigine.siteUserID.toString(),
-          dto.productId,
-          dto.quantite,
-        );
-      }
-
-      // 3. Augmenter l'actif au point d'arrivée (Détenteur B)
-      await this.actifsService.addOrIncreaseActif(
-        userId,
-        dto.siteDestinationId,
-        dto.productId,
-        dto.quantite,
-        dto.prixUnitaire,
-        siteDestOwnerId, // Nouveau détenteur
-        userId, // Toujours moi l'ayant-droit
-      );
-
-      // 4. Si l'arrivée est chez un tiers, augmenter son PASSIF
-      if (userId !== siteDestOwnerId) {
-        await this.passifsService.addOrIncreasePassif(
-          siteDestOwnerId,
-          dto.siteDestinationId,
-          dto.productId,
-          dto.quantite,
-          userId,
-        );
-      }
-    }
-
-    // --- LOGIQUE VIREMENT (Étape 4c : Cession de Propriété) ---
-    else if (type === MovementType.VIREMENT) {
-      /**
-       * Règle : Le produit ne bouge pas de site, mais l'AYANT-DROIT change.
-       * C'est le "Mouvement de compte au niveau du détenteur" de votre doc.
-       */
-      const ancienProprietaire = userId;
-      const nouveauProprietaire = dto.ayant_droit; // Ajouter ce champ au DTO
-
-      if (!nouveauProprietaire) {
-        throw new Error(
-          "L'identifiant du nouvel ayant-droit est requis pour un virement.",
-        );
-      }
-
-      // 1. L'Ancien perd l'Actif
-      await this.actifsService.decreaseActif(
-        ancienProprietaire,
-        dto.siteDestinationId,
-        dto.productId,
-        dto.quantite,
-      );
-
-      // 2. Le Nouveau gagne l'Actif (sur le même site, même détenteur)
-      await this.actifsService.addOrIncreaseActif(
-        nouveauProprietaire,
-        dto.siteDestinationId,
-        dto.productId,
-        dto.quantite,
-        dto.prixUnitaire,
+    if (userId !== siteDestOwnerId) {
+      await this.passifsService.addOrIncreasePassif(
         siteDestOwnerId,
-        nouveauProprietaire,
-      );
-
-      // 3. Mise à jour du PASSIF du détenteur (Il doit maintenant au nouveau propriétaire)
-      await this.passifsService.updateCreancier(
-        siteDestOwnerId,
+        dto.siteDestinationId,
         dto.productId,
         dto.quantite,
-        ancienProprietaire,
-        nouveauProprietaire,
+        userId,
+      );
+    }
+  }
+
+  private async processTransferOrWithdraw(
+    dto: CreateMovementDto,
+    userId: string,
+    siteOrigine: any,
+    siteDestOwnerId: string,
+  ): Promise<void> {
+    if (!dto.siteOrigineId) {
+      throw new Error(
+        "Le site d'origine ne peut pas être null pour un transfert ou un retrait.",
       );
     }
 
-    // Enregistrement du mouvement
-    const movement = new this.movementModel({
-      ...dto,
-      operatorId: new Types.ObjectId(userId),
-      type: type,
-      depotOrigine: siteOrigine?.siteName || 'EXTERIEUR',
-      depotDestination: siteDest.siteName,
-    });
+    await this.actifsService.decreaseActif(
+      userId,
+      dto.siteOrigineId,
+      dto.productId,
+      dto.quantite,
+    );
 
-    return await movement.save();
+    if (siteOrigine && userId !== siteOrigine.siteUserID.toString()) {
+      await this.passifsService.decreasePassif(
+        siteOrigine.siteUserID.toString(),
+        dto.productId,
+        dto.quantite,
+      );
+    }
+
+    await this.actifsService.addOrIncreaseActif(
+      userId,
+      dto.siteDestinationId,
+      dto.productId,
+      dto.quantite,
+      dto.prixUnitaire,
+      siteDestOwnerId,
+      userId,
+    );
+
+    if (userId !== siteDestOwnerId) {
+      await this.passifsService.addOrIncreasePassif(
+        siteDestOwnerId,
+        dto.siteDestinationId,
+        dto.productId,
+        dto.quantite,
+        userId,
+      );
+    }
+  }
+
+  private async processVirement(
+    dto: CreateMovementDto,
+    userId: string,
+    siteDestOwnerId: string,
+  ): Promise<void> {
+    const ancienProprietaire = userId;
+    const nouveauProprietaire = dto.ayant_droit;
+
+    if (!nouveauProprietaire) {
+      throw new Error(
+        "L'identifiant du nouvel ayant-droit est requis pour un virement.",
+      );
+    }
+
+    await this.actifsService.decreaseActif(
+      ancienProprietaire,
+      dto.siteDestinationId,
+      dto.productId,
+      dto.quantite,
+    );
+
+    await this.actifsService.addOrIncreaseActif(
+      nouveauProprietaire,
+      dto.siteDestinationId,
+      dto.productId,
+      dto.quantite,
+      dto.prixUnitaire,
+      siteDestOwnerId,
+      nouveauProprietaire,
+    );
+
+    await this.passifsService.updateCreancier(
+      siteDestOwnerId,
+      dto.productId,
+      dto.quantite,
+      ancienProprietaire,
+      nouveauProprietaire,
+    );
   }
 
   async getHistory(userId: string): Promise<PaginationResult<any>> {

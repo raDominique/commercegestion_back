@@ -168,20 +168,18 @@ function generateShortId(): string {
  * Middleware Pre-Save : Hashage et ID Unique
  */
 UserSchema.pre<UserDocument>('save', async function () {
-  const user = this;
-
   // 1. Hashage du mot de passe
-  if (user.isModified('userPassword')) {
+  if (this.isModified('userPassword')) {
     const salt = await bcrypt.genSalt(10);
-    user.userPassword = await bcrypt.hash(user.userPassword, salt);
+    this.userPassword = await bcrypt.hash(this.userPassword, salt);
   }
 
   // 2. Génération/Correction du userId (8 chars)
   // On génère si c'est nouveau OU si l'ID existant n'est pas au format 8 caractères (ex: UUID)
-  if (user.isNew || (user.userId && user.userId.length !== 8)) {
+  if (this.isNew || (this.userId && this.userId.length !== 8)) {
     let isUnique = false;
     let attempts = 0;
-    const userModel = user.constructor as Model<UserDocument>;
+    const userModel = this.constructor as Model<UserDocument>;
 
     while (!isUnique && attempts < 15) {
       const candidateId = generateShortId();
@@ -192,7 +190,7 @@ UserSchema.pre<UserDocument>('save', async function () {
         .exec();
 
       if (!existing) {
-        user.userId = candidateId;
+        this.userId = candidateId;
         isUnique = true;
       }
       attempts++;
