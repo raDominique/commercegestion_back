@@ -120,4 +120,11 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   parrain2ID?: string;
+
+  @ApiPropertyOptional({
+    example: '1990-01-01',
+    description: 'Date de naissance au format ISO (YYYY-MM-DD)',
+  })
+  @IsOptional()
+  userDateOfBirth?: Date;
 }

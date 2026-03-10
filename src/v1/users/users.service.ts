@@ -104,7 +104,6 @@ export class UsersService implements OnModuleInit {
         logo: logoPath,
         userValidated: false,
         userEmailVerified: false,
-        // Génération des tokens pour les parrains si présents
         parrain1Token: dto.parrain1ID ? randomBytes(32).toString('hex') : null,
         parrain2Token: dto.parrain2ID ? randomBytes(32).toString('hex') : null,
         isParrain1Validated: false,
