@@ -1,10 +1,5 @@
 import { Controller, Post, Body, Req, Get, Query, Param } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiBearerAuth,
-  ApiOperation,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { Auth } from '../auth';
 import { CreateMovementDto } from './dto/create-movement.dto';
 import { MovementType } from './stock-movement.schema';

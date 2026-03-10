@@ -7,6 +7,7 @@ import { ProductsModule } from '../products/products.module';
 import { SiteModule } from '../sites/sites.module';
 import { ActifsModule } from '../actifs/actifs.module';
 import { PassifsModule } from '../passifs/passifs.module';
+import { LoggerService } from 'src/common/logger/logger.service';
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { PassifsModule } from '../passifs/passifs.module';
     PassifsModule,
   ],
   controllers: [StockController],
-  providers: [StockService],
+  providers: [StockService, LoggerService],
   exports: [StockService],
 })
 export class StockModule {}
