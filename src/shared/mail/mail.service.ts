@@ -154,7 +154,7 @@ export class MailService {
   async notificationUserSitePrincipal(to: string, name: string) {
     await this.sendMailSafe(
       to,
-      `Votre site principal a été créé - ${this.appName}`,
+      `Votre site a été créé - ${this.appName}`,
       'site-principal-created',
       { name },
     );
