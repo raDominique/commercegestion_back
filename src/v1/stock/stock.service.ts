@@ -92,8 +92,7 @@ export class StockService {
 
   private validateMovement(dto: CreateMovementDto, type: MovementType): void {
     if (
-      dto.siteOrigineId &&
-      dto.siteDestinationId &&
+      type !== MovementType.DEPOT &&
       dto.siteOrigineId === dto.siteDestinationId
     ) {
       throw new Error(
@@ -285,7 +284,7 @@ export class StockService {
       filter.type = movementType;
     }
 
-    const { siteId, productName, startDate, endDate } = query;
+    const { siteId, search, startDate, endDate } = query;
 
     if (siteId) {
       filter.$or = [
@@ -294,11 +293,8 @@ export class StockService {
       ];
     }
 
-    if (productName) {
-      // 1. On cherche les IDs des produits qui correspondent au nom via le ProductService
-      const productIds = await this.productService.findIdsByName(productName);
-
-      // 2. On filtre les mouvements dont le productId est dans cette liste
+    if (search) {
+      const productIds = await this.productService.findIdsByName(search);
       filter.productId = { $in: productIds };
     }
 

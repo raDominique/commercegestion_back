@@ -541,9 +541,10 @@ export class ProductService {
    * Récupère les IDs des produits correspondant à un nom (pour la recherche dans les actifs)
    * Permet de faire le lien entre les produits validés et les actifs disponibles en stock
    */
-  async findIdsByName(productName: string): Promise<Types.ObjectId[]> {
+  async findIdsByName(search: string): Promise<Types.ObjectId[]> {
+    const regex = { $regex: search, $options: 'i' };
     const products = await this.productModel
-      .find({ productName: { $regex: productName, $options: 'i' } })
+      .find({ $or: [{ productName: regex }, { codeCPC: regex }] })
       .select('_id')
       .lean()
       .exec();
