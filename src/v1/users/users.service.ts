@@ -19,7 +19,6 @@ import * as fs from 'node:fs';
 import { MailService } from 'src/shared/mail/mail.service';
 import { UserVerificationToken } from './user-verification.schema';
 import { ConfigService } from '@nestjs/config';
-import { NotifyHelper } from 'src/shared/helpers/notify.helper';
 import { SiteService } from '../sites/sites.service';
 import { NotificationsService } from 'src/shared/notifications/notifications.service';
 
@@ -38,7 +37,6 @@ export class UsersService implements OnModuleInit {
     private readonly mailService: MailService,
     @Inject(forwardRef(() => SiteService))
     private readonly siteService: SiteService,
-    private readonly notifyHelper: NotifyHelper,
     private readonly socketNotifications: NotificationsService,
   ) {
     this.baseUrl =
@@ -76,55 +74,94 @@ export class UsersService implements OnModuleInit {
     files: any = {},
   ): Promise<PaginationResult<User>> {
     const uploadedFiles: string[] = [];
-
+    const userEmail = dto.userEmail.toLowerCase();
+    console.log('FILES RECEIVED:', Object.keys(files));
     try {
-      const exists = await this.userModel.findOne({
-        userEmail: dto.userEmail.toLowerCase(),
+      // 1. Vérification d'existence rapide (on ne récupère que l'ID)
+      const exists = await this.userModel.exists({
+        userEmail,
         deletedAt: null,
       });
       if (exists) throw new ConflictException('Email déjà utilisé');
 
-      // Uploads
+
+      // Helper pour upload sécurisé
       const safeUpload = async (file: any, folder: string) => {
         const path = await this.uploadService.saveFile(file, folder);
         if (path) uploadedFiles.push(path);
         return path;
       };
 
-      const [avatarPath, logoPath] = await Promise.all([
-        files.avatar ? safeUpload(files.avatar, 'avatars') : null,
-        files.logo ? safeUpload(files.logo, 'logos') : null,
-      ]);
+      // Uploads individuels
+      const avatarPath = files.avatar ? await safeUpload(files.avatar, 'avatars') : null;
+      const logoPath = files.logo ? await safeUpload(files.logo, 'logos') : null;
 
-      // Création de l'utilisateur avec tokens de parrainage
+      // Uploads multiples (toujours tableau)
+      const carteStatPath = files.carteStat && Array.isArray(files.carteStat)
+        ? await Promise.all(
+            files.carteStat.map((stat: any) =>
+              safeUpload(stat, 'carteStat').catch((err) => {
+                console.error('Erreur upload carte stat:', err);
+                return null;
+              })
+            )
+          )
+        : [];
+
+      const carteFiscalPath = files.carteFiscal && Array.isArray(files.carteFiscal)
+        ? await Promise.all(
+            files.carteFiscal.map((fiscal: any) =>
+              safeUpload(fiscal, 'carteFiscal').catch((err) => {
+                console.error('Erreur upload carte fiscale:', err);
+                return null;
+              })
+            )
+          )
+        : [];
+
+      const documentsPaths = files.documents && Array.isArray(files.documents)
+        ? await Promise.all(
+            files.documents.map((doc: any) =>
+              safeUpload(doc, 'documents').catch((err) => {
+                console.error('Erreur upload document:', err);
+                return null;
+              })
+            )
+          )
+        : [];
+
+      // 4. Création de l'utilisateur
+      const generateToken = () => randomBytes(32).toString('hex');
+
       const user = new this.userModel({
         ...dto,
-        userEmail: dto.userEmail.toLowerCase(),
+        userEmail,
         userImage: avatarPath,
         logo: logoPath,
+        carteStat: carteStatPath,
+        carteFiscal: carteFiscalPath,
+        identityDocument: documentsPaths,
         userValidated: false,
         userEmailVerified: false,
-        parrain1Token: dto.parrain1ID ? randomBytes(32).toString('hex') : null,
-        parrain2Token: dto.parrain2ID ? randomBytes(32).toString('hex') : null,
+        parrain1Token: dto.parrain1ID ? generateToken() : null,
+        parrain2Token: dto.parrain2ID ? generateToken() : null,
         isParrain1Validated: false,
         isParrain2Validated: false,
       });
 
       await user.save();
 
-      // Token de vérification email (standard)
-      const verifyToken = randomBytes(32).toString('hex');
-      const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + 24);
+      // 5. Token de vérification
+      const verifyToken = generateToken();
       await this.verificationTokenModel.create({
         userId: user._id,
         token: verifyToken,
-        expiresAt,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       });
 
-      // Tâches de fond
+      // 6. Tâches de fond (Email + Site)
       this.runBackgroundTasks(user, verifyToken).catch((err) =>
-        console.error(err),
+        console.error('[BackgroundTasks Error]:', err),
       );
 
       return {
@@ -133,12 +170,14 @@ export class UsersService implements OnModuleInit {
         data: [user],
       };
     } catch (err) {
-      for (const f of uploadedFiles) {
-        if (fs.existsSync(f)) fs.unlinkSync(f);
-      }
+      // 7. Cleanup asynchrone en cas d'erreur
+      await Promise.all(
+        uploadedFiles.map((path) => fs.promises.unlink(path).catch(() => null)),
+      );
       throw err;
     }
   }
+
 
   private async runBackgroundTasks(user: UserDocument, token: string) {
     try {
