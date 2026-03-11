@@ -154,6 +154,7 @@ export class UsersService implements OnModuleInit {
       // Envoi des emails aux parrains
       if (user.parrain1ID && user.parrain1Token) {
         const p1 = await this.getInfoParrain(user.parrain1ID);
+        console.log('Parrain 1:', p1, 'Token:', user.parrain1Token);
         if (p1) {
           tasks.push(
             this.mailService.sendParrainValidationEmail(
@@ -164,9 +165,9 @@ export class UsersService implements OnModuleInit {
           );
         }
       }
-
       if (user.parrain2ID && user.parrain2Token) {
         const p2 = await this.getInfoParrain(user.parrain2ID);
+        console.log('Parrain 2:', p2, 'Token:', user.parrain2Token);
         if (p2) {
           tasks.push(
             this.mailService.sendParrainValidationEmail(
@@ -294,11 +295,11 @@ export class UsersService implements OnModuleInit {
     return { status: 'success', message: 'Mis à jour', data: [updated] };
   }
 
+  //Supprimer definitivement un utilisateur (Admin)
   async remove(id: string): Promise<PaginationResult<null>> {
     const user = await this.userModel.findById(id);
     if (!user) throw new NotFoundException('Non trouvé');
-    user.deletedAt = new Date();
-    await user.save();
+    await user.deleteOne();
     return { status: 'success', message: 'Supprimé', data: null };
   }
 
@@ -501,8 +502,8 @@ export class UsersService implements OnModuleInit {
     }
   }
 
-async getInfoParrain(userId: string): Promise<UserDocument | null> {
-  // Utilisation de findOne car l'userId est unique
-  return this.userModel.findOne({ userId: userId }).exec();
-}
+  async getInfoParrain(userId: string): Promise<UserDocument | null> {
+    // Utilisation de findOne car l'userId est unique
+    return this.userModel.findOne({ userId: userId }).exec();
+  }
 }
