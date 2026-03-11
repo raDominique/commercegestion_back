@@ -92,8 +92,7 @@ export class StockService {
 
   private validateMovement(dto: CreateMovementDto, type: MovementType): void {
     if (
-      dto.siteOrigineId &&
-      dto.siteDestinationId &&
+      type !== MovementType.DEPOT &&
       dto.siteOrigineId === dto.siteDestinationId
     ) {
       throw new Error(
