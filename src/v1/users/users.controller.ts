@@ -14,7 +14,6 @@ import {
   Res,
   Req,
   ForbiddenException,
-  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -188,7 +187,7 @@ export class UsersController {
       [
         { name: 'avatar', maxCount: 1 },
         { name: 'logo', maxCount: 1 },
-        { name: 'carteStat', maxCount: 2 },
+        { name: 'carteStat', maxCount: 5 },
         { name: 'documents', maxCount: 5 },
         { name: 'carteFiscal', maxCount: 5 },
       ],
@@ -206,12 +205,25 @@ export class UsersController {
       carteFiscal?: Express.Multer.File[];
     },
   ) {
+    // Sécurité : si aucun fichier n'est envoyé, 'files' peut être undefined
+    const safeFiles = files || {};
+
+    const carteStatCount = safeFiles.carteStat ? safeFiles.carteStat.length : 0;
+    const documentsCount = safeFiles.documents ? safeFiles.documents.length : 0;
+    const carteFiscalCount = safeFiles.carteFiscal
+      ? safeFiles.carteFiscal.length
+      : 0;
+
+    console.log(
+      `Received files - Avatar: ${safeFiles.avatar ? safeFiles.avatar.length : 0}, Logo: ${safeFiles.logo ? safeFiles.logo.length : 0}, CarteStat: ${carteStatCount}, Documents: ${documentsCount}, CarteFiscal: ${carteFiscalCount}`,
+    );
+
     return this.usersService.createWithFiles(dto, {
-      avatar: files.avatar?.[0],
-      logo: files.logo?.[0],
-      carteStat: files.carteStat,
-      documents: files.documents,
-      carteFiscal: files.carteFiscal,
+      avatar: safeFiles.avatar?.[0], // On prend le premier pour les champs uniques
+      logo: safeFiles.logo?.[0],
+      carteStat: safeFiles.carteStat || [], // Tableau vide par défaut
+      documents: safeFiles.documents || [],
+      carteFiscal: safeFiles.carteFiscal || [],
     });
   }
 
@@ -385,7 +397,7 @@ export class UsersController {
     return this.usersService.update(id, dto, {
       avatar: files.avatar?.[0],
       logo: files.logo?.[0],
-      carteStat: files.carteStat?.[0],
+      carteStat: files.carteStat,
       documents: files.documents,
       carteFiscal: files.carteFiscal,
     });
