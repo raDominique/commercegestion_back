@@ -79,6 +79,44 @@ export class StockController {
   @Get('my-actifs')
   @Auth()
   @ApiOperation({ summary: 'Liste globale de mes actifs (Bilan de propriété)' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Numéro de page (défaut: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: "Nombre d'éléments par page (défaut: 10)",
+  })
+  @ApiQuery({
+    name: 'siteId',
+    required: false,
+    type: String,
+    description: 'Filtrer par site (origine ou destination)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Recherche globale par nom de produit ou code CPC',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: 'Date de début (ISO 8601)',
+    example: '2025-01-01',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: 'Date de fin (ISO 8601)',
+    example: '2025-12-31',
+  })
   async getMyAssets(@Req() req: any, @Query() query: any) {
     return this.stockService.getMyAssets(req.user.userId, query);
   }
@@ -107,6 +145,44 @@ export class StockController {
   @Auth()
   @ApiOperation({
     summary: 'Liste de mes passifs (Dettes de marchandises envers des tiers)',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Numéro de page (défaut: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: "Nombre d'éléments par page (défaut: 10)",
+  })
+  @ApiQuery({
+    name: 'siteId',
+    required: false,
+    type: String,
+    description: 'Filtrer par site (origine ou destination)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Recherche globale par nom de produit ou code CPC',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: 'Date de début (ISO 8601)',
+    example: '2025-01-01',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: 'Date de fin (ISO 8601)',
+    example: '2025-12-31',
   })
   async getMyPassifs(@Req() req: any, @Query() query: any) {
     return this.stockService.getMyPassifs(req.user.userId, query);
