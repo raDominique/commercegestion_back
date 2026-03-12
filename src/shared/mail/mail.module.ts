@@ -4,6 +4,7 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
 import { MailService } from './mail.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { join } from 'path';
+import { MailQueueService } from './mail-queue.service';
 @Global()
 @Module({
   imports: [
@@ -33,7 +34,7 @@ import { join } from 'path';
       }),
     }),
   ],
-  providers: [MailService],
-  exports: [MailService],
+  providers: [MailQueueService, MailService],
+  exports: [MailQueueService, MailService],
 })
 export class MailModule {}

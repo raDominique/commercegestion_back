@@ -1,7 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
+import { MailQueueService } from './mail-queue.service';
 
+/**
+ * Service métier d'envoi d'emails.
+ *
+ * Responsabilité unique : construire le payload (destinataire, sujet, template, contexte)
+ * et le déléguer au MailQueueService pour l'envoi différé et le rate limiting.
+ */
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -10,15 +16,15 @@ export class MailService {
   private readonly frontUrl: string;
 
   constructor(
-    private readonly mailerService: MailerService,
+    private readonly mailQueue: MailQueueService,
     private readonly configService: ConfigService,
   ) {
     this.appName =
-      this.configService.get<string>('APP_NAME') || 'Votre Application';
+      this.configService.get<string>('APP_NAME') ?? 'Votre Application';
     this.appUrl =
-      this.configService.get<string>('APP_URL') || 'http://localhost:3000';
+      this.configService.get<string>('APP_URL') ?? 'http://localhost:3000';
     this.frontUrl =
-      this.configService.get<string>('FRONT_URL') || 'http://localhost:3000';
+      this.configService.get<string>('FRONT_URL') ?? 'http://localhost:3000';
   }
 
   /* =========================================================================
@@ -26,24 +32,25 @@ export class MailService {
    * ========================================================================= */
 
   async verificationAccountUser(to: string, name: string, link: string) {
-    await this.sendMailSafe(
+    await this.mailQueue.enqueue({
       to,
-      `Vérifiez votre compte - ${this.appName}`,
-      'email-verification',
-      { name, link },
-    );
+      subject: `Vérifiez votre compte - ${this.appName}`,
+      template: 'email-verification',
+      context: { name, link, appName: this.appName },
+    });
   }
 
   async notificationCompteAverifier(to: string, name: string) {
-    await this.sendMailSafe(
+    await this.mailQueue.enqueue({
       to,
-      `Votre compte est en cours de vérification - ${this.appName}`,
-      'account-pending',
-      {
+      subject: `Votre compte est en cours de vérification - ${this.appName}`,
+      template: 'account-pending',
+      context: {
         name,
         supportLink: `${this.appUrl}/support`,
+        appName: this.appName,
       },
-    );
+    });
   }
 
   async notificationAdminNouveauUser(
@@ -55,29 +62,24 @@ export class MailService {
     registrationDate?: Date,
     ipAddress?: string,
   ) {
-    try {
-      await this.mailerService.sendMail({
-        to,
-        subject: `Nouvel utilisateur enregistré - ${this.appName}`,
-        template: 'admin-new-user',
-        context: {
-          username,
-          email,
-          userId: userId || 'N/A',
-          userType: userType || 'Non défini',
-          registrationDate: registrationDate
-            ? registrationDate.toLocaleString('fr-FR')
-            : new Date().toLocaleString('fr-FR'),
-          ipAddress: ipAddress || 'Non disponible',
-          adminPanelLink: `${this.appUrl}/admin/users/${userId}`,
-          usersListLink: `${this.appUrl}/admin/users`,
-          appName: this.appName,
-        },
-      });
-      this.logger.log(`Email admin nouvel utilisateur envoyé à ${to}`);
-    } catch (error) {
-      this.logger.error(`Erreur email admin nouvel utilisateur`, error.stack);
-    }
+    await this.mailQueue.enqueue({
+      to,
+      subject: `Nouvel utilisateur enregistré - ${this.appName}`,
+      template: 'admin-new-user',
+      context: {
+        username,
+        email,
+        userId: userId ?? 'N/A',
+        userType: userType ?? 'Non défini',
+        registrationDate: registrationDate
+          ? registrationDate.toLocaleString('fr-FR')
+          : new Date().toLocaleString('fr-FR'),
+        ipAddress: ipAddress ?? 'Non disponible',
+        adminPanelLink: `${this.appUrl}/admin/users/${userId}`,
+        usersListLink: `${this.appUrl}/admin/users`,
+        appName: this.appName,
+      },
+    });
   }
 
   async notificationAccountUserActive(
@@ -85,16 +87,17 @@ export class MailService {
     name: string,
     loginLink?: string,
   ) {
-    await this.sendMailSafe(
+    await this.mailQueue.enqueue({
       to,
-      `Votre compte est maintenant actif - ${this.appName}`,
-      'account-activated',
-      {
+      subject: `Votre compte est maintenant actif - ${this.appName}`,
+      template: 'account-activated',
+      context: {
         name,
-        loginLink: loginLink || `${this.frontUrl}/login`,
+        loginLink: loginLink ?? `${this.frontUrl}/login`,
         supportLink: `${this.frontUrl}/support`,
+        appName: this.appName,
       },
-    );
+    });
   }
 
   async notificationAccountDeactivated(
@@ -102,16 +105,17 @@ export class MailService {
     name: string,
     reason?: string,
   ) {
-    await this.sendMailSafe(
+    await this.mailQueue.enqueue({
       to,
-      `Votre compte a été désactivé - ${this.appName}`,
-      'account-deactivated',
-      {
+      subject: `Votre compte a été désactivé - ${this.appName}`,
+      template: 'account-deactivated',
+      context: {
         name,
-        reason: reason || 'Non spécifiée',
+        reason: reason ?? 'Non spécifiée',
         supportLink: `${this.appUrl}/support`,
+        appName: this.appName,
       },
-    );
+    });
   }
 
   async notificationProfileUpdated(
@@ -119,15 +123,12 @@ export class MailService {
     name: string,
     changes: string[],
   ) {
-    await this.sendMailSafe(
+    await this.mailQueue.enqueue({
       to,
-      `Votre profil a été mis à jour - ${this.appName}`,
-      'profile-updated',
-      {
-        name,
-        changes: changes.join(', '),
-      },
-    );
+      subject: `Votre profil a été mis à jour - ${this.appName}`,
+      template: 'profile-updated',
+      context: { name, changes: changes.join(', '), appName: this.appName },
+    });
   }
 
   async sendParrainValidationEmail(
@@ -135,153 +136,140 @@ export class MailService {
     filleulName: string,
     validationLink: string,
   ) {
-    await this.mailerService.sendMail({
+    await this.mailQueue.enqueue({
       to,
       subject: 'Validation de parrainage requise',
-      template: './parrain-validation',
-      context: {
-        filleulName,
-        validationLink,
-      },
+      template: 'parrain-validation',
+      context: { filleulName, validationLink, appName: this.appName },
     });
   }
 
   /* =========================================================================
-   * SITE NOTIFICATIONS (UTILISÉES PAR NotifyHelper)
+   * SITE NOTIFICATIONS
    * ========================================================================= */
 
-  /** 🔹 Création site principal */
   async notificationUserSitePrincipal(to: string, name: string) {
-    await this.sendMailSafe(
+    await this.mailQueue.enqueue({
       to,
-      `Votre site a été créé - ${this.appName}`,
-      'site-principal-created',
-      { name },
-    );
+      subject: `Votre site a été créé - ${this.appName}`,
+      template: 'site-principal-created',
+      context: { name, appName: this.appName },
+    });
   }
 
-  /** 🔹 Mise à jour site */
   async notificationUserSiteUpdate(to: string, siteName?: string) {
-    await this.sendMailSafe(
+    await this.mailQueue.enqueue({
       to,
-      `Votre site a été mis à jour - ${this.appName}`,
-      'site-updated',
-      {
-        siteName: siteName || 'Votre site',
-      },
-    );
+      subject: `Votre site a été mis à jour - ${this.appName}`,
+      template: 'site-updated',
+      context: { siteName: siteName ?? 'Votre site', appName: this.appName },
+    });
   }
 
-  /** 🔹 Suppression site */
   async notificationUserSiteDelete(to: string, siteName?: string) {
-    await this.sendMailSafe(
+    await this.mailQueue.enqueue({
       to,
-      `Votre site a été supprimé - ${this.appName}`,
-      'site-deleted',
-      {
-        siteName: siteName || 'Votre site',
-      },
-    );
+      subject: `Votre site a été supprimé - ${this.appName}`,
+      template: 'site-deleted',
+      context: { siteName: siteName ?? 'Votre site', appName: this.appName },
+    });
   }
 
   /* =========================================================================
    * PRODUCTS NOTIFICATIONS
    * ========================================================================= */
 
-  /** 🔹 Notification création produit en attente de validation */
   async notificationProductCreated(
     to: string,
     userName: string,
     productName: string,
   ) {
-    await this.sendMailSafe(
+    await this.mailQueue.enqueue({
       to,
-      `Produit créé et en attente de validation - ${this.appName}`,
-      'product-created',
-      {
+      subject: `Produit créé et en attente de validation - ${this.appName}`,
+      template: 'product-created',
+      context: {
         userName,
         productName,
         supportLink: `${this.frontUrl}/support`,
+        appName: this.appName,
       },
-    );
+    });
   }
 
-  /** 🔹 Notification validation produit */
   async notificationProductValidated(
     to: string,
     userName: string,
     productName: string,
   ) {
-    await this.sendMailSafe(
+    await this.mailQueue.enqueue({
       to,
-      `Votre produit a été validé - ${this.appName}`,
-      'product-validated',
-      {
+      subject: `Votre produit a été validé - ${this.appName}`,
+      template: 'product-validated',
+      context: {
         userName,
         productName,
         dashboardLink: `${this.frontUrl}/products`,
         supportLink: `${this.frontUrl}/support`,
+        appName: this.appName,
       },
-    );
+    });
   }
 
-  /** 🔹 Notification mise à jour produit */
   async notificationProductUpdated(
     to: string,
     userName: string,
     productName: string,
   ) {
-    await this.sendMailSafe(
+    await this.mailQueue.enqueue({
       to,
-      `Votre produit a été mis à jour - ${this.appName}`,
-      'product-updated',
-      {
+      subject: `Votre produit a été mis à jour - ${this.appName}`,
+      template: 'product-updated',
+      context: {
         userName,
         productName,
         dashboardLink: `${this.frontUrl}/products`,
         supportLink: `${this.frontUrl}/support`,
+        appName: this.appName,
       },
-    );
+    });
   }
 
-  /** 🔹 Notification suppression produit */
   async notificationProductDeleted(
     to: string,
     userName: string,
     productName: string,
   ) {
-    await this.sendMailSafe(
+    await this.mailQueue.enqueue({
       to,
-      `Votre produit a été supprimé - ${this.appName}`,
-      'product-deleted',
-      {
+      subject: `Votre produit a été supprimé - ${this.appName}`,
+      template: 'product-deleted',
+      context: {
         userName,
         productName,
         dashboardLink: `${this.frontUrl}/products`,
         supportLink: `${this.frontUrl}/support`,
+        appName: this.appName,
       },
-    );
+    });
   }
 
   /* =========================================================================
    * PASSWORD RESET
    * ========================================================================= */
 
-  async sendPasswordResetEmail(
-    to: string,
-    username: string,
-    resetLink: string,
-  ) {
-    await this.sendMailSafe(
+  async sendPasswordResetEmail(to: string, username: string, resetLink: string) {
+    await this.mailQueue.enqueue({
       to,
-      `Réinitialisation de votre mot de passe - ${this.appName}`,
-      'password-reset',
-      {
+      subject: `Réinitialisation de votre mot de passe - ${this.appName}`,
+      template: 'password-reset',
+      context: {
         username,
         resetLink,
         expirationTime: '24 heures',
+        appName: this.appName,
       },
-    );
+    });
   }
 
   /* =========================================================================
@@ -294,35 +282,11 @@ export class MailService {
     template: string,
     context: Record<string, any>,
   ) {
-    await this.sendMailSafe(to, subject, template, context);
-  }
-
-  /* =========================================================================
-   * PRIVATE HELPER (ANTI-CRASH)
-   * ========================================================================= */
-
-  private async sendMailSafe(
-    to: string,
-    subject: string,
-    template: string,
-    context: Record<string, any>,
-  ) {
-    try {
-      await this.mailerService.sendMail({
-        to,
-        subject,
-        template,
-        context: {
-          ...context,
-          appName: this.appName,
-        },
-      });
-      this.logger.log(`Email envoyé à ${to} (${template})`);
-    } catch (error) {
-      this.logger.error(
-        `Erreur envoi email [${template}] vers ${to}`,
-        error.stack,
-      );
-    }
+    await this.mailQueue.enqueue({
+      to,
+      subject,
+      template,
+      context: { ...context, appName: this.appName },
+    });
   }
 }

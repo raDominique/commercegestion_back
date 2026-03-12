@@ -75,7 +75,6 @@ export class UsersService implements OnModuleInit {
   ): Promise<PaginationResult<User>> {
     const uploadedFiles: string[] = [];
     const userEmail = dto.userEmail.toLowerCase();
-    console.log('FILES RECEIVED:', Object.keys(files));
     try {
       // 1. Vérification d'existence rapide (on ne récupère que l'ID)
       const exists = await this.userModel.exists({
