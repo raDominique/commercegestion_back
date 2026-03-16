@@ -31,7 +31,8 @@ export class AuthService {
     private readonly mailService: MailService,
     private readonly configService: ConfigService,
   ) {
-    this.frontUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
+    this.frontUrl =
+      this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
   }
 
   /** Login utilisateur */
@@ -61,6 +62,7 @@ export class AuthService {
       userAccess: user.userAccess,
       userValidated: user.userValidated,
       userVerified: user.userEmailVerified,
+      userIdPartager: user.userId,
     };
 
     const accessToken = this.jwtService.sign(payload, {
@@ -117,6 +119,7 @@ export class AuthService {
       userAccess: user.userAccess,
       userValidated: user.userValidated,
       userVerified: user.userEmailVerified,
+      userIdPartager: user.userId,
     };
     const accessToken = this.jwtService.sign(payload, {
       secret: this.jwtConfig.secret,

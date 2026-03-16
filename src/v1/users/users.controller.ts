@@ -453,12 +453,74 @@ export class UsersController {
     return this.usersService.activateAccount(id);
   }
 
+  @Patch('toggle-role/:id')
+  @AuthRole(UserAccess.ADMIN)
+  @ApiOperation({ summary: 'Basculer rôle ADMIN/UTILISATEUR' })
+  toggleRole(@Param('id') id: string) {
+    return this.usersService.toggleAdminRole(id);
+  }
+
+  @Get('select/all')
+  @ApiOperation({ summary: 'Liste de tous les utilisateurs (sans pagination)' })
+  findAll() {
+    return this.usersService.findAllNoPaginated();
+  }
+
+  /**
+   * Récupérer tous les utilisateurs qui ont choisi l’utilisateur courant comme parrain
+   */
+  @Get('me/referrals')
+  @Auth()
+  @ApiOperation({
+    summary: 'Liste paginée des filleuls',
+    description:
+      "Retourne les utilisateurs ayant choisi l'utilisateur courant comme parrain.",
+  })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 10 })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Recherche par nom ou email',
+  })
+  @ApiQuery({ name: 'userType', required: false, enum: UserType })
+  @ApiQuery({ name: 'isActive', required: false, type: Boolean })
+  @ApiQuery({ name: 'isVerified', required: false, type: Boolean })
+  async findAllReferrals(@Req() req: any, @Query() query: UsersQueryDto) {
+    const {
+      page = '1',
+      limit = '10',
+      search,
+      sortBy = 'createdAt',
+      order = 'desc',
+      userType,
+      isActive,
+      isVerified,
+    } = query;
+
+    const filter = {
+      ...(userType && { userType }),
+      ...(isActive !== undefined && { isActive: String(isActive) === 'true' }),
+      ...(isVerified !== undefined && {
+        isVerified: String(isVerified) === 'true',
+      }),
+    };
+
+    return this.usersService.findAllByFilsPaginated(
+      req.user.userIdPartager,
+      Number(page),
+      Number(limit),
+      search,
+      sortBy,
+      order as 'asc' | 'desc',
+      filter,
+    );
+  }
+
   // ========================= PAGINATED FIND =========================
   @Get()
   @ApiOperation({
-    summary: 'Recherche et Pagination avancée',
-    description:
-      "Recherche multicritère : par nom, type d'utilisateur (Particulier/Entreprise) ou statut (Actif/Vérifié).",
+    summary: 'Recherche et pagination des utilisateurs',
   })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 10 })
@@ -481,33 +543,22 @@ export class UsersController {
       isActive,
       isVerified,
     } = query;
+
     const filter = {
-      userType,
-      isActive:
-        isActive === undefined ? undefined : String(isActive) === 'true',
-      isVerified:
-        isVerified === undefined ? undefined : String(isVerified) === 'true',
+      ...(userType && { userType }),
+      ...(isActive !== undefined && { isActive: String(isActive) === 'true' }),
+      ...(isVerified !== undefined && {
+        isVerified: String(isVerified) === 'true',
+      }),
     };
+
     return this.usersService.findAllPaginated(
       Number(page),
       Number(limit),
       search,
       sortBy,
-      order,
+      order as 'asc' | 'desc',
       filter,
     );
-  }
-
-  @Patch('toggle-role/:id')
-  @AuthRole(UserAccess.ADMIN)
-  @ApiOperation({ summary: 'Basculer rôle ADMIN/UTILISATEUR' })
-  toggleRole(@Param('id') id: string) {
-    return this.usersService.toggleAdminRole(id);
-  }
-
-  @Get('select/all')
-  @ApiOperation({ summary: 'Liste de tous les utilisateurs (sans pagination)' })
-  findAll() {
-    return this.usersService.findAllNoPaginated();
   }
 }
