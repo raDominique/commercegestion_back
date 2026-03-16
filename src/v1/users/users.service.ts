@@ -83,7 +83,6 @@ export class UsersService implements OnModuleInit {
       });
       if (exists) throw new ConflictException('Email déjà utilisé');
 
-
       // Helper pour upload sécurisé
       const safeUpload = async (file: any, folder: string) => {
         const path = await this.uploadService.saveFile(file, folder);
@@ -92,42 +91,49 @@ export class UsersService implements OnModuleInit {
       };
 
       // Uploads individuels
-      const avatarPath = files.avatar ? await safeUpload(files.avatar, 'avatars') : null;
-      const logoPath = files.logo ? await safeUpload(files.logo, 'logos') : null;
+      const avatarPath = files.avatar
+        ? await safeUpload(files.avatar, 'avatars')
+        : null;
+      const logoPath = files.logo
+        ? await safeUpload(files.logo, 'logos')
+        : null;
 
       // Uploads multiples (toujours tableau)
-      const carteStatPath = files.carteStat && Array.isArray(files.carteStat)
-        ? await Promise.all(
-            files.carteStat.map((stat: any) =>
-              safeUpload(stat, 'carteStat').catch((err) => {
-                console.error('Erreur upload carte stat:', err);
-                return null;
-              })
+      const carteStatPath =
+        files.carteStat && Array.isArray(files.carteStat)
+          ? await Promise.all(
+              files.carteStat.map((stat: any) =>
+                safeUpload(stat, 'carteStat').catch((err) => {
+                  console.error('Erreur upload carte stat:', err);
+                  return null;
+                }),
+              ),
             )
-          )
-        : [];
+          : [];
 
-      const carteFiscalPath = files.carteFiscal && Array.isArray(files.carteFiscal)
-        ? await Promise.all(
-            files.carteFiscal.map((fiscal: any) =>
-              safeUpload(fiscal, 'carteFiscal').catch((err) => {
-                console.error('Erreur upload carte fiscale:', err);
-                return null;
-              })
+      const carteFiscalPath =
+        files.carteFiscal && Array.isArray(files.carteFiscal)
+          ? await Promise.all(
+              files.carteFiscal.map((fiscal: any) =>
+                safeUpload(fiscal, 'carteFiscal').catch((err) => {
+                  console.error('Erreur upload carte fiscale:', err);
+                  return null;
+                }),
+              ),
             )
-          )
-        : [];
+          : [];
 
-      const documentsPaths = files.documents && Array.isArray(files.documents)
-        ? await Promise.all(
-            files.documents.map((doc: any) =>
-              safeUpload(doc, 'documents').catch((err) => {
-                console.error('Erreur upload document:', err);
-                return null;
-              })
+      const documentsPaths =
+        files.documents && Array.isArray(files.documents)
+          ? await Promise.all(
+              files.documents.map((doc: any) =>
+                safeUpload(doc, 'documents').catch((err) => {
+                  console.error('Erreur upload document:', err);
+                  return null;
+                }),
+              ),
             )
-          )
-        : [];
+          : [];
 
       // 4. Création de l'utilisateur
       const generateToken = () => randomBytes(32).toString('hex');
@@ -176,7 +182,6 @@ export class UsersService implements OnModuleInit {
       throw err;
     }
   }
-
 
   private async runBackgroundTasks(user: UserDocument, token: string) {
     try {
@@ -296,7 +301,7 @@ export class UsersService implements OnModuleInit {
       ];
     }
     const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
+    const [data, total, totalUserActif, totalAdmin] = await Promise.all([
       this.userModel
         .find(query)
         .select('-userPassword')
@@ -305,8 +310,19 @@ export class UsersService implements OnModuleInit {
         .limit(limit)
         .exec(),
       this.userModel.countDocuments(query),
+      this.userModel.countDocuments({ ...query, userValidated: true }),
+      this.userModel.countDocuments({ ...query, userAccess: 'Admin' }),
     ]);
-    return { status: 'success', message: 'OK', data, total, page, limit };
+    return {
+      status: 'success',
+      message: 'OK',
+      data,
+      total,
+      totalUserActif,
+      totalAdmin,
+      page,
+      limit,
+    };
   }
 
   async findOne(id: string): Promise<PaginationResult<User>> {
