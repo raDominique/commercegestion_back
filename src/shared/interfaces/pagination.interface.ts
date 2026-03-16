@@ -6,6 +6,8 @@ export interface PaginationResult<T> {
   page?: number;
   limit?: number;
   total?: number;
+  totalUserActif?: number;
+  totalAdmin?: number;
   search?: string;
   sortBy?: string;
   order?: 'asc' | 'desc';
