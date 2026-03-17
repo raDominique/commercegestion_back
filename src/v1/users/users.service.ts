@@ -21,6 +21,7 @@ import { UserVerificationToken } from './user-verification.schema';
 import { ConfigService } from '@nestjs/config';
 import { SiteService } from '../sites/sites.service';
 import { NotificationsService } from 'src/shared/notifications/notifications.service';
+import { LoggerService } from 'src/common/logger/logger.service';
 
 @Injectable()
 export class UsersService implements OnModuleInit {
@@ -38,6 +39,7 @@ export class UsersService implements OnModuleInit {
     @Inject(forwardRef(() => SiteService))
     private readonly siteService: SiteService,
     private readonly socketNotifications: NotificationsService,
+    private readonly logger: LoggerService,
   ) {
     this.baseUrl =
       this.configService.get<string>('APP_URL') || 'http://localhost:3000';
@@ -456,15 +458,50 @@ export class UsersService implements OnModuleInit {
   }
 
   async verifyAccountToken(token: string): Promise<string> {
-    const tokenDoc = await this.verificationTokenModel.findOne({ token });
-    if (!tokenDoc || tokenDoc.expiresAt < new Date())
-      throw new BadRequestException('Token invalide');
-    await this.userModel.updateOne(
-      { _id: tokenDoc.userId },
-      { userEmailVerified: true },
-    );
-    await tokenDoc.deleteOne();
-    return `${this.frontendUrl}/login?verified=true`;
+    const buildRedirectUrl = (verified: boolean, reason?: string): string => {
+      const params = new URLSearchParams({ verified: String(verified) });
+      if (reason) params.set('reason', reason);
+      return `${this.frontendUrl}/login?${params.toString()}`;
+    };
+
+    if (!token?.trim()) {
+      return buildRedirectUrl(false, 'missing_token');
+    }
+
+    try {
+      const tokenDoc = await this.verificationTokenModel
+        .findOne({ token })
+        .exec();
+
+      if (!tokenDoc) {
+        return buildRedirectUrl(false, 'invalid_token');
+      }
+
+      if (tokenDoc.expiresAt < new Date()) {
+        await tokenDoc.deleteOne();
+        return buildRedirectUrl(false, 'expired_token');
+      }
+
+      const result = await this.userModel.updateOne(
+        { _id: tokenDoc.userId },
+        { userEmailVerified: true },
+      );
+
+      if (result.modifiedCount === 0) {
+        this.logger.debug(
+          'Warning',
+          `Utilisateur introuvable pour le token: ${tokenDoc.userId}`,
+        );
+        return buildRedirectUrl(false, 'user_not_found');
+      }
+
+      await tokenDoc.deleteOne();
+
+      return buildRedirectUrl(true);
+    } catch (error) {
+      this.logger.error('Erreur de vérification du compte:', error);
+      return buildRedirectUrl(false, 'server_error');
+    }
   }
 
   /**
