@@ -228,7 +228,7 @@ export class UsersController {
   }
 
   // ========================= VALIDATE PARRAINAGE TOKEN =========================
-  @Get('validate-parrain/:id')
+  @Post('validate-parrain/:id')
   @ApiOperation({
     summary: 'Valider le parrainage par _id du filleul',
     description:
