@@ -203,7 +203,7 @@ export class UsersService implements OnModuleInit {
             this.mailService.sendParrainValidationEmail(
               p1.userEmail,
               user.userName,
-              `${this.baseUrl}/api/v1/users/validate-parrain?token=${user.parrain1Token}`,
+              `${this.frontendUrl}/login`,
             ),
           );
         }
@@ -216,7 +216,7 @@ export class UsersService implements OnModuleInit {
             this.mailService.sendParrainValidationEmail(
               p2.userEmail,
               user.userName,
-              `${this.baseUrl}/api/v1/users/validate-parrain?token=${user.parrain2Token}`,
+              `${this.frontendUrl}/login`,
             ),
           );
         }
@@ -264,6 +264,55 @@ export class UsersService implements OnModuleInit {
 
     await user.save();
     return `${this.frontendUrl}/login?status=validated`;
+  }
+
+  async validateParrain(
+    userId: string,
+    parrainId: string,
+  ): Promise<PaginationResult<User>> {
+    const user = await this.userModel.findById(userId);
+    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+
+    if (user.userValidated) {
+      throw new BadRequestException('Le compte est déjà validé');
+    }
+
+    let isMatch = false;
+
+    // Comparaison sécurisée des IDs (ObjectId vs String)
+    if (user.parrain1ID?.toString() === parrainId) {
+      user.isParrain1Validated = true;
+      user.parrain1Token = undefined;
+      isMatch = true;
+    } else if (user.parrain2ID?.toString() === parrainId) {
+      user.isParrain2Validated = true;
+      user.parrain2Token = undefined;
+      isMatch = true;
+    }
+
+    if (!isMatch) {
+      throw new BadRequestException(
+        'Vous n’êtes pas le parrain de cet utilisateur',
+      );
+    }
+
+    // Vérification de la validation globale
+    const p1Ok = user.parrain1ID ? user.isParrain1Validated : true;
+    const p2Ok = user.parrain2ID ? user.isParrain2Validated : true;
+
+    if (p1Ok && p2Ok) {
+      user.userValidated = true;
+      // On attend la notification avant ou après le save selon votre besoin de consistance
+      await this.activateAccountNotify(user);
+    }
+
+    await user.save();
+
+    return {
+      status: 'success',
+      message: 'Parrainage validé',
+      data: [user],
+    };
   }
 
   private async activateAccountNotify(user: UserDocument) {
