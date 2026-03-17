@@ -14,6 +14,7 @@ import {
   Res,
   Req,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -433,17 +434,25 @@ export class UsersController {
 
   // ========================= VERIFY ACCOUNT SECURISE =========================
   @Get('verify')
-  @ApiOperation({
-    summary: "Vérifier l'adresse email et rediriger",
+  @ApiOperation({ summary: "Vérifier l'adresse email et rediriger" })
+  @ApiQuery({
+    name: 'token',
+    required: true,
+    description: 'Jeton de sécurité unique',
   })
-  @ApiQuery({ name: 'token', description: 'Jeton de sécurité unique' })
-  @ApiResponse({ status: 302 })
+  @ApiResponse({ status: 302, description: 'Redirection vers le frontend' })
+  @ApiResponse({ status: 400, description: 'Token manquant' })
+  @HttpCode(HttpStatus.FOUND)
   async verifyAccount(
     @Query('token') token: string,
     @Res() res: express.Response,
   ) {
+    if (!token?.trim()) {
+      throw new BadRequestException('Token manquant');
+    }
+
     const redirectUrl = await this.usersService.verifyAccountToken(token);
-    return res.redirect(redirectUrl);
+    return res.redirect(HttpStatus.FOUND, redirectUrl);
   }
 
   // ========================= ACTIVATE ACCOUNT =========================
