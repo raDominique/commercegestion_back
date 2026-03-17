@@ -660,11 +660,25 @@ export class UsersService implements OnModuleInit {
   }
 
   private buildUserQuery(search?: string, extraFilter: any = {}) {
+    // 1. Extraire et transformer les filtres spécifiques
+    const { isActive, isVerified, ...rest } = extraFilter;
+
     const query: any = {
       deletedAt: null,
-      ...extraFilter,
+      ...rest, // Inclut les autres filtres comme userType
     };
 
+    // Mappage : isActive -> userValidated
+    if (isActive !== undefined) {
+      query.userValidated = isActive;
+    }
+
+    // Mappage : isVerified -> userEmailVerified
+    if (isVerified !== undefined) {
+      query.userEmailVerified = isVerified;
+    }
+
+    // 2. Logique de recherche (Regex)
     if (search) {
       const regex = new RegExp(search, 'i');
       query.$or = [
