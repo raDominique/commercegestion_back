@@ -228,10 +228,16 @@ export class UsersController {
   }
 
   // ========================= VALIDATE PARRAINAGE TOKEN =========================
-  @Get('validate-parrain')
-  async validateParrain(@Query('token') token: string, @Res() res) {
-    const redirectUrl = await this.usersService.validateByParrainToken(token);
-    return res.redirect(redirectUrl);
+  @Get('validate-parrain/:id')
+  @ApiOperation({
+    summary: 'Valider le parrainage par _id du filleul',
+    description:
+      'Validation du parrainage en cliquant sur la bouton approuver dans la liste du filleul. **Nécessite d’être connecté et d’être le parrain concerné.**',
+  })
+  @ApiParam({ name: 'id', example: '64d2f3b9e7b9c9b1f1c12345' })
+  @Auth()
+  async validateParrain(@Req() req, @Param('id') id: string) {
+    return await this.usersService.validateParrain(id, req.user.userIdPartager);
   }
 
   // ========================= FIND ONE =========================
@@ -512,7 +518,7 @@ export class UsersController {
       Number(limit),
       search,
       sortBy,
-      order as 'asc' | 'desc',
+      order,
       filter,
     );
   }
@@ -557,7 +563,7 @@ export class UsersController {
       Number(limit),
       search,
       sortBy,
-      order as 'asc' | 'desc',
+      order,
       filter,
     );
   }
