@@ -506,11 +506,16 @@ export class UsersController {
 
     const filter = {
       ...(userType && { userType }),
-      ...(isActive !== undefined && { isActive: String(isActive) === 'true' }),
-      ...(isVerified !== undefined && {
-        isVerified: String(isVerified) === 'true',
-      }),
+      isActive:
+        isActive === undefined ? undefined : String(isActive) === 'true',
+      isVerified:
+        isVerified === undefined ? undefined : String(isVerified) === 'true',
     };
+
+    // Nettoyer les undefined pour ne pas polluer la query
+    Object.keys(filter).forEach(
+      (key) => filter[key] === undefined && delete filter[key],
+    );
 
     return this.usersService.findAllByFilsPaginated(
       req.user.userIdPartager,
@@ -552,11 +557,16 @@ export class UsersController {
 
     const filter = {
       ...(userType && { userType }),
-      ...(isActive !== undefined && { isActive: String(isActive) === 'true' }),
-      ...(isVerified !== undefined && {
-        isVerified: String(isVerified) === 'true',
-      }),
+      isActive:
+        isActive === undefined ? undefined : String(isActive) === 'true',
+      isVerified:
+        isVerified === undefined ? undefined : String(isVerified) === 'true',
     };
+
+    // Nettoyer les undefined pour ne pas polluer la query
+    Object.keys(filter).forEach(
+      (key) => filter[key] === undefined && delete filter[key],
+    );
 
     return this.usersService.findAllPaginated(
       Number(page),
