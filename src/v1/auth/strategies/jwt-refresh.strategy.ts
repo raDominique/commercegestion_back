@@ -25,6 +25,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
       userAccess: payload.userAccess,
       userValidated: payload.userValidated,
       userVerified: payload.userVerified,
+      userIdPartager: payload.userIdPartager,
       refreshToken: req.body.refreshToken,
     };
   }

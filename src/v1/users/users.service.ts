@@ -289,30 +289,37 @@ export class UsersService implements OnModuleInit {
     search?: string,
     sortBy = 'createdAt',
     order: 'asc' | 'desc' = 'desc',
-    filter?: any,
+    filter: any = {},
   ): Promise<PaginationResult<User>> {
-    const query: any = { deletedAt: null };
-    if (search) {
-      const regex = new RegExp(search, 'i');
-      query.$or = [
-        { userEmail: regex },
-        { userName: regex },
-        { userId: regex },
-      ];
-    }
+    const allowedSortFields = ['createdAt', 'userName', 'userEmail'];
+    const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+
+    const query = this.buildUserQuery(search, filter);
+
     const skip = (page - 1) * limit;
+
     const [data, total, totalUserActif, totalAdmin] = await Promise.all([
       this.userModel
         .find(query)
         .select('-userPassword')
-        .sort({ [sortBy]: order === 'asc' ? 1 : -1 })
+        .sort({ [sortField]: order === 'asc' ? 1 : -1 })
         .skip(skip)
         .limit(limit)
-        .exec(),
+        .lean(),
+
       this.userModel.countDocuments(query),
-      this.userModel.countDocuments({ ...query, userValidated: true }),
-      this.userModel.countDocuments({ ...query, userAccess: 'Admin' }),
+
+      this.userModel.countDocuments({
+        ...query,
+        userValidated: true,
+      }),
+
+      this.userModel.countDocuments({
+        ...query,
+        userAccess: 'Admin',
+      }),
     ]);
+
     return {
       status: 'success',
       message: 'OK',
@@ -320,6 +327,48 @@ export class UsersService implements OnModuleInit {
       total,
       totalUserActif,
       totalAdmin,
+      page,
+      limit,
+    };
+  }
+
+  async findAllByFilsPaginated(
+    userIdPartager: string,
+    page = 1,
+    limit = 10,
+    search?: string,
+    sortBy = 'createdAt',
+    order: 'asc' | 'desc' = 'desc',
+    filter: any = {},
+  ): Promise<PaginationResult<User>> {
+    const allowedSortFields = ['createdAt', 'userName', 'userEmail'];
+    const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+
+    const referralFilter = {
+      $or: [{ parrain1ID: userIdPartager }, { parrain2ID: userIdPartager }],
+    };
+
+    const query = this.buildUserQuery(search, { ...filter, ...referralFilter });
+
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.userModel
+        .find(query)
+        .select('-userPassword')
+        .sort({ [sortField]: order === 'asc' ? 1 : -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+
+      this.userModel.countDocuments(query),
+    ]);
+
+    return {
+      status: 'success',
+      message: 'Liste des utilisateurs de vos filleuls',
+      data,
+      total,
       page,
       limit,
     };
@@ -559,5 +608,23 @@ export class UsersService implements OnModuleInit {
   async getInfoParrain(userId: string): Promise<UserDocument | null> {
     // Utilisation de findOne car l'userId est unique
     return this.userModel.findOne({ userId: userId }).exec();
+  }
+
+  private buildUserQuery(search?: string, extraFilter: any = {}) {
+    const query: any = {
+      deletedAt: null,
+      ...extraFilter,
+    };
+
+    if (search) {
+      const regex = new RegExp(search, 'i');
+      query.$or = [
+        { userEmail: regex },
+        { userName: regex },
+        { userId: regex },
+      ];
+    }
+
+    return query;
   }
 }
