@@ -13,6 +13,7 @@ import {
 } from './stock-movement.schema';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { LoggerService } from 'src/common/logger/logger.service';
+import { MailService } from 'src/shared/mail/mail.service';
 
 @Injectable()
 export class StockService {
@@ -24,6 +25,7 @@ export class StockService {
     private readonly actifsService: ActifsService,
     private readonly passifsService: PassifsService,
     private readonly loggerService: LoggerService,
+    private readonly mailService: MailService,
   ) {}
 
   async createMovement(
@@ -437,5 +439,84 @@ export class StockService {
     query: any,
   ): Promise<PaginationResult<any>> {
     return this.getMovements(userId, query, MovementType.RETRAIT);
+  }
+
+  /**
+   * Signaler un mouvement comme invalide et envoyer une notification
+   */
+  async flagMovement(
+    movementId: string,
+    userId: string,
+    reason: string,
+  ): Promise<any> {
+    const movement: any = await this.movementModel
+      .findById(movementId)
+      .populate('operatorId', 'userEmail userName userFirstname')
+      .populate('siteDestinationId', 'siteName')
+      .populate('productId', 'productName')
+      .exec();
+
+    if (!movement) {
+      throw new Error('Mouvement non trouvé');
+    }
+
+    // Mettre à jour le mouvement avec les informations de signalement
+    movement.isValide = false;
+    movement.flaggedBy = new Types.ObjectId(userId);
+    movement.flagReason = reason;
+    movement.flaggedAt = new Date();
+
+    const updatedMovement = await movement.save();
+
+    // Envoyer un email au destinataire du mouvement
+    const operatorEmail = movement.operatorId?.userEmail;
+    const operatorName =
+      movement.operatorId?.userFirstname || movement.operatorId?.userName;
+    const siteName = movement.siteDestinationId?.siteName || 'Inconnu';
+    const productName = movement.productId?.productName || 'Produit inconnu';
+
+    if (operatorEmail) {
+      await this.mailService.notificationMovementFlagged(
+        operatorEmail,
+        operatorName,
+        siteName,
+        productName,
+        movement.quantite,
+        reason,
+      );
+    }
+
+    return {
+      status: 'success',
+      message: 'Mouvement signalé comme invalide et notification envoyée',
+      data: updatedMovement,
+    };
+  }
+
+  /**
+   * Valider un mouvement signalé
+   */
+  async validateMovementFlag(
+    movementId: string,
+  ): Promise<any> {
+    const movement: any = await this.movementModel.findById(movementId);
+
+    if (!movement) {
+      throw new Error('Mouvement non trouvé');
+    }
+
+    // Mettre à jour le mouvement
+    movement.isValide = true;
+    movement.flaggedBy = undefined;
+    movement.flagReason = undefined;
+    movement.flaggedAt = undefined;
+
+    const updatedMovement = await movement.save();
+
+    return {
+      status: 'success',
+      message: 'Mouvement validé avec succès',
+      data: updatedMovement,
+    };
   }
 }

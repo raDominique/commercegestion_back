@@ -8,6 +8,7 @@ import { SiteModule } from '../sites/sites.module';
 import { ActifsModule } from '../actifs/actifs.module';
 import { PassifsModule } from '../passifs/passifs.module';
 import { LoggerService } from 'src/common/logger/logger.service';
+import { MailModule } from 'src/shared/mail/mail.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { LoggerService } from 'src/common/logger/logger.service';
     SiteModule,
     ActifsModule,
     PassifsModule,
+    MailModule,
   ],
   controllers: [StockController],
   providers: [StockService, LoggerService],

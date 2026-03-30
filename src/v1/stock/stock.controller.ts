@@ -236,4 +236,32 @@ export class StockController {
   async getWithdrawals(@Req() req: any, @Query() query: any) {
     return this.stockService.getWithdrawList(req.user.userId, query);
   }
+
+  // ==========================================
+  // VALIDATION DES MOUVEMENTS
+  // ==========================================
+
+  @Post('flag-movement/:movementId')
+  @Auth()
+  @ApiOperation({
+    summary: 'Signaler un mouvement comme invalide et envoyer notification',
+  })
+  async flagMovement(
+    @Param('movementId') movementId: string,
+    @Body() body: { reason: string },
+    @Req() req: any,
+  ) {
+    return this.stockService.flagMovement(
+      movementId,
+      req.user.userId,
+      body.reason,
+    );
+  }
+
+  @Post('validate-movement/:movementId')
+  @Auth()
+  @ApiOperation({ summary: 'Valider un mouvement signalé' })
+  async validateMovement(@Param('movementId') movementId: string) {
+    return this.stockService.validateMovementFlag(movementId);
+  }
 }

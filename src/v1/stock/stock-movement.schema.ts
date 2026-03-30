@@ -42,6 +42,26 @@ export class StockMovement {
 
   @Prop({ type: Types.ObjectId, ref: 'Site' })
   siteDestinationId: Types.ObjectId;
+
+  // Noms des dépôts pour référence rapide
+  @Prop({ type: String, default: null })
+  depotOrigine: string;
+
+  @Prop({ type: String, default: null })
+  depotDestination: string;
+
+  // Validation du mouvement
+  @Prop({ type: Boolean, default: false })
+  isValide: boolean;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  flaggedBy: Types.ObjectId;
+
+  @Prop({ type: String, default: null })
+  flagReason: string;
+
+  @Prop({ type: Date, default: null })
+  flaggedAt: Date;
 }
 
 export const StockMovementSchema = SchemaFactory.createForClass(StockMovement);
