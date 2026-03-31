@@ -257,16 +257,68 @@ export class StockService {
     );
   }
 
-  async getHistory(userId: string): Promise<PaginationResult<any>> {
-    const history = await this.movementModel
-      .find({ operatorId: new Types.ObjectId(userId) })
-      .populate('productId', 'productName codeCPC')
-      .sort({ createdAt: -1 })
-      .exec();
+  async getHistory(userId: string, query: any): Promise<any> {
+    // 1. Extraction et valeurs par défaut pour la pagination
+    const page = parseInt(query.page) || 1;
+    const limit = parseInt(query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // 2. Configuration du tri (ex: sortBy=createdAt & order=desc)
+    const sortBy = query.sortBy || 'createdAt';
+    const order = query.order === 'asc' ? 1 : -1;
+
+    // 3. Construction des filtres dynamiques
+    const filters: any = { operatorId: new Types.ObjectId(userId) };
+
+    if (query.type) filters.type = query.type;
+    if (query.productId)
+      filters.productId = new Types.ObjectId(query.productId);
+    if (query.isValide !== undefined)
+      filters.isValide = query.isValide === 'true';
+
+    // 4. Exécution de la requête avec pagination et tri
+    const [history, total] = await Promise.all([
+      this.movementModel
+        .find(filters)
+        .sort({ [sortBy]: order }) // Tri dynamique
+        .skip(skip) // Pagination
+        .limit(limit) // Pagination
+        .lean()
+        .populate([
+          { path: 'productId', select: 'productName codeCPC' },
+          {
+            path: 'siteOrigineId',
+            select: 'siteName siteUserID',
+            populate: {
+              path: 'siteUserID',
+              select: 'userName userFirstname userNickName',
+            },
+          },
+          {
+            path: 'siteDestinationId',
+            select: 'siteName siteUserID',
+            populate: {
+              path: 'siteUserID',
+              select: 'userName userFirstname userNickName',
+            },
+          },
+          {
+            path: 'ayant_droit detentaire',
+            select: 'userNickName userName userFirstname userId',
+          },
+        ])
+        .select('-__v -updatedAt')
+        .exec(),
+      this.movementModel.countDocuments(filters), // Compter le total pour le front-end
+    ]);
 
     return {
       status: 'success',
-      message: 'Historique des mouvements récupéré',
+      message: 'Historique récupéré',
+      total,
+      page,
+      lastPage: Math.ceil(total / limit),
+      limit,
       data: history,
     };
   }
@@ -496,9 +548,7 @@ export class StockService {
   /**
    * Valider un mouvement signalé
    */
-  async validateMovementFlag(
-    movementId: string,
-  ): Promise<any> {
+  async validateMovementFlag(movementId: string): Promise<any> {
     const movement: any = await this.movementModel.findById(movementId);
 
     if (!movement) {

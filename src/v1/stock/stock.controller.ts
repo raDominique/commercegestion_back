@@ -6,6 +6,7 @@ import { MovementType } from './stock-movement.schema';
 import { StockService } from './stock.service';
 import { ActifsService } from '../actifs/actifs.service';
 import { PassifsService } from '../passifs/passifs.service';
+import { GetHistoryQueryDto } from './dto/get-history-query.dto';
 
 @ApiTags('Stocks & Mouvements')
 @Controller()
@@ -207,16 +208,17 @@ export class StockController {
   }
 
   // ==========================================
-  // HISTORIQUE DES MOUVEMENTS
+  // JOURNAL DES MOUVEMENTS
   // ==========================================
-
   @Get('history')
-  @Auth()
-  @ApiOperation({ summary: 'Journal complet des mouvements de l’utilisateur' })
-  async getHistory(@Req() req: any) {
-    return this.stockService.getHistory(req.user.userId);
-  }
-
+@Auth()
+@ApiOperation({ summary: 'Journal complet des mouvements de l’utilisateur' })
+async getHistory(
+  @Req() req: any, 
+  @Query() query: GetHistoryQueryDto
+) {
+  return this.stockService.getHistory(req.user.userId, query);
+}
   // GET: /stock/deposits
   @Get('deposits')
   @Auth()
