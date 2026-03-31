@@ -78,6 +78,42 @@ export class PassifsService {
   }
 
   /**
+   * Diminue le passif en spécifiant le créancier
+   * Utilisé lors d'un RETOUR pour diminuer la dette envers un créancier spécifique
+   */
+  async decreasePassifByCreditor(
+    detentaireId: string,
+    productId: string,
+    creancierId: string,
+    quantite: number,
+  ) {
+    const passif = await this.passifModel.findOne({
+      userId: new Types.ObjectId(detentaireId),
+      productId: new Types.ObjectId(productId),
+      creancierId: new Types.ObjectId(creancierId),
+      isActive: true,
+    });
+
+    if (!passif || passif.quantite < quantite) {
+      // La dette peut être inférieure ou inexistante
+      // Ce cas peut survenir lors d'un retour partiel
+      console.warn(
+        `Passif insuffisant or not found for decreasing: detentaire=${detentaireId}, product=${productId}, creditor=${creancierId}, requested=${quantite}`,
+      );
+      return;
+    }
+
+    passif.quantite -= quantite;
+
+    if (passif.quantite === 0) {
+      passif.isActive = false;
+      passif.archivedAt = new Date();
+    }
+
+    return await passif.save();
+  }
+
+  /**
    * Transfert de créancier (Étape 4c).
    * Le détenteur ne change pas, mais il doit maintenant le produit à l'acheteur.
    */
