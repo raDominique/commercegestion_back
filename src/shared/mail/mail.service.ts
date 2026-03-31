@@ -303,6 +303,94 @@ export class MailService {
   }
 
   /* =========================================================================
+   * TRANSACTION NOTIFICATIONS
+   * ========================================================================= */
+
+  async notificationTransactionCreated(
+    to: string,
+    recipientName: string,
+    transactionType: string,
+    productName: string,
+    quantity: number,
+    transactionNumber: string,
+  ) {
+    await this.mailQueue.enqueue({
+      to,
+      subject: `Nouvelle transaction créée - ${this.appName}`,
+      template: 'transaction-created',
+      context: {
+        recipientName,
+        transactionType,
+        productName,
+        quantity,
+        transactionNumber,
+        currentDate: new Date().toLocaleString('fr-FR'),
+        dashboardLink: `${this.frontUrl}/transactions`,
+        supportLink: `${this.frontUrl}/support`,
+        appName: this.appName,
+      },
+    });
+  }
+
+  async notificationTransactionApproved(
+    to: string,
+    recipientName: string,
+    transactionType: string,
+    productName: string,
+    quantity: number,
+    transactionNumber: string,
+    approverName: string,
+  ) {
+    await this.mailQueue.enqueue({
+      to,
+      subject: `Transaction approuvée - ${this.appName}`,
+      template: 'transaction-approved',
+      context: {
+        recipientName,
+        transactionType,
+        productName,
+        quantity,
+        transactionNumber,
+        approverName,
+        currentDate: new Date().toLocaleString('fr-FR'),
+        dashboardLink: `${this.frontUrl}/transactions`,
+        supportLink: `${this.frontUrl}/support`,
+        appName: this.appName,
+      },
+    });
+  }
+
+  async notificationTransactionRejected(
+    to: string,
+    recipientName: string,
+    transactionType: string,
+    productName: string,
+    quantity: number,
+    transactionNumber: string,
+    rejectionReason: string,
+    approverName: string,
+  ) {
+    await this.mailQueue.enqueue({
+      to,
+      subject: `Transaction rejetée - ${this.appName}`,
+      template: 'transaction-rejected',
+      context: {
+        recipientName,
+        transactionType,
+        productName,
+        quantity,
+        transactionNumber,
+        rejectionReason,
+        approverName,
+        currentDate: new Date().toLocaleString('fr-FR'),
+        dashboardLink: `${this.frontUrl}/transactions`,
+        supportLink: `${this.frontUrl}/support`,
+        appName: this.appName,
+      },
+    });
+  }
+
+  /* =========================================================================
    * EMAIL GÉNÉRIQUE
    * ========================================================================= */
 

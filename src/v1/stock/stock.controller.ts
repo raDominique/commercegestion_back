@@ -6,7 +6,6 @@ import { MovementType } from './stock-movement.schema';
 import { StockService } from './stock.service';
 import { ActifsService } from '../actifs/actifs.service';
 import { PassifsService } from '../passifs/passifs.service';
-import { GetHistoryQueryDto } from './dto/get-history-query.dto';
 
 @ApiTags('Stocks & Mouvements')
 @Controller()
@@ -21,35 +20,38 @@ export class StockController {
   // ÉTAPES DE MOUVEMENTS (FLUX 0 À 12)
   // ==========================================
 
-  @Post('deposit')
-  @Auth()
-  @ApiOperation({
-    summary: 'Étape 0 : Déposer un produit (Initialisation Actif/Passif)',
-  })
-  async deposit(@Body() dto: CreateMovementDto, @Req() req: any) {
-    return this.stockService.createMovement(
-      dto,
-      req.user.userId,
-      MovementType.DEPOT,
-    );
-  }
-
-  @Post('withdraw')
-  @Auth()
-  @ApiOperation({ summary: 'Retirer un produit (Sortie de stock physique)' })
-  async withdraw(@Body() dto: CreateMovementDto, @Req() req: any) {
-    return this.stockService.createMovement(
-      dto,
-      req.user.userId,
-      MovementType.RETRAIT,
-    );
-  }
-
   @Post('transfer')
   @Auth()
   @ApiOperation({
-    summary:
-      'Étape 10 : Transférer physiquement un produit (Changement de détenteur)',
+    summary: 'Transférer un produit à un autre détenteur',
+    description: `Enregistre un mouvement TRANSFERT physique d'un produit vers un autre détenteur sur le même site ou entre sites.
+
+Flux métier:
+1. Détenteur crée le mouvement de transfert
+2. Sélectionne la quantité à transférer
+3. Désigne le nouveau détenteur
+4. Choix du site de destination (même site ou différent)
+5. Mouvement enregistré avec type TRANSFERT
+6. Stock détenteur actuel: -quantité
+7. Stock nouveau détenteur: +quantité
+8. Passif mis à jour (si applicable)
+
+Champs requis:
+- productId: ID du produit à transférer
+- quantity: Quantité (doit être disponible)
+- destinationSiteId: Site de destination
+- newHolderId: ID du nouveau détenteur
+- notes: (optionnel) Description du transfert
+
+Validations:
+- Vérifier que la quantité est disponible
+- Valider que le nouveau détenteur existe
+- Vérifier l'accès au site de destination
+
+Erreurs possibles:
+- 400: Quantité insuffisante ou paramètres invalides
+- 401: Non authentifié
+- 404: Produit ou détenteur non trouvé`,
   })
   async transfer(@Body() dto: CreateMovementDto, @Req() req: any) {
     return this.stockService.createMovement(
@@ -62,8 +64,41 @@ export class StockController {
   @Post('virement')
   @Auth()
   @ApiOperation({
-    summary:
-      'Étape 4c : Virement de propriété (Changement d’Ayant-droit sans mouvement physique)',
+    summary: 'Virement de propriété (changement de propriétaire)',
+    description: `Enregistre un mouvement VIREMENT: changement de propriétaire/ayant-droit SANS mouvement physique.
+
+Flux métier:
+1. Propriétaire actuel crée le virement
+2. Sélectionne la quantité à transférer de propriété
+3. Désigne le nouveau propriétaire
+4. Mouvement type VIREMENT enregistré
+5. Produit reste physiquement au même endroit (mouvement émotionnel virement)
+6. Propriété/Ayant-droit change
+7. Passif créé ou modifié (nouveau propriétaire devient créancier)
+
+Utilisation:
+- Vendre un produit (changement de propriétaire)
+- Transférer la responsabilité (sans mouvement physique)
+- Enregistrer un échange de propriété
+- Gérer les dettes de marchandises
+
+Champs requis:
+- productId: ID du produit
+- quantity: Quantité transférée
+- newOwnerId: ID du nouveau propriétaire
+- reason: Motif du virement (vente, échange, donation)
+- notes: (optionnel) Détails supplémentaires
+
+Validations:
+- Vérifier propriété du produit
+- Valider que le nouveau propriétaire existe
+- Vérifier les permissions
+
+Erreurs possibles:
+- 400: Quantité invalide ou propriété insuffisante
+- 401: Non authentifié
+- 403: Pas propriétaire du produit
+- 404: Produit ou propriétaire non trouvé`,
   })
   async virement(@Body() dto: CreateMovementDto, @Req() req: any) {
     return this.stockService.createMovement(
@@ -77,63 +112,35 @@ export class StockController {
   // RÉCUPÉRATION DES ACTIFS (CE QUE JE POSSÈDE)
   // ==========================================
 
-  @Get('my-actifs')
-  @Auth()
-  @ApiOperation({ summary: 'Liste globale de mes actifs (Bilan de propriété)' })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    type: Number,
-    description: 'Numéro de page (défaut: 1)',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description: "Nombre d'éléments par page (défaut: 10)",
-  })
-  @ApiQuery({
-    name: 'siteId',
-    required: false,
-    type: String,
-    description: 'Filtrer par site (origine ou destination)',
-  })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    type: String,
-    description: 'Recherche globale par nom de produit ou code CPC',
-  })
-  @ApiQuery({
-    name: 'startDate',
-    required: false,
-    type: String,
-    description: 'Date de début (ISO 8601)',
-    example: '2025-01-01',
-  })
-  @ApiQuery({
-    name: 'endDate',
-    required: false,
-    type: String,
-    description: 'Date de fin (ISO 8601)',
-    example: '2025-12-31',
-  })
-  async getMyAssets(@Req() req: any, @Query() query: any) {
-    return this.stockService.getMyAssets(req.user.userId, query);
-  }
-
-  @Get('actif/:id')
-  @Auth()
-  @ApiOperation({
-    summary: 'Détails d’un actif spécifique (Populate Ayant-droit/Détenteur)',
-  })
-  async getActifDetails(@Param('id') id: string) {
-    return this.actifsService.getActifDetails(id);
-  }
-
   @Get('site-actifs/:siteId')
   @Auth()
-  @ApiOperation({ summary: 'Voir les actifs stockés sur un site spécifique' })
+  @ApiOperation({
+    summary: "Consulter l'inventaire des actifs d'un site",
+    description: `Récupère la liste complète des actifs (produits) actuellement stockés sur un site spécifique pour l'utilisateur actuel.
+
+Contenu retourné:
+- Produit: ID, nom, référence, description
+- Quantité actuelle en stock
+- Valeur unitaire (prix)
+- Valeur totale (quantité × prix)
+- Détenteur actuel
+- Propriétaire/Ayant-droit
+- Dernière mise à jour
+
+Cas d'usage:
+- Consultation du stock d'un entrepôt
+- Vérification des disponibilités avant dépôt/retrait
+- Inventaire physique
+- Suivi des mouvements par site
+- Rapport de stock
+
+Note: Retourne UNIQUEMENT les actifs que l'utilisateur possède ou détient sur ce site. Les autres utilisateurs voient leur propre stock.
+
+Erreurs possibles:
+- 401: Non authentifié
+- 403: Pas d'accès à ce site
+- 404: Site non trouvé`,
+  })
   async getSiteActifs(@Req() req: any, @Param('siteId') siteId: string) {
     return this.stockService.getSiteActifs(req.user.userId, siteId);
   }
@@ -142,10 +149,78 @@ export class StockController {
   // RÉCUPÉRATION DES PASSIFS (CE QUE JE DOIS)
   // ==========================================
 
-  @Get('my-passifs')
+  @Get('site-passifs/:siteId')
   @Auth()
   @ApiOperation({
-    summary: 'Liste de mes passifs (Dettes de marchandises envers des tiers)',
+    summary: "Consulter les dettes (passifs) d'un site",
+    description: `Récupère la liste de toutes les dettes/passifs (marchandises dues) associées à un site spécifique.
+
+Contenu:
+- Produit dechu: ID, nom, quantité due
+- Propriétaire original (créancier): qui doit recevoir la marchandise
+- Détenteur actuel: qui la détient (doit la rendre)
+- Quantité due
+- Date de création du passif
+- Provenance: transaction de dépôt associée
+- Status: actif, partiellement remboursé, soldé
+
+Interprétation:
+- Si je dois "10 unités de Ciment", cela signifie:
+  - Quelqu'un m'a fait confiance et m'a confié 10 unités
+  - Je dois les lui rendre (ou payer équivalent)
+  - C'est une obligation/dette
+
+Risk Management:
+- Avant changement de détenteur: vérifier les passifs
+- Avant rejet: s'assurer passifs rembourés
+- Avant transfert: confirmer que les biens ne sont pas grevés
+
+Erreurs possibles:
+- 401: Non authentifié
+- 403: Pas d'accès à ce site
+- 404: Site non trouvé`,
+  })
+  async getSitePassifs(@Req() req: any, @Param('siteId') siteId: string) {
+    return this.stockService.getSitePassifs(req.user.userId, siteId);
+  }
+
+  // ==========================================
+  // JOURNAL DES MOUVEMENTS
+  // ==========================================
+
+  @Get('deposits')
+  @Auth()
+  @ApiOperation({
+    summary: 'Journal des entrées en stock (dépôts)',
+    description: `Récupère l'historique complet de tous les dépôts (entrées) de stock pour l'utilisateur avec pagination.
+
+Contenu:
+- Type: DÉPÔT ou INITIALISATION
+- Produit: ID, nom, quantité
+- Source: Qui a fait le dépôt (initiateur)
+- Destinataire: Qui a reçu
+- Site de destination
+- Quantité entrante
+- Date du mouvement
+- Validateur (qui a validé le mouvement)
+- Notes/commentaires
+
+Utilisation:
+- Audit: tracer toutes les entrées
+- Réconciliation: vérifier conformité stock/registre
+- Inventaire: historique des mouvements
+- Retraçabilité: qui a apporté quoi et quand
+- Détection fraude: identifier les entrées suspectes
+
+Pagination:
+- page: numéro de page (défaut: 1)
+- limit: éléments par page (défaut: 10)
+
+Tri: Par date décroissante (les plus récents en premier)
+
+Erreurs possibles:
+- 400: Paramètres de pagination invalides
+- 401: Non authentifié`,
   })
   @ApiQuery({
     name: 'page',
@@ -157,84 +232,64 @@ export class StockController {
     name: 'limit',
     required: false,
     type: Number,
-    description: "Nombre d'éléments par page (défaut: 10)",
+    description: 'Éléments par page (défaut: 10)',
   })
-  @ApiQuery({
-    name: 'siteId',
-    required: false,
-    type: String,
-    description: 'Filtrer par site (origine ou destination)',
-  })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    type: String,
-    description: 'Recherche globale par nom de produit ou code CPC',
-  })
-  @ApiQuery({
-    name: 'startDate',
-    required: false,
-    type: String,
-    description: 'Date de début (ISO 8601)',
-    example: '2025-01-01',
-  })
-  @ApiQuery({
-    name: 'endDate',
-    required: false,
-    type: String,
-    description: 'Date de fin (ISO 8601)',
-    example: '2025-12-31',
-  })
-  async getMyPassifs(@Req() req: any, @Query() query: any) {
-    return this.stockService.getMyPassifs(req.user.userId, query);
-  }
-
-  @Get('passif/:id')
-  @Auth()
-  @ApiOperation({
-    summary: 'Détails d’un passif spécifique (Populate Créancier)',
-  })
-  async getPassifDetails(@Param('id') id: string) {
-    return this.passifsService.getPassifDetails(id);
-  }
-
-  @Get('site-passifs/:siteId')
-  @Auth()
-  @ApiOperation({
-    summary: 'Voir les dettes de marchandises pour un site spécifique',
-  })
-  async getSitePassifs(@Req() req: any, @Param('siteId') siteId: string) {
-    return this.stockService.getSitePassifs(req.user.userId, siteId);
-  }
-
-  // ==========================================
-  // JOURNAL DES MOUVEMENTS
-  // ==========================================
-  @Get('history')
-@Auth()
-@ApiOperation({ summary: 'Journal complet des mouvements de l’utilisateur' })
-async getHistory(
-  @Req() req: any, 
-  @Query() query: GetHistoryQueryDto
-) {
-  return this.stockService.getHistory(req.user.userId, query);
-}
-  // GET: /stock/deposits
-  @Get('deposits')
-  @Auth()
-  @ApiOperation({ summary: 'Liste de tous les dépôts effectués (Entrées)' })
-  @ApiQuery({ name: 'page', required: false })
-  @ApiQuery({ name: 'limit', required: false })
   async getDeposits(@Req() req: any, @Query() query: any) {
     return this.stockService.getDepositList(req.user.userId, query);
   }
 
-  // GET: /stock/withdrawals
   @Get('withdrawals')
   @Auth()
-  @ApiOperation({ summary: 'Liste de tous les retraits effectués (Sorties)' })
-  @ApiQuery({ name: 'page', required: false })
-  @ApiQuery({ name: 'limit', required: false })
+  @ApiOperation({
+    summary: 'Journal des sorties de stock (retraits)',
+    description: `Récupère l'historique complet de tous les retraits (sorties) de stock pour l'utilisateur avec pagination.
+
+Contenu:
+- Type: RETRAIT ou RETOUR
+- Produit: ID, nom, quantité
+- Source: Qui a retiré (initiateur)
+- Site d'origine
+- Quantité sortante
+- Destination (qui reçoit le retrait)
+- Date du mouvement
+- Validateur (qui a autorisé)
+- Motif du retrait (vente, échange, perte, usage)
+- Notes/commentaires
+
+Différence Retrait vs Retour:
+- RETRAIT: Vente ou cession normale
+- RETOUR: Annulation d'un précédent dépôt
+
+Utilisation:
+- Audit: tracer toutes les sorties
+- Réconciliation: vérifier conformité stock/ventes
+- Inventaire: historique des mouvements
+- Retraçabilité: qui a pris quoi et quand
+- Détection fraude: identifier les sorties anormales
+- Suivi clients: ce qui a été vendu
+
+Pagination:
+- page: numéro de page (défaut: 1)
+- limit: éléments par page (défaut: 10)
+
+Tri: Par date décroissante (les plus récents en premier)
+
+Erreurs possibles:
+- 400: Paramètres de pagination invalides
+- 401: Non authentifié`,
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Numéro de page (défaut: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Éléments par page (défaut: 10)',
+  })
   async getWithdrawals(@Req() req: any, @Query() query: any) {
     return this.stockService.getWithdrawList(req.user.userId, query);
   }
@@ -246,7 +301,44 @@ async getHistory(
   @Post('flag-movement/:movementId')
   @Auth()
   @ApiOperation({
-    summary: 'Signaler un mouvement comme invalide et envoyer notification',
+    summary: 'Signaler un mouvement comme suspect/invalide',
+    description: `Signale un mouvement existant comme problématique ou nécessitant vérification.
+
+Flux métier:
+1. Utilisateur identifie un mouvement suspect
+2. Crée un signal avec raison spécifique
+3. Mouvement marqué comme FLAGGED (signalé)
+4. Notifications envoyées aux:
+   - Administrateurs pour investigation
+   - Validateur original pour explication
+   - Détenteur affecté pour correctionéventuelle
+5. Stock n'est PAS modifié (mouvement reste valide jusqu'à investigation)
+6. Suivi/audit du signal créé
+7. Détails du signal stockés pour investigation
+
+Motifs courants:
+- Quantité douteuse (plus/moins que prévu)
+- Produit abîmé ou non conforme à réception
+- Discordance entre registre et référence physique
+- Doute sur l'identité du propriétaire
+- Transactioncorruptée/enregistrée en double
+- Revendication de propriété conflictuelle
+
+Champs requis:
+- movementId (path): ID unique du mouvement à signaler
+- reason (body): Description détaillée du problème  (1000 caractères max)
+- severity (body): low, medium, high (défaut: medium)
+
+Process après signal:
+- Admin validera ou annulera le signal
+- Ajustements de stock si nécessaire
+- Communication avec toutes les parties
+
+Erreurs possibles:
+- 400: Raison vide ou trop longue
+- 401: Non authentifié
+- 404: Mouvement non trouvé
+- 409: Mouvement déjà signalé`,
   })
   async flagMovement(
     @Param('movementId') movementId: string,
@@ -262,7 +354,41 @@ async getHistory(
 
   @Post('validate-movement/:movementId')
   @Auth()
-  @ApiOperation({ summary: 'Valider un mouvement signalé' })
+  @ApiOperation({
+    summary: 'Valider/confirmer un mouvement signalé',
+    description: `Confirme qu'un mouvement FLAGGED peut rester valide après investigation.
+
+Flux métier:
+1. Admin/Manager examine le signal et pièces jointes
+2. Investigation complétée
+3. Décision: mouvement valide et conforme
+4. Validation appliquée: flag retiré
+5. Mouvement réintégré comme VALIDE
+6. Email confirmation aux parties
+7. Signal fermé avec résolution confirmée
+
+Préconditions:
+- Mouvement doit être en statut FLAGGED
+- Admin/Manager authorization requis
+- Dossier d'investigation doit exister
+
+Etapes après validation:
+- Flag FLAGGED → VALIDATED
+- Stock réintégré normalement
+- Historique conservé pour audit
+- Rapport transmis aux parties intéressées
+- Signal fermé avec résolution
+
+Alternatives:
+- Rejeter le mouvement (l'annuler complètement)
+- Modifier le mouvement (corriger quantité/propriétaire)
+
+Erreurs possibles:
+- 401: Non authentifié
+- 403: Pas permissions admin
+- 404: Mouvement non trouvé
+- 409: Mouvement non signalé / pas en statut FLAGGED`,
+  })
   async validateMovement(@Param('movementId') movementId: string) {
     return this.stockService.validateMovementFlag(movementId);
   }

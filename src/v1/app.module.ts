@@ -14,6 +14,8 @@ import { CpcModule } from './cpc/cpc.module';
 import { StockModule } from './stock/stock.module';
 import { ActifsModule } from './actifs/actifs.module';
 import { PassifsModule } from './passifs/passifs.module';
+import { TransactionsModule } from './transactions/transactions.module';
+import { LedgerDisplayModule } from './ledger-display/ledger-display.module';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { PassifsModule } from './passifs/passifs.module';
     StockModule,
     ActifsModule,
     PassifsModule,
+    TransactionsModule,
+    LedgerDisplayModule,
   ],
   controllers: [AppController],
   providers: [AppService, UploadService],
