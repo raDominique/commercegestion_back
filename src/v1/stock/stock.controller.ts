@@ -6,6 +6,7 @@ import { MovementType } from './stock-movement.schema';
 import { StockService } from './stock.service';
 import { ActifsService } from '../actifs/actifs.service';
 import { PassifsService } from '../passifs/passifs.service';
+import { GetHistoryQueryDto } from './dto/get-history-query.dto';
 
 @ApiTags('Stocks & Mouvements')
 @Controller()
@@ -207,16 +208,17 @@ export class StockController {
   }
 
   // ==========================================
-  // HISTORIQUE DES MOUVEMENTS
+  // JOURNAL DES MOUVEMENTS
   // ==========================================
-
   @Get('history')
-  @Auth()
-  @ApiOperation({ summary: 'Journal complet des mouvements de l’utilisateur' })
-  async getHistory(@Req() req: any) {
-    return this.stockService.getHistory(req.user.userId);
-  }
-
+@Auth()
+@ApiOperation({ summary: 'Journal complet des mouvements de l’utilisateur' })
+async getHistory(
+  @Req() req: any, 
+  @Query() query: GetHistoryQueryDto
+) {
+  return this.stockService.getHistory(req.user.userId, query);
+}
   // GET: /stock/deposits
   @Get('deposits')
   @Auth()
@@ -235,5 +237,33 @@ export class StockController {
   @ApiQuery({ name: 'limit', required: false })
   async getWithdrawals(@Req() req: any, @Query() query: any) {
     return this.stockService.getWithdrawList(req.user.userId, query);
+  }
+
+  // ==========================================
+  // VALIDATION DES MOUVEMENTS
+  // ==========================================
+
+  @Post('flag-movement/:movementId')
+  @Auth()
+  @ApiOperation({
+    summary: 'Signaler un mouvement comme invalide et envoyer notification',
+  })
+  async flagMovement(
+    @Param('movementId') movementId: string,
+    @Body() body: { reason: string },
+    @Req() req: any,
+  ) {
+    return this.stockService.flagMovement(
+      movementId,
+      req.user.userId,
+      body.reason,
+    );
+  }
+
+  @Post('validate-movement/:movementId')
+  @Auth()
+  @ApiOperation({ summary: 'Valider un mouvement signalé' })
+  async validateMovement(@Param('movementId') movementId: string) {
+    return this.stockService.validateMovementFlag(movementId);
   }
 }

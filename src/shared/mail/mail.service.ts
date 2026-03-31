@@ -273,6 +273,36 @@ export class MailService {
   }
 
   /* =========================================================================
+   * STOCK MOVEMENTS NOTIFICATIONS
+   * ========================================================================= */
+
+  async notificationMovementFlagged(
+    to: string,
+    recipientName: string,
+    siteName: string,
+    productName: string,
+    quantity: number,
+    reason: string,
+  ) {
+    await this.mailQueue.enqueue({
+      to,
+      subject: `Mouvement de stock signalé comme invalide - ${this.appName}`,
+      template: 'movement-flagged',
+      context: {
+        recipientName,
+        siteName,
+        productName,
+        quantity,
+        reason,
+        currentDate: new Date().toLocaleString('fr-FR'),
+        dashboardLink: `${this.frontUrl}/stock`,
+        supportLink: `${this.frontUrl}/support`,
+        appName: this.appName,
+      },
+    });
+  }
+
+  /* =========================================================================
    * EMAIL GÉNÉRIQUE
    * ========================================================================= */
 

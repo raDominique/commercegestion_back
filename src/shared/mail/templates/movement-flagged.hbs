@@ -1,0 +1,133 @@
+<html>
+  <head>
+    <meta charset='UTF-8' />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        color: #333;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f9f9f9;
+      }
+      .header {
+        background-color: #dc3545;
+        color: white;
+        padding: 20px;
+        text-align: center;
+        border-radius: 5px 5px 0 0;
+      }
+      .content {
+        background-color: white;
+        padding: 20px;
+        border-radius: 0 0 5px 5px;
+      }
+      .alert {
+        background-color: #ffe7e7;
+        border-left: 4px solid #dc3545;
+        padding: 12px;
+        margin: 15px 0;
+        border-radius: 4px;
+      }
+      .movement-details {
+        background-color: #f5f5f5;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 15px 0;
+      }
+      .detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #ddd;
+      }
+      .detail-row:last-child {
+        border-bottom: none;
+      }
+      .detail-label {
+        font-weight: bold;
+        color: #666;
+      }
+      .detail-value {
+        color: #333;
+      }
+      .footer {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 12px;
+        color: #666;
+      }
+      .button {
+        display: inline-block;
+        margin-top: 15px;
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+      }
+      .reason-box {
+        background-color: #fff3cd;
+        border: 1px solid #ffc107;
+        padding: 12px;
+        margin: 15px 0;
+        border-radius: 4px;
+        color: #856404;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='container'>
+      <div class='header'>
+        <h1>⚠️ Mouvement de Stock Signalé</h1>
+      </div>
+      <div class='content'>
+        <p>Bonjour {{recipientName}},</p>
+        <p>Un mouvement de stock a été signalé comme
+          <strong>invalide</strong>
+          par l'administrateur du système.</p>
+        <div class='alert'>
+          <p><strong>🚨 Action Requise:</strong> Veuillez vérifier et valider
+            ce mouvement au plus vite.</p>
+        </div>
+        <div class='movement-details'>
+          <h3 style='margin-top: 0; color: #333;'>Détails du Mouvement</h3>
+          <div class='detail-row'>
+            <span class='detail-label'>Produit:</span>
+            <span class='detail-value'>{{productName}}</span>
+          </div>
+          <div class='detail-row'>
+            <span class='detail-label'>Quantité:</span>
+            <span class='detail-value'>{{quantity}} unité(s)</span>
+          </div>
+          <div class='detail-row'>
+            <span class='detail-label'>Site Destination:</span>
+            <span class='detail-value'>{{siteName}}</span>
+          </div>
+          <div class='detail-row'>
+            <span class='detail-label'>Date Signalement:</span>
+            <span class='detail-value'>{{currentDate}}</span>
+          </div>
+        </div>
+        <div class='reason-box'>
+          <p style='margin-top: 0;'><strong>Raison du Signalement:</strong></p>
+          <p style='margin-bottom: 0;'>{{reason}}</p>
+        </div>
+        <p>Veuillez vous connecter à votre tableau de bord pour examiner ce
+          mouvement et prendre les mesures appropriées.</p>
+        <a href='{{dashboardLink}}' class='button'>Accéder au Tableau de Bord</a>
+        <p style='margin-top: 20px;'>Si vous avez des questions ou besoin
+          d'assistance, <a href='{{supportLink}}' style='color: #007bff;'>contactez
+            notre support</a>.</p>
+        <p style='margin-top: 20px;'>Cordialement,<br /><strong>L'équipe
+            {{appName}}</strong></p>
+      </div>
+      <div class='footer'>
+        <p>&copy; 2026 {{appName}}. Tous droits réservés.</p>
+      </div>
+    </div>
+  </body>
+</html>

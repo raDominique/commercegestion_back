@@ -13,6 +13,7 @@ import {
 } from './stock-movement.schema';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { LoggerService } from 'src/common/logger/logger.service';
+import { MailService } from 'src/shared/mail/mail.service';
 
 @Injectable()
 export class StockService {
@@ -24,6 +25,7 @@ export class StockService {
     private readonly actifsService: ActifsService,
     private readonly passifsService: PassifsService,
     private readonly loggerService: LoggerService,
+    private readonly mailService: MailService,
   ) {}
 
   async createMovement(
@@ -255,16 +257,68 @@ export class StockService {
     );
   }
 
-  async getHistory(userId: string): Promise<PaginationResult<any>> {
-    const history = await this.movementModel
-      .find({ operatorId: new Types.ObjectId(userId) })
-      .populate('productId', 'productName codeCPC')
-      .sort({ createdAt: -1 })
-      .exec();
+  async getHistory(userId: string, query: any): Promise<any> {
+    // 1. Extraction et valeurs par défaut pour la pagination
+    const page = parseInt(query.page) || 1;
+    const limit = parseInt(query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // 2. Configuration du tri (ex: sortBy=createdAt & order=desc)
+    const sortBy = query.sortBy || 'createdAt';
+    const order = query.order === 'asc' ? 1 : -1;
+
+    // 3. Construction des filtres dynamiques
+    const filters: any = { operatorId: new Types.ObjectId(userId) };
+
+    if (query.type) filters.type = query.type;
+    if (query.productId)
+      filters.productId = new Types.ObjectId(query.productId);
+    if (query.isValide !== undefined)
+      filters.isValide = query.isValide === 'true';
+
+    // 4. Exécution de la requête avec pagination et tri
+    const [history, total] = await Promise.all([
+      this.movementModel
+        .find(filters)
+        .sort({ [sortBy]: order }) // Tri dynamique
+        .skip(skip) // Pagination
+        .limit(limit) // Pagination
+        .lean()
+        .populate([
+          { path: 'productId', select: 'productName codeCPC' },
+          {
+            path: 'siteOrigineId',
+            select: 'siteName siteUserID',
+            populate: {
+              path: 'siteUserID',
+              select: 'userName userFirstname userNickName',
+            },
+          },
+          {
+            path: 'siteDestinationId',
+            select: 'siteName siteUserID',
+            populate: {
+              path: 'siteUserID',
+              select: 'userName userFirstname userNickName',
+            },
+          },
+          {
+            path: 'ayant_droit detentaire',
+            select: 'userNickName userName userFirstname userId',
+          },
+        ])
+        .select('-__v -updatedAt')
+        .exec(),
+      this.movementModel.countDocuments(filters), // Compter le total pour le front-end
+    ]);
 
     return {
       status: 'success',
-      message: 'Historique des mouvements récupéré',
+      message: 'Historique récupéré',
+      total,
+      page,
+      lastPage: Math.ceil(total / limit),
+      limit,
       data: history,
     };
   }
@@ -437,5 +491,82 @@ export class StockService {
     query: any,
   ): Promise<PaginationResult<any>> {
     return this.getMovements(userId, query, MovementType.RETRAIT);
+  }
+
+  /**
+   * Signaler un mouvement comme invalide et envoyer une notification
+   */
+  async flagMovement(
+    movementId: string,
+    userId: string,
+    reason: string,
+  ): Promise<any> {
+    const movement: any = await this.movementModel
+      .findById(movementId)
+      .populate('operatorId', 'userEmail userName userFirstname')
+      .populate('siteDestinationId', 'siteName')
+      .populate('productId', 'productName')
+      .exec();
+
+    if (!movement) {
+      throw new Error('Mouvement non trouvé');
+    }
+
+    // Mettre à jour le mouvement avec les informations de signalement
+    movement.isValide = false;
+    movement.flaggedBy = new Types.ObjectId(userId);
+    movement.flagReason = reason;
+    movement.flaggedAt = new Date();
+
+    const updatedMovement = await movement.save();
+
+    // Envoyer un email au destinataire du mouvement
+    const operatorEmail = movement.operatorId?.userEmail;
+    const operatorName =
+      movement.operatorId?.userFirstname || movement.operatorId?.userName;
+    const siteName = movement.siteDestinationId?.siteName || 'Inconnu';
+    const productName = movement.productId?.productName || 'Produit inconnu';
+
+    if (operatorEmail) {
+      await this.mailService.notificationMovementFlagged(
+        operatorEmail,
+        operatorName,
+        siteName,
+        productName,
+        movement.quantite,
+        reason,
+      );
+    }
+
+    return {
+      status: 'success',
+      message: 'Mouvement signalé comme invalide et notification envoyée',
+      data: updatedMovement,
+    };
+  }
+
+  /**
+   * Valider un mouvement signalé
+   */
+  async validateMovementFlag(movementId: string): Promise<any> {
+    const movement: any = await this.movementModel.findById(movementId);
+
+    if (!movement) {
+      throw new Error('Mouvement non trouvé');
+    }
+
+    // Mettre à jour le mouvement
+    movement.isValide = true;
+    movement.flaggedBy = undefined;
+    movement.flagReason = undefined;
+    movement.flaggedAt = undefined;
+
+    const updatedMovement = await movement.save();
+
+    return {
+      status: 'success',
+      message: 'Mouvement validé avec succès',
+      data: updatedMovement,
+    };
   }
 }
