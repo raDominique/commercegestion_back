@@ -1,66 +1,75 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsEnum, IsPositive, Min } from 'class-validator';
+import { IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsEnum, IsPositive, Min, IsString } from 'class-validator';
 import { TransactionType } from '../transactions.schema';
 
 export class CreateDepositDto {
   @ApiProperty({
-    description: 'ID de l\'utilisateur déposant (initiator)',
-    example: '69989c5cdff25ef7fe0a460f',
+    description: 'ID du site d\'origine (où on prend le produit)',
+    example: '69a4adc345bcd6536ab0b749',
   })
   @IsMongoId()
   @IsNotEmpty()
-  initiatorId: string;
+  siteOrigineId: string;
 
   @ApiProperty({
-    description: 'ID de l\'utilisateur recevant le dépôt',
-    example: '69989c5cdff25ef7fe0a4611',
+    description: 'ID du site de destination',
+    example: '69a4adc345bcd6536ab0b749',
   })
   @IsMongoId()
   @IsNotEmpty()
-  recipientId: string;
+  siteDestinationId: string;
 
   @ApiProperty({
     description: 'ID du produit à déposer',
-    example: '69989c5cdff25ef7fe0a460f',
+    example: '69ac7bad367d4fe50671403a',
   })
   @IsMongoId()
   @IsNotEmpty()
   productId: string;
 
   @ApiProperty({
-    description: 'ID du site d\'origine (où on prend le produit)',
-    example: '69989c5cdff25ef7fe0a4610',
-  })
-  @IsMongoId()
-  @IsNotEmpty()
-  originSiteId: string;
-
-  @ApiProperty({
-    description: 'ID du site de destination',
-    example: '69989c5cdff25ef7fe0a4612',
-  })
-  @IsMongoId()
-  @IsNotEmpty()
-  destinationSiteId: string;
-
-  @ApiProperty({
     description: 'Quantité à déposer',
-    example: 500,
+    example: 500000,
   })
   @IsNumber()
   @IsPositive()
   @IsNotEmpty()
-  quantity: number;
+  quantite: number;
+
+  @ApiProperty({
+    description: 'ID du détentaire (qui garde physiquement l\'actif)',
+    example: '69b51cd15862f4d57f398f23',
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  detentaire: string;
+
+  @ApiProperty({
+    description: 'ID de l\'ayant-droit (qui possède légalement l\'actif)',
+    example: '69b53e71d809b2695cd97a37',
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  ayant_droit: string;
 
   @ApiProperty({
     description: 'Prix unitaire du produit',
-    example: 100,
+    example: 45000,
     required: false,
   })
   @IsOptional()
   @IsNumber()
   @Min(0)
-  unitPrice?: number;
+  prixUnitaire?: number;
+
+  @ApiProperty({
+    description: 'Observations ou notes sur le dépôt',
+    example: 'bn cvnbcnb',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  observations?: string;
 }
 
 export class CreateReturnDto {
