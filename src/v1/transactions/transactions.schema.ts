@@ -89,6 +89,9 @@ export class Transaction {
   @Prop({ type: String, default: null })
   rejectionReason: string; // Raison du rejet (si rejetée)
 
+  @Prop({ type: String, default: null })
+  observations: string; // Observations ou notes sur la transaction
+
   // Métadonnées
   @Prop({ type: Object, default: {} })
   metadata: Record<string, any>; // Données additionnelles (notes, pièces jointes, etc.)
