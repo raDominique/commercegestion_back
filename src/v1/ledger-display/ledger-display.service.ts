@@ -70,8 +70,8 @@ export class LedgerDisplayService {
         { path: 'initiatorId', select: 'firstName lastName' },
         { path: 'recipientId', select: 'firstName lastName' },
         { path: 'productId', select: 'name codeCPC' },
-        { path: 'originSiteId', select: 'name' },
-        { path: 'destinationSiteId', select: 'name' },
+        { path: 'siteOrigineId', select: 'name' },
+        { path: 'siteDestinationId', select: 'name' },
       ])
       .exec();
 
@@ -102,10 +102,10 @@ export class LedgerDisplayService {
             title: 'INITIALISATION',
             product: this.getName(transaction.productId),
             holder: this.getName(transaction.detentaire),
-            site: this.getName(transaction.originSiteId),
-            quantity: transaction.quantity,
+            site: this.getName(transaction.siteOrigineId),
+            quantity: transaction.quantite,
             initialStock: 0, // À calculer depuis les actifs
-            finalStock: transaction.quantity, // À calculer depuis les actifs
+            finalStock: transaction.quantite, // À calculer depuis les actifs
             movementType: 'ACTIF',
           });
         } else if (transaction.type === TransactionType.DEPOT) {
@@ -118,8 +118,8 @@ export class LedgerDisplayService {
               title: 'Mametráka',
               product: this.getName(transaction.productId),
               holder: this.getName(transaction.initiatorId),
-              site: this.getName(transaction.originSiteId),
-              quantity: -transaction.quantity, // Négatif (diminution)
+              site: this.getName(transaction.siteOrigineId),
+              quantity: -transaction.quantite, // Négatif (diminution)
               initialStock: 0,
               finalStock: 0,
               movementType: 'ACTIF',
@@ -134,8 +134,8 @@ export class LedgerDisplayService {
               title: 'Mametráka',
               product: this.getName(transaction.productId),
               holder: this.getName(transaction.recipientId),
-              site: this.getName(transaction.destinationSiteId),
-              quantity: transaction.quantity, // Positif (augmentation)
+              site: this.getName(transaction.siteDestinationId),
+              quantity: transaction.quantite, // Positif (augmentation)
               initialStock: 0,
               finalStock: 0,
               movementType: 'ACTIF',
@@ -149,8 +149,8 @@ export class LedgerDisplayService {
               title: 'Mametráka',
               product: this.getName(transaction.productId),
               holder: this.getName(transaction.initiatorId),
-              site: this.getName(transaction.destinationSiteId),
-              quantity: transaction.quantity,
+              site: this.getName(transaction.siteDestinationId),
+              quantity: transaction.quantite,
               initialStock: 0,
               finalStock: 0,
               movementType: 'PASSIF',
@@ -166,8 +166,8 @@ export class LedgerDisplayService {
               title: 'RETOUR',
               product: this.getName(transaction.productId),
               holder: this.getName(transaction.initiatorId),
-              site: this.getName(transaction.originSiteId),
-              quantity: -transaction.quantity, // Négatif (diminution)
+              site: this.getName(transaction.siteOrigineId),
+              quantity: -transaction.quantite, // Négatif (diminution)
               initialStock: 0,
               finalStock: 0,
               movementType: 'ACTIF',
@@ -182,8 +182,8 @@ export class LedgerDisplayService {
               title: 'RETOUR',
               product: this.getName(transaction.productId),
               holder: this.getName(transaction.recipientId),
-              site: this.getName(transaction.destinationSiteId),
-              quantity: transaction.quantity, // Positif (augmentation)
+              site: this.getName(transaction.siteDestinationId),
+              quantity: transaction.quantite, // Positif (augmentation)
               initialStock: 0,
               finalStock: 0,
               movementType: 'ACTIF',
@@ -197,8 +197,8 @@ export class LedgerDisplayService {
               title: 'RETOUR',
               product: this.getName(transaction.productId),
               holder: this.getName(transaction.initiatorId),
-              site: this.getName(transaction.originSiteId),
-              quantity: -transaction.quantity, // Négatif
+              site: this.getName(transaction.siteOrigineId),
+              quantity: -transaction.quantite, // Négatif
               initialStock: 0,
               finalStock: 0,
               movementType: 'PASSIF',
@@ -243,8 +243,8 @@ export class LedgerDisplayService {
         { path: 'initiatorId', select: 'firstName lastName' },
         { path: 'recipientId', select: 'firstName lastName' },
         { path: 'productId', select: 'name' },
-        { path: 'originSiteId', select: 'name' },
-        { path: 'destinationSiteId', select: 'name' },
+        { path: 'siteOrigineId', select: 'name' },
+        { path: 'siteDestinationId', select: 'name' },
       ])
       .exec();
 
@@ -291,8 +291,8 @@ export class LedgerDisplayService {
         { path: 'initiatorId', select: 'firstName lastName' },
         { path: 'recipientId', select: 'firstName lastName' },
         { path: 'productId', select: 'name' },
-        { path: 'originSiteId', select: 'name' },
-        { path: 'destinationSiteId', select: 'name' },
+        { path: 'siteOrigineId', select: 'name' },
+        { path: 'siteDestinationId', select: 'name' },
       ])
       .exec();
 
@@ -360,10 +360,10 @@ export class LedgerDisplayService {
           title: 'INITIALISATION',
           product: this.getName(transaction.productId),
           holder: this.getName(transaction.detentaire),
-          site: this.getName(transaction.originSiteId),
-          quantity: transaction.quantity,
+          site: this.getName(transaction.siteOrigineId),
+          quantity: transaction.quantite,
           initialStock: 0,
-          finalStock: transaction.quantity,
+          finalStock: transaction.quantite,
           movementType: 'ACTIF',
         });
         break;
@@ -377,8 +377,8 @@ export class LedgerDisplayService {
           title: 'Mametráka',
           product: this.getName(transaction.productId),
           holder: this.getName(transaction.initiatorId),
-          site: this.getName(transaction.originSiteId),
-          quantity: -transaction.quantity,
+          site: this.getName(transaction.siteOrigineId),
+          quantity: -transaction.quantite,
           initialStock: 0,
           finalStock: 0,
           movementType: 'ACTIF',
@@ -392,8 +392,8 @@ export class LedgerDisplayService {
           title: 'Mametráka',
           product: this.getName(transaction.productId),
           holder: this.getName(transaction.recipientId),
-          site: this.getName(transaction.destinationSiteId),
-          quantity: transaction.quantity,
+          site: this.getName(transaction.siteDestinationId),
+          quantity: transaction.quantite,
           initialStock: 0,
           finalStock: 0,
           movementType: 'ACTIF',
@@ -407,8 +407,8 @@ export class LedgerDisplayService {
           title: 'Mametráka',
           product: this.getName(transaction.productId),
           holder: this.getName(transaction.initiatorId),
-          site: this.getName(transaction.destinationSiteId),
-          quantity: transaction.quantity,
+          site: this.getName(transaction.siteDestinationId),
+          quantity: transaction.quantite,
           initialStock: 0,
           finalStock: 0,
           movementType: 'PASSIF',
@@ -424,8 +424,8 @@ export class LedgerDisplayService {
           title: 'RETOUR',
           product: this.getName(transaction.productId),
           holder: this.getName(transaction.initiatorId),
-          site: this.getName(transaction.originSiteId),
-          quantity: -transaction.quantity,
+          site: this.getName(transaction.siteOrigineId),
+          quantity: -transaction.quantite,
           initialStock: 0,
           finalStock: 0,
           movementType: 'ACTIF',
@@ -439,8 +439,8 @@ export class LedgerDisplayService {
           title: 'RETOUR',
           product: this.getName(transaction.productId),
           holder: this.getName(transaction.recipientId),
-          site: this.getName(transaction.destinationSiteId),
-          quantity: transaction.quantity,
+          site: this.getName(transaction.siteDestinationId),
+          quantity: transaction.quantite,
           initialStock: 0,
           finalStock: 0,
           movementType: 'ACTIF',
@@ -454,8 +454,8 @@ export class LedgerDisplayService {
           title: 'RETOUR',
           product: this.getName(transaction.productId),
           holder: this.getName(transaction.initiatorId),
-          site: this.getName(transaction.originSiteId),
-          quantity: -transaction.quantity,
+          site: this.getName(transaction.siteOrigineId),
+          quantity: -transaction.quantite,
           initialStock: 0,
           finalStock: 0,
           movementType: 'PASSIF',

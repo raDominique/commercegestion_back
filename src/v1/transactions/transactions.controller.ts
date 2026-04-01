@@ -55,13 +55,14 @@ Flux métier:
 6. Un email de confirmation est envoyé au destinataire
 
 Champs requis:
-- initiatorId: ID du déposant
-- recipientId: ID du destinataire
+- siteOrigineId: Site de départ
+- siteDestinationId: Site d'arrivée
 - productId: ID du produit
-- originSiteId: Site de départ
-- destinationSiteId: Site d'arrivée
-- quantity: Quantité
-- unitPrice: (optionnel) Prix unitaire
+- quantite: Quantité
+- detentaire: ID du détentaire
+- ayant_droit: ID de l'ayant-droit
+- prixUnitaire: (optionnel) Prix unitaire
+- observations: (optionnel) Observations
 
 Erreurs possibles:
 - 400: Données invalides
@@ -79,8 +80,14 @@ Erreurs possibles:
         status: 'PENDING',
         initiatorId: '507f1f77bcf86cd799439001',
         recipientId: '507f1f77bcf86cd799439002',
-        quantity: 100,
-        unitPrice: 50,
+        productId: '507f1f77bcf86cd799439003',
+        siteOrigineId: '507f1f77bcf86cd799439004',
+        siteDestinationId: '507f1f77bcf86cd799439005',
+        quantite: 100,
+        prixUnitaire: 50,
+        detentaire: '507f1f77bcf86cd799439002',
+        ayant_droit: '507f1f77bcf86cd799439001',
+        observations: 'Dépôt commercial',
         createdAt: '2026-04-01T10:30:45.000Z',
       },
     },
@@ -136,7 +143,14 @@ Erreurs possibles:
         status: 'PENDING',
         initiatorId: '507f1f77bcf86cd799439002',
         recipientId: '507f1f77bcf86cd799439001',
-        quantity: 100,
+        productId: '507f1f77bcf86cd799439003',
+        siteOrigineId: '507f1f77bcf86cd799439004',
+        siteDestinationId: '507f1f77bcf86cd799439005',
+        quantite: 100,
+        prixUnitaire: 50,
+        detentaire: '507f1f77bcf86cd799439002',
+        ayant_droit: '507f1f77bcf86cd799439001',
+        observations: 'Retour sans dommages',
         createdAt: '2026-04-01T11:30:45.000Z',
       },
     },
@@ -178,9 +192,12 @@ Utilisation:
 
 Champs requis:
 - productId: ID du produit
-- quantity: Quantité à initialiser (strictement positive)
-- type: 'ACTIF' ou 'PASSIF'
-- siteId: Site où initialiser
+- quantite: Quantité à initialiser (strictement positive)
+- detentaire: ID du détentaire
+- ayant_droit: ID de l'ayant-droit
+- siteOrigineId: Site d'initialisation
+- prixUnitaire: (optionnel) Prix unitaire
+- observations: (optionnel) Observations
 
 Erreurs possibles:
 - 400: Quantité invalide ou champs manquants
@@ -198,12 +215,21 @@ Erreurs possibles:
         status: 'PENDING',
         initiatorId: '507f1f77bcf86cd799439002',
         productId: '507f1f77bcf86cd799439001',
-        quantity: 500,
+        siteOrigineId: '507f1f77bcf86cd799439004',
+        siteDestinationId: '507f1f77bcf86cd799439004',
+        quantite: 500,
+        prixUnitaire: 100,
+        detentaire: '507f1f77bcf86cd799439002',
+        ayant_droit: '507f1f77bcf86cd799439002',
+        observations: 'Stock initial',
         createdAt: '2026-04-01T10:15:30.000Z',
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'Paramètres invalides ou quantité négative' })
+  @ApiResponse({
+    status: 400,
+    description: 'Paramètres invalides ou quantité négative',
+  })
   @ApiBody({ type: CreateInitializationDto })
   async createInitialization(@Body() createInitDto: CreateInitializationDto) {
     return this.transactionsService.createInitialization(createInitDto);
@@ -229,40 +255,40 @@ Flux métier:
 
 Champs:
 - id (path): ID unique de la transaction
-- approverId (body): ID de l'utilisateur qui approuve
+- approuveurId (body): ID de l'utilisateur qui approuve
+- observations: (optionnel) Observations additionnelles
 
 Erreurs possibles:
 - 400: Statut invalide pour approbation
 - 401: Non authentifié
 - 404: Transaction non trouvée`,
   })
-  @ApiParam({ name: 'id', description: 'ID unique de la transaction à approuver' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID unique de la transaction à approuver',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Transaction approuvée avec succès. Mouvements appliqués. Email de confirmation envoyé.',
+    description:
+      'Transaction approuvée avec succès. Mouvements appliqués. Email de confirmation envoyé.',
     schema: {
       example: {
         _id: '507f1f77bcf86cd799439011',
         transactionNumber: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
         type: 'DÉPÔT',
         status: 'APPROVED',
-        approvedBy: '507f1f77bcf86cd799439005',
-        approverId: '507f1f77bcf86cd799439005',
+        approuveurId: '507f1f77bcf86cd799439005',
         approvedAt: '2026-04-01T14:30:45.000Z',
-        movements: [
-          {
-            _id: '507f1f77bcf86cd799439020',
-            type: 'MOUVEMENT',
-            actifId: '507f1f77bcf86cd799439030',
-            quantity: 100,
-            isValidated: true,
-          },
-        ],
+        quantite: 100,
+        prixUnitaire: 50,
       },
     },
   })
   @ApiResponse({ status: 404, description: 'Transaction non trouvée' })
-  @ApiResponse({ status: 400, description: 'Statut invalide (ne peut approuver que PENDING)' })
+  @ApiResponse({
+    status: 400,
+    description: 'Statut invalide (ne peut approuver que PENDING)',
+  })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
   @ApiBody({ type: ApproveTransactionDto })
   async approveTransaction(
@@ -285,7 +311,7 @@ Flux métier:
 1. Admin/Manager rejette la transaction (statut change à REJECTED)
 2. Aucun mouvement n'est appliqué (stock inchangé)
 3. Email de notification envoyé à l'initiateur avec:
-   - Motif du rejet (dans rejectionReason)
+   - Motif du rejet (dans motifRejet)
    - Nom de l'approbateur/rejecteur
 4. Permet de nettoyer les transactions invalides
 
@@ -296,32 +322,39 @@ Utilisation:
 
 Champs:
 - id (path): ID unique de la transaction
-- rejectionReason (body): Raison du rejet (affichée au demandeur)
-- approverId (body): ID de l'utilisateur qui rejette
+- motifRejet (body): Raison du rejet (affichée au demandeur)
+- approuveurId (body): ID de l'utilisateur qui rejette
 
 Erreurs possibles:
 - 400: Statut invalide pour rejet (ne peut rejeter que PENDING)
 - 401: Non authentifié
 - 404: Transaction non trouvée`,
   })
-  @ApiParam({ name: 'id', description: 'ID unique de la transaction à rejeter' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID unique de la transaction à rejeter',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Transaction rejetée avec succès. Aucun mouvement appliqué. Email de notification envoyé.',
+    description:
+      'Transaction rejetée avec succès. Aucun mouvement appliqué. Email de notification envoyé.',
     schema: {
       example: {
         _id: '507f1f77bcf86cd799439011',
         transactionNumber: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
         type: 'DÉPÔT',
         status: 'REJECTED',
-        rejectionReason: 'Produit indisponible en ce moment',
-        rejectedBy: '507f1f77bcf86cd799439005',
+        motifRejet: 'Produit indisponible en ce moment',
+        approuveurId: '507f1f77bcf86cd799439005',
         rejectedAt: '2026-04-01T15:20:30.000Z',
       },
     },
   })
   @ApiResponse({ status: 404, description: 'Transaction non trouvée' })
-  @ApiResponse({ status: 400, description: 'Statut invalide (ne peut rejeter que PENDING)' })
+  @ApiResponse({
+    status: 400,
+    description: 'Statut invalide (ne peut rejeter que PENDING)',
+  })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
   @ApiBody({ type: RejectTransactionDto })
   async rejectTransaction(
@@ -337,7 +370,7 @@ Erreurs possibles:
   @Get(':id')
   @Auth()
   @ApiOperation({
-    summary: 'Détails complète d\'une transaction',
+    summary: "Détails complète d'une transaction",
     description: `Récupère les détails complets d'une transaction incluant tous les mouvements, les participants et l'historique.
 
 Contenu retourné:
@@ -358,7 +391,10 @@ Erreurs possibles:
 - 401: Non authentifié
 - 404: Transaction non trouvée`,
   })
-  @ApiParam({ name: 'id', description: 'ID unique (MongoDB ObjectId) de la transaction' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID unique (MongoDB ObjectId) de la transaction',
+  })
   @ApiResponse({
     status: 200,
     description: 'Détails complets de la transaction',
@@ -401,7 +437,7 @@ Erreurs possibles:
   @Get('pending/list')
   @Auth()
   @ApiOperation({
-    summary: 'Lister les transactions en attente d\'approbation',
+    summary: "Lister les transactions en attente d'approbation",
     description: `Récupère toutes les transactions en statut PENDING en attente de validation par l'utilisateur (Admin/Manager).
 
 Contenu:
@@ -489,7 +525,7 @@ Erreurs possibles:
   @Get('user/:userId')
   @Auth()
   @ApiOperation({
-    summary: 'Historique complet des transactions d\'un utilisateur',
+    summary: "Historique complet des transactions d'un utilisateur",
     description: `Récupère toutes les transactions de l'utilisateur (initiées ou reçues) avec filtrage par statut et pagination.
 
 Scope:
@@ -523,7 +559,10 @@ Erreurs possibles:
 - 401: Non authentifié
 - 404: Utilisateur non trouvé`,
   })
-  @ApiParam({ name: 'userId', description: "ID unique (MongoDB ObjectId) de l'utilisateur" })
+  @ApiParam({
+    name: 'userId',
+    description: "ID unique (MongoDB ObjectId) de l'utilisateur",
+  })
   @ApiQuery({
     name: 'page',
     required: false,
@@ -544,7 +583,7 @@ Erreurs possibles:
   })
   @ApiResponse({
     status: 200,
-    description: 'Liste paginée de toutes les transactions de l\'utilisateur',
+    description: "Liste paginée de toutes les transactions de l'utilisateur",
     schema: {
       example: {
         data: [
