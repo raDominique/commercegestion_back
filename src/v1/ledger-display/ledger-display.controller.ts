@@ -14,6 +14,7 @@ import {
 } from '@nestjs/swagger';
 import { LedgerDisplayService } from './ledger-display.service';
 import { Auth } from '../auth';
+import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 
 @ApiTags('Ledger Display')
 @Controller('ledger')
@@ -78,11 +79,18 @@ Erreurs possibles:
   })
   @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
-  async getUserLedger(@Param('userId') userId: string) {
+  async getUserLedger(
+    @Param('userId') userId: string,
+  ): Promise<PaginationResult<any>> {
     if (!userId) {
       throw new BadRequestException('userId is required');
     }
-    return this.ledgerDisplayService.getUserLedger(userId);
+    const ledger = await this.ledgerDisplayService.getUserLedger(userId);
+    return {
+      status: 'success',
+      message: `Grand livre pour l'utilisateur ${userId}`,
+      data: ledger.movements.actifs.concat(ledger.movements.passifs), // Combinaison des actifs et passifs
+    };
   }
 
   /**
@@ -412,14 +420,17 @@ Erreurs possibles:
     status: 404,
     description: "Utilisateur non trouvé ou pas d'actifs",
   })
-  async getActifs(@Param('userId') userId: string) {
+  async getActifs(
+    @Param('userId') userId: string,
+  ): Promise<PaginationResult<any>> {
     if (!userId) {
       throw new BadRequestException('userId is required');
     }
     const ledger = await this.ledgerDisplayService.getUserLedger(userId);
     return {
-      userId,
-      actifs: ledger.movements.actifs,
+      status: 'success',
+      message: `Mouvements d'actifs pour l'utilisateur ${userId}`,
+      data: ledger.movements.actifs,
     };
   }
 
@@ -508,14 +519,17 @@ Erreurs possibles:
     status: 404,
     description: 'Utilisateur non trouvé ou pas de passifs',
   })
-  async getPassifs(@Param('userId') userId: string) {
+  async getPassifs(
+    @Param('userId') userId: string,
+  ): Promise<PaginationResult<any>> {
     if (!userId) {
       throw new BadRequestException('userId is required');
     }
     const ledger = await this.ledgerDisplayService.getUserLedger(userId);
     return {
-      userId,
-      passifs: ledger.movements.passifs,
+      status: 'success',
+      message: `Mouvements de passifs pour l'utilisateur ${userId}`,
+      data: ledger.movements.passifs,
     };
   }
 }
