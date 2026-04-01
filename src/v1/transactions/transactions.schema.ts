@@ -56,24 +56,21 @@ export class Transaction {
   @Prop({ type: Types.ObjectId, ref: 'User', default: null })
   recipientId: Types.ObjectId; // Destinataire (Recevant dans un dépôt)
 
-  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
-  approverUserId: Types.ObjectId; // Qui a approuvé/rejeté
-
   // Détails du mouvement
   @Prop({ type: Types.ObjectId, ref: 'Product', required: true, index: true })
   productId: Types.ObjectId; // Le produit concerné
 
   @Prop({ type: Types.ObjectId, ref: 'Site', required: true, index: true })
-  originSiteId: Types.ObjectId; // Site d'origine (où on prend)
+  siteOrigineId: Types.ObjectId; // Site d'origine (où on prend)
 
   @Prop({ type: Types.ObjectId, ref: 'Site', default: null })
-  destinationSiteId: Types.ObjectId; // Site de destination (où on met)
+  siteDestinationId: Types.ObjectId; // Site de destination (où on met)
 
   @Prop({ required: true, min: 0 })
-  quantity: number; // Quantité transférée
+  quantite: number; // Quantité transférée
 
   @Prop({ type: Number, default: null })
-  unitPrice: number; // Prix unitaire au moment de la transaction
+  prixUnitaire: number; // Prix unitaire au moment de la transaction
 
   // Pour les dépôts: qui détient et qui possède
   @Prop({ type: Types.ObjectId, ref: 'User', default: null })
@@ -86,8 +83,11 @@ export class Transaction {
   @Prop({ type: Date, default: null })
   approvedAt: Date; // Date d'approbation
 
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  approuveurId: Types.ObjectId; // Qui a approuvé/rejeté
+
   @Prop({ type: String, default: null })
-  rejectionReason: string; // Raison du rejet (si rejetée)
+  motifRejet: string; // Raison du rejet (si rejetée)
 
   @Prop({ type: String, default: null })
   observations: string; // Observations ou notes sur la transaction

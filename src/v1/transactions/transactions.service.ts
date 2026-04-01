@@ -46,10 +46,10 @@ export class TransactionsService {
       initiatorId: new Types.ObjectId(createDepositDto.ayant_droit),
       recipientId: new Types.ObjectId(createDepositDto.detentaire),
       productId: new Types.ObjectId(createDepositDto.productId),
-      originSiteId: new Types.ObjectId(createDepositDto.siteOrigineId),
-      destinationSiteId: new Types.ObjectId(createDepositDto.siteDestinationId),
-      quantity: createDepositDto.quantite,
-      unitPrice: createDepositDto.prixUnitaire || null,
+      siteOrigineId: new Types.ObjectId(createDepositDto.siteOrigineId),
+      siteDestinationId: new Types.ObjectId(createDepositDto.siteDestinationId),
+      quantite: createDepositDto.quantite,
+      prixUnitaire: createDepositDto.prixUnitaire || null,
       detentaire: new Types.ObjectId(createDepositDto.detentaire),
       ayant_droit: new Types.ObjectId(createDepositDto.ayant_droit),
       observations: createDepositDto.observations || null,
@@ -77,15 +77,16 @@ export class TransactionsService {
       transactionNumber,
       type: TransactionType.RETOUR,
       status: TransactionStatus.PENDING,
-      initiatorId: new Types.ObjectId(createReturnDto.initiatorId),
-      recipientId: new Types.ObjectId(createReturnDto.ayantDroitId),
+      initiatorId: new Types.ObjectId(createReturnDto.detentaire),
+      recipientId: new Types.ObjectId(createReturnDto.ayant_droit),
       productId: new Types.ObjectId(createReturnDto.productId),
-      originSiteId: new Types.ObjectId(createReturnDto.originSiteId),
-      destinationSiteId: new Types.ObjectId(createReturnDto.destinationSiteId),
-      quantity: createReturnDto.quantity,
-      unitPrice: createReturnDto.unitPrice || null,
-      detentaire: new Types.ObjectId(createReturnDto.initiatorId),
-      ayant_droit: new Types.ObjectId(createReturnDto.ayantDroitId),
+      siteOrigineId: new Types.ObjectId(createReturnDto.siteOrigineId),
+      siteDestinationId: new Types.ObjectId(createReturnDto.siteDestinationId),
+      quantite: createReturnDto.quantite,
+      prixUnitaire: createReturnDto.prixUnitaire || null,
+      detentaire: new Types.ObjectId(createReturnDto.detentaire),
+      ayant_droit: new Types.ObjectId(createReturnDto.ayant_droit),
+      observations: createReturnDto.observations || null,
       isActive: true,
     });
 
@@ -109,14 +110,15 @@ export class TransactionsService {
       transactionNumber,
       type: TransactionType.INITIALISATION,
       status: TransactionStatus.PENDING,
-      initiatorId: new Types.ObjectId(createInitDto.initiatorId),
+      initiatorId: new Types.ObjectId(createInitDto.ayant_droit),
       productId: new Types.ObjectId(createInitDto.productId),
-      originSiteId: new Types.ObjectId(createInitDto.siteId),
-      destinationSiteId: new Types.ObjectId(createInitDto.siteId),
-      quantity: createInitDto.quantity,
-      unitPrice: createInitDto.unitPrice || null,
-      detentaire: new Types.ObjectId(createInitDto.initiatorId),
-      ayant_droit: new Types.ObjectId(createInitDto.initiatorId),
+      siteOrigineId: new Types.ObjectId(createInitDto.siteOrigineId),
+      siteDestinationId: new Types.ObjectId(createInitDto.siteOrigineId),
+      quantite: createInitDto.quantite,
+      prixUnitaire: createInitDto.prixUnitaire || null,
+      detentaire: new Types.ObjectId(createInitDto.detentaire),
+      ayant_droit: new Types.ObjectId(createInitDto.ayant_droit),
+      observations: createInitDto.observations || null,
       isActive: true,
     });
 
@@ -152,11 +154,11 @@ export class TransactionsService {
 
     // Approuver la transaction
     transaction.status = TransactionStatus.APPROVED;
-    transaction.approverUserId = new Types.ObjectId(approveDto.approverUserId);
+    transaction.approuveurId = new Types.ObjectId(approveDto.approuveurId);
     transaction.approvedAt = new Date();
 
-    if (approveDto.notes) {
-      transaction.metadata = { ...transaction.metadata, notes: approveDto.notes };
+    if (approveDto.observations) {
+      transaction.observations = approveDto.observations;
     }
 
     const updatedTransaction = await transaction.save();
@@ -192,8 +194,8 @@ export class TransactionsService {
     }
 
     transaction.status = TransactionStatus.REJECTED;
-    transaction.approverUserId = new Types.ObjectId(rejectDto.approverUserId);
-    transaction.rejectionReason = rejectDto.rejectionReason;
+    transaction.approuveurId = new Types.ObjectId(rejectDto.approuveurId);
+    transaction.motifRejet = rejectDto.motifRejet;
     transaction.isActive = false;
 
     const updatedTransaction = await transaction.save();
@@ -201,7 +203,7 @@ export class TransactionsService {
     // Envoyer la notification de rejet (fire-and-forget)
     this.sendRejectionNotification(
       updatedTransaction,
-      rejectDto.rejectionReason,
+      rejectDto.motifRejet,
       'Admin',
     ).catch((error) => {
       console.error('Failed to send rejection notification:', error);
@@ -238,10 +240,10 @@ export class TransactionsService {
       const initiatorId = transaction.initiatorId.toString();
       const recipientId = transaction.recipientId.toString();
       const productId = transaction.productId.toString();
-      const originSiteId = transaction.originSiteId.toString();
-      const destinationSiteId = transaction.destinationSiteId.toString();
-      const quantity = transaction.quantity;
-      const unitPrice = transaction.unitPrice || 0;
+      const originSiteId = transaction.siteOrigineId.toString();
+      const destinationSiteId = transaction.siteDestinationId.toString();
+      const quantity = transaction.quantite;
+      const unitPrice = transaction.prixUnitaire || 0;
 
       // 1. Diminuer l'actif du déposant (initiator) au site d'origine
       await this.actifsService.decreaseActif(
@@ -291,10 +293,10 @@ export class TransactionsService {
       const initiatorId = transaction.initiatorId.toString();      // Qui retourne (détenteur)
       const recipientId = transaction.recipientId.toString();      // Propriétaire (ayant-droit)
       const productId = transaction.productId.toString();
-      const originSiteId = transaction.originSiteId.toString();
-      const destinationSiteId = transaction.destinationSiteId.toString();
-      const quantity = transaction.quantity;
-      const unitPrice = transaction.unitPrice || 0;
+      const originSiteId = transaction.siteOrigineId.toString();
+      const destinationSiteId = transaction.siteDestinationId.toString();
+      const quantity = transaction.quantite;
+      const unitPrice = transaction.prixUnitaire || 0;
 
       // 1. Diminuer l'actif de l'initiator (détenteur) au site d'origine
       await this.actifsService.decreaseActif(
@@ -338,9 +340,9 @@ export class TransactionsService {
     try {
       const initiatorId = transaction.initiatorId.toString();
       const productId = transaction.productId.toString();
-      const siteId = transaction.originSiteId.toString();
-      const quantity = transaction.quantity;
-      const unitPrice = transaction.unitPrice || 0;
+      const siteId = transaction.siteOrigineId.toString();
+      const quantity = transaction.quantite;
+      const unitPrice = transaction.prixUnitaire || 0;
 
       // 1. Créer un nouvel actif pour l'initiator
       await this.actifsService.addOrIncreaseActif(
@@ -509,7 +511,7 @@ export class TransactionsService {
         transaction.recipientId.toString(),
         transactionType,
         transaction.productId.toString(),
-        transaction.quantity,
+        transaction.quantite,
         transaction.transactionNumber,
         approverName,
       );
@@ -542,7 +544,7 @@ export class TransactionsService {
         transaction.recipientId.toString(),
         transactionType,
         transaction.productId.toString(),
-        transaction.quantity,
+        transaction.quantite,
         transaction.transactionNumber,
         rejectionReason,
         approverName,
@@ -574,7 +576,7 @@ export class TransactionsService {
         transaction.recipientId.toString(),
         transactionType,
         transaction.productId.toString(),
-        transaction.quantity,
+        transaction.quantite,
         transaction.transactionNumber,
       );
 

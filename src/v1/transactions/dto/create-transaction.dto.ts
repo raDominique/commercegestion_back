@@ -74,20 +74,20 @@ export class CreateDepositDto {
 
 export class CreateReturnDto {
   @ApiProperty({
-    description: 'ID de l\'utilisateur qui retourne le produit',
+    description: 'ID du détentaire qui retourne le produit',
     example: '69989c5cdff25ef7fe0a460f',
   })
   @IsMongoId()
   @IsNotEmpty()
-  initiatorId: string;
+  detentaire: string;
 
   @ApiProperty({
-    description: 'ID de l\'utilisateur propriétaire du produit (ayant-droit)',
+    description: 'ID de l\'ayant-droit (propriétaire légal du produit)',
     example: '69989c5cdff25ef7fe0a4611',
   })
   @IsMongoId()
   @IsNotEmpty()
-  ayantDroitId: string;
+  ayant_droit: string;
 
   @ApiProperty({
     description: 'ID du produit à retourner',
@@ -103,7 +103,7 @@ export class CreateReturnDto {
   })
   @IsMongoId()
   @IsNotEmpty()
-  originSiteId: string;
+  siteOrigineId: string;
 
   @ApiProperty({
     description: 'ID du site de destination (où on retourne le produit)',
@@ -111,7 +111,7 @@ export class CreateReturnDto {
   })
   @IsMongoId()
   @IsNotEmpty()
-  destinationSiteId: string;
+  siteDestinationId: string;
 
   @ApiProperty({
     description: 'Quantité à retourner',
@@ -120,7 +120,7 @@ export class CreateReturnDto {
   @IsNumber()
   @IsPositive()
   @IsNotEmpty()
-  quantity: number;
+  quantite: number;
 
   @ApiProperty({
     description: 'Prix unitaire du produit',
@@ -130,17 +130,34 @@ export class CreateReturnDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
-  unitPrice?: number;
+  prixUnitaire?: number;
+
+  @ApiProperty({
+    description: 'Observations ou notes sur le retour',
+    example: 'Retour effectué sans dommages',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  observations?: string;
 }
 
 export class CreateInitializationDto {
   @ApiProperty({
-    description: 'ID de l\'utilisateur qui initialise le stock',
+    description: 'ID du détentaire du produit',
     example: '69989c5cdff25ef7fe0a460f',
   })
   @IsMongoId()
   @IsNotEmpty()
-  initiatorId: string;
+  detentaire: string;
+
+  @ApiProperty({
+    description: 'ID de l\'ayant-droit (propriétaire légal)',
+    example: '69989c5cdff25ef7fe0a460f',
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  ayant_droit: string;
 
   @ApiProperty({
     description: 'ID du produit à initialiser',
@@ -156,7 +173,7 @@ export class CreateInitializationDto {
   })
   @IsMongoId()
   @IsNotEmpty()
-  siteId: string;
+  siteOrigineId: string;
 
   @ApiProperty({
     description: 'Quantité initiale',
@@ -165,7 +182,7 @@ export class CreateInitializationDto {
   @IsNumber()
   @IsPositive()
   @IsNotEmpty()
-  quantity: number;
+  quantite: number;
 
   @ApiProperty({
     description: 'Prix unitaire du produit',
@@ -175,7 +192,16 @@ export class CreateInitializationDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
-  unitPrice?: number;
+  prixUnitaire?: number;
+
+  @ApiProperty({
+    description: 'Observations ou notes sur l\'initialisation',
+    example: 'Stock initial établi',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  observations?: string;
 }
 
 export class ApproveTransactionDto {
@@ -185,15 +211,16 @@ export class ApproveTransactionDto {
   })
   @IsMongoId()
   @IsNotEmpty()
-  approverUserId: string;
+  approuveurId: string;
 
   @ApiProperty({
-    description: 'Notes additionnelles (facultatif)',
+    description: 'Observations additionnelles (facultatif)',
     example: 'Dépôt conforme',
     required: false,
   })
   @IsOptional()
-  notes?: string;
+  @IsString()
+  observations?: string;
 }
 
 export class RejectTransactionDto {
@@ -203,13 +230,13 @@ export class RejectTransactionDto {
   })
   @IsMongoId()
   @IsNotEmpty()
-  approverUserId: string;
+  approuveurId: string;
 
   @ApiProperty({
     description: 'Raison du rejet',
     example: 'Produit défectueux',
   })
   @IsNotEmpty()
-  @IsOptional()
-  rejectionReason: string;
+  @IsString()
+  motifRejet: string;
 }
