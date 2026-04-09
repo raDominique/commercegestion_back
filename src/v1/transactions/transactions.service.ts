@@ -1,12 +1,29 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { PaginationResult } from './../../shared/interfaces/pagination.interface';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ulid } from 'ulid';
-import { Transaction, TransactionDocument, TransactionType, TransactionStatus } from './transactions.schema';
-import { CreateDepositDto, CreateReturnDto, CreateInitializationDto, ApproveTransactionDto, RejectTransactionDto } from './dto/create-transaction.dto';
+import {
+  Transaction,
+  TransactionDocument,
+  TransactionType,
+  TransactionStatus,
+} from './transactions.schema';
+import {
+  CreateDepositDto,
+  CreateReturnDto,
+  CreateInitializationDto,
+  ApproveTransactionDto,
+  RejectTransactionDto,
+} from './dto/create-transaction.dto';
 import { ActifsService } from '../actifs/actifs.service';
 import { PassifsService } from '../passifs/passifs.service';
 import { MailService } from '../../shared/mail/mail.service';
+import { ProductService } from '../products/products.service';
 
 @Injectable()
 export class TransactionsService {
@@ -15,6 +32,7 @@ export class TransactionsService {
     private readonly transactionModel: Model<TransactionDocument>,
     private readonly actifsService: ActifsService,
     private readonly passifsService: PassifsService,
+    private readonly productService: ProductService,
     private readonly mailService: MailService,
   ) {}
 
@@ -35,8 +53,12 @@ export class TransactionsService {
   /**
    * Crée une transaction de dépôt
    * Le dépôt transfère un produit d'un utilisateur vers un autre
+   * Le déposant perd l'actif, le recevant gagne l'actif, et un passif est créé pour le recevant envers le déposant
+   * NOTE: Les mouvements d'actifs/passifs sont appliqués uniquement lors de l'approbation
    */
-  async createDeposit(createDepositDto: CreateDepositDto): Promise<TransactionDocument> {
+  async createDeposit(
+    createDepositDto: CreateDepositDto,
+  ): Promise<PaginationResult<TransactionDocument>> {
     const transactionNumber = this.generateTransactionNumber();
 
     const transaction = new this.transactionModel({
@@ -63,14 +85,21 @@ export class TransactionsService {
       console.error('Failed to send creation notification:', error);
     });
 
-    return savedTransaction;
+    return {
+      status: 'success',
+      message: 'Transaction de dépôt créée avec succès et en attente d\'approbation',
+      data: [savedTransaction],
+      total: 1,
+    };
   }
 
   /**
    * Crée une transaction de retour
    * Le retour transfère un produit du recevant au propriétaire
    */
-  async createReturn(createReturnDto: CreateReturnDto): Promise<TransactionDocument> {
+  async createReturn(
+    createReturnDto: CreateReturnDto,
+  ): Promise<PaginationResult<TransactionDocument>> {
     const transactionNumber = this.generateTransactionNumber();
 
     const transaction = new this.transactionModel({
@@ -97,13 +126,20 @@ export class TransactionsService {
       console.error('Failed to send creation notification:', error);
     });
 
-    return savedTransaction;
+    return {
+      status: 'success',
+      message: 'Transaction de retour créée avec succès et en attente d\'approbation',
+      data: [savedTransaction],
+      total: 1,
+    };
   }
 
   /**
    * Crée une transaction d'initialisation de stock
    */
-  async createInitialization(createInitDto: CreateInitializationDto): Promise<TransactionDocument> {
+  async createInitialization(
+    createInitDto: CreateInitializationDto,
+  ): Promise<PaginationResult<TransactionDocument>> {
     const transactionNumber = this.generateTransactionNumber();
 
     const transaction = new this.transactionModel({
@@ -129,7 +165,12 @@ export class TransactionsService {
       console.error('Failed to send creation notification:', error);
     });
 
-    return savedTransaction;
+    return {
+      status: 'success',
+      message: 'Transaction d\'initialisation créée avec succès et en attente d\'approbation',
+      data: [savedTransaction],
+      total: 1,
+    };
   }
 
   /**
@@ -139,7 +180,7 @@ export class TransactionsService {
   async approveTransaction(
     transactionId: string,
     approveDto: ApproveTransactionDto,
-  ): Promise<TransactionDocument> {
+  ): Promise<PaginationResult<TransactionDocument>> {
     const transaction = await this.transactionModel.findById(transactionId);
 
     if (!transaction) {
@@ -167,11 +208,18 @@ export class TransactionsService {
     await this.applyTransactionMovements(updatedTransaction);
 
     // Envoyer la notification d'approbation (fire-and-forget)
-    this.sendApprovalNotification(updatedTransaction, 'Admin').catch((error) => {
-      console.error('Failed to send approval notification:', error);
-    });
+    this.sendApprovalNotification(updatedTransaction, 'Admin').catch(
+      (error) => {
+        console.error('Failed to send approval notification:', error);
+      },
+    );
 
-    return updatedTransaction;
+    return {
+      status: 'success',
+      message: 'Transaction approuvée avec succès et mouvements appliqués',
+      data: [updatedTransaction],
+      total: 1,
+    };
   }
 
   /**
@@ -180,7 +228,7 @@ export class TransactionsService {
   async rejectTransaction(
     transactionId: string,
     rejectDto: RejectTransactionDto,
-  ): Promise<TransactionDocument> {
+  ): Promise<PaginationResult<TransactionDocument>> {
     const transaction = await this.transactionModel.findById(transactionId);
 
     if (!transaction) {
@@ -209,14 +257,21 @@ export class TransactionsService {
       console.error('Failed to send rejection notification:', error);
     });
 
-    return updatedTransaction;
+    return {
+      status: 'success',
+      message: 'Transaction rejetée avec succès',
+      data: [updatedTransaction],
+      total: 1,
+    };
   }
 
   /**
    * Applique les mouvements d'actifs et passifs
    * Appelle les services appropriés selon le type de transaction
    */
-  private async applyTransactionMovements(transaction: TransactionDocument): Promise<void> {
+  private async applyTransactionMovements(
+    transaction: TransactionDocument,
+  ): Promise<void> {
     switch (transaction.type) {
       case TransactionType.DEPOT:
         await this.applyDepositMovements(transaction);
@@ -235,7 +290,9 @@ export class TransactionsService {
    * Diminue l'actif du déposant, augmente l'actif du recevant
    * Crée un passif pour le recevant envers le déposant
    */
-  private async applyDepositMovements(transaction: TransactionDocument): Promise<void> {
+  private async applyDepositMovements(
+    transaction: TransactionDocument,
+  ): Promise<void> {
     try {
       const initiatorId = transaction.initiatorId.toString();
       const recipientId = transaction.recipientId.toString();
@@ -255,26 +312,29 @@ export class TransactionsService {
 
       // 2. Augmenter l'actif du recevant (recipient) au site de destination
       await this.actifsService.addOrIncreaseActif(
-        recipientId,           // userId: Propriétaire du bilan
-        destinationSiteId,     // depotId: Site physique
-        productId,             // productId: Le produit
-        quantity,              // quantite
-        unitPrice,             // prixUnitaire
-        recipientId,           // detentaireId: Qui garde le produit
-        initiatorId,           // ayantDroitId: Qui possède le produit (initiator garde la propriété légale)
+        recipientId, // userId: Propriétaire du bilan
+        destinationSiteId, // depotId: Site physique
+        productId, // productId: Le produit
+        quantity, // quantite
+        unitPrice, // prixUnitaire
+        recipientId, // detentaireId: Qui garde le produit
+        initiatorId, // ayantDroitId: Qui possède le produit (initiator garde la propriété légale)
       );
 
       // 3. Créer un passif pour le recevant envers le déposant
       // Le recevant doit la marchandise au déposant
       await this.passifsService.addOrIncreasePassif(
-        recipientId,           // detentaireId: Qui doit (le recevant)
-        destinationSiteId,     // depotId: Site du dépôt
-        productId,             // productId
-        quantity,              // quantite
-        initiatorId,           // creancierId: À qui il le doit (l'initiator/déposant)
+        recipientId, // detentaireId: Qui doit (le recevant)
+        destinationSiteId, // depotId: Site du dépôt
+        productId, // productId
+        quantity, // quantite
+        initiatorId, // creancierId: À qui il le doit (l'initiator/déposant)
       );
 
-      console.log('✅ Deposit movements applied for transaction:', transaction.transactionNumber);
+      console.log(
+        '✅ Deposit movements applied for transaction:',
+        transaction.transactionNumber,
+      );
     } catch (error) {
       console.error('❌ Error applying deposit movements:', error);
       throw error;
@@ -288,10 +348,12 @@ export class TransactionsService {
    * - Le recipient (propriétaire) regagne l'actif
    * - Le passif du recipient envers l'initiator est diminué/supprimé
    */
-  private async applyReturnMovements(transaction: TransactionDocument): Promise<void> {
+  private async applyReturnMovements(
+    transaction: TransactionDocument,
+  ): Promise<void> {
     try {
-      const initiatorId = transaction.initiatorId.toString();      // Qui retourne (détenteur)
-      const recipientId = transaction.recipientId.toString();      // Propriétaire (ayant-droit)
+      const initiatorId = transaction.initiatorId.toString(); // Qui retourne (détenteur)
+      const recipientId = transaction.recipientId.toString(); // Propriétaire (ayant-droit)
       const productId = transaction.productId.toString();
       const originSiteId = transaction.siteOrigineId.toString();
       const destinationSiteId = transaction.siteDestinationId.toString();
@@ -308,24 +370,27 @@ export class TransactionsService {
 
       // 2. Augmenter l'actif du recipient (propriétaire) au site de destination
       await this.actifsService.addOrIncreaseActif(
-        recipientId,           // userId: Propriétaire du bilan
-        destinationSiteId,     // depotId: Site physique
-        productId,             // productId: Le produit
-        quantity,              // quantite
-        unitPrice,             // prixUnitaire
-        recipientId,           // detentaireId: Qui garde le produit (maintenant le propriétaire)
-        recipientId,           // ayantDroitId: Qui possède le produit (le propriétaire)
+        recipientId, // userId: Propriétaire du bilan
+        destinationSiteId, // depotId: Site physique
+        productId, // productId: Le produit
+        quantity, // quantite
+        unitPrice, // prixUnitaire
+        recipientId, // detentaireId: Qui garde le produit (maintenant le propriétaire)
+        recipientId, // ayantDroitId: Qui possède le produit (le propriétaire)
       );
 
       // 3. Diminuer le passif du recipient envers l'initiator
       await this.passifsService.decreasePassifByCreditor(
-        recipientId,           // detentaireId: Qui devait (le recipient)
-        productId,             // productId
-        initiatorId,           // creancierId: À qui il devait (l'initiator/propriétaire)
-        quantity,              // quantite: Diminuer la dette
+        recipientId, // detentaireId: Qui devait (le recipient)
+        productId, // productId
+        initiatorId, // creancierId: À qui il devait (l'initiator/propriétaire)
+        quantity, // quantite: Diminuer la dette
       );
 
-      console.log('✅ Return movements applied for transaction:', transaction.transactionNumber);
+      console.log(
+        '✅ Return movements applied for transaction:',
+        transaction.transactionNumber,
+      );
     } catch (error) {
       console.error('❌ Error applying return movements:', error);
       throw error;
@@ -336,7 +401,9 @@ export class TransactionsService {
    * Applique les mouvements pour une initialisation
    * Crée un nouvel actif avec la quantité spécifiée
    */
-  private async applyInitializationMovements(transaction: TransactionDocument): Promise<void> {
+  private async applyInitializationMovements(
+    transaction: TransactionDocument,
+  ): Promise<void> {
     try {
       const initiatorId = transaction.initiatorId.toString();
       const productId = transaction.productId.toString();
@@ -346,18 +413,21 @@ export class TransactionsService {
 
       // 1. Créer un nouvel actif pour l'initiator
       await this.actifsService.addOrIncreaseActif(
-        initiatorId,           // userId: Propriétaire du bilan
-        siteId,                // depotId: Site d'initialisation
-        productId,             // productId: Le produit
-        quantity,              // quantite
-        unitPrice,             // prixUnitaire
-        initiatorId,           // detentaireId: Qui garde le produit
-        initiatorId,           // ayantDroitId: Qui possède le produit (lui-même)
+        initiatorId, // userId: Propriétaire du bilan
+        siteId, // depotId: Site d'initialisation
+        productId, // productId: Le produit
+        quantity, // quantite
+        unitPrice, // prixUnitaire
+        initiatorId, // detentaireId: Qui garde le produit
+        initiatorId, // ayantDroitId: Qui possède le produit (lui-même)
       );
 
       // 2. Pas de passif pour l'initialisation (c'est pour l'utilisateur lui-même)
 
-      console.log('✅ Initialization movements applied for transaction:', transaction.transactionNumber);
+      console.log(
+        '✅ Initialization movements applied for transaction:',
+        transaction.transactionNumber,
+      );
     } catch (error) {
       console.error('❌ Error applying initialization movements:', error);
       throw error;
@@ -371,7 +441,7 @@ export class TransactionsService {
     recipientId: string,
     page: number = 1,
     limit: number = 10,
-  ): Promise<{ data: TransactionDocument[]; total: number }> {
+  ): Promise<PaginationResult<TransactionDocument>> {
     const skip = (page - 1) * limit;
 
     const data = await this.transactionModel
@@ -382,7 +452,13 @@ export class TransactionsService {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate(['initiatorId', 'recipientId', 'productId', 'originSiteId', 'destinationSiteId'])
+      .populate([
+        'initiatorId',
+        'recipientId',
+        'productId',
+        'originSiteId',
+        'destinationSiteId',
+      ])
       .exec();
 
     const total = await this.transactionModel.countDocuments({
@@ -390,7 +466,14 @@ export class TransactionsService {
       status: TransactionStatus.PENDING,
     });
 
-    return { data, total };
+    return {
+      status: 'success',
+      message: 'Transactions en attente récupérées avec succès',
+      data,
+      page,
+      limit,
+      total,
+    };
   }
 
   /**
@@ -401,7 +484,7 @@ export class TransactionsService {
     page: number = 1,
     limit: number = 10,
     status?: TransactionStatus,
-  ): Promise<{ data: TransactionDocument[]; total: number }> {
+  ): Promise<PaginationResult<TransactionDocument>> {
     const skip = (page - 1) * limit;
     const query = {
       $or: [
@@ -419,44 +502,83 @@ export class TransactionsService {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate(['initiatorId', 'recipientId', 'productId', 'originSiteId', 'destinationSiteId'])
+      .populate([
+        'initiatorId',
+        'recipientId',
+        'productId',
+        'originSiteId',
+        'destinationSiteId',
+      ])
       .exec();
 
     const total = await this.transactionModel.countDocuments(query);
 
-    return { data, total };
+    return {
+      status: 'success',
+      message: 'Transactions utilisateur récupérées avec succès',
+      data,
+      page,
+      limit,
+      total,
+    };
   }
 
   /**
    * Récupère une transaction par ID
    */
-  async getTransactionById(transactionId: string): Promise<TransactionDocument> {
+  async getTransactionById(
+    transactionId: string,
+  ): Promise<PaginationResult<TransactionDocument>> {
     const transaction = await this.transactionModel
       .findById(transactionId)
-      .populate(['initiatorId', 'recipientId', 'productId', 'originSiteId', 'destinationSiteId'])
+      .populate([
+        'initiatorId',
+        'recipientId',
+        'productId',
+        'originSiteId',
+        'destinationSiteId',
+      ])
       .exec();
 
     if (!transaction) {
       throw new NotFoundException(`Transaction ${transactionId} not found`);
     }
 
-    return transaction;
+    return {
+      status: 'success',
+      message: 'Transaction récupérée avec succès',
+      data: [transaction],
+      total: 1,
+    };
   }
 
   /**
    * Récupère les transactions par numéro
    */
-  async getTransactionByNumber(transactionNumber: string): Promise<TransactionDocument> {
+  async getTransactionByNumber(
+    transactionNumber: string,
+  ): Promise<PaginationResult<TransactionDocument>> {
     const transaction = await this.transactionModel
       .findOne({ transactionNumber })
-      .populate(['initiatorId', 'recipientId', 'productId', 'originSiteId', 'destinationSiteId'])
+      .populate([
+        'initiatorId',
+        'recipientId',
+        'productId',
+        'originSiteId',
+        'destinationSiteId',
+      ])
       .exec();
 
     if (!transaction) {
       throw new NotFoundException(`Transaction ${transactionNumber} not found`);
     }
 
-    return transaction;
+    return {
+      status: 'success',
+      message: 'Transaction récupérée avec succès',
+      data: [transaction],
+      total: 1,
+    };
   }
 
   /**
@@ -466,7 +588,7 @@ export class TransactionsService {
     userId?: string,
     page: number = 1,
     limit: number = 20,
-  ): Promise<{ data: TransactionDocument[]; total: number }> {
+  ): Promise<PaginationResult<TransactionDocument>> {
     const skip = (page - 1) * limit;
     const query = { status: TransactionStatus.APPROVED };
 
@@ -482,12 +604,25 @@ export class TransactionsService {
       .sort({ approvedAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate(['initiatorId', 'recipientId', 'productId', 'originSiteId', 'destinationSiteId'])
+      .populate([
+        'initiatorId',
+        'recipientId',
+        'productId',
+        'originSiteId',
+        'destinationSiteId',
+      ])
       .exec();
 
     const total = await this.transactionModel.countDocuments(query);
 
-    return { data, total };
+    return {
+      status: 'success',
+      message: 'Transactions approuvées récupérées avec succès',
+      data,
+      page,
+      limit,
+      total,
+    };
   }
 
   /**
@@ -503,7 +638,7 @@ export class TransactionsService {
       const transactionType = this.getTransactionTypeLabel(transaction.type);
 
       // Récupérer les infos du destinataire de manière simple
-      // Pour l'instant, on utilise l'ID comme email (à améliorer)  
+      // Pour l'instant, on utilise l'ID comme email (à améliorer)
       const recipientEmail = `${transaction.recipientId}@app.local`;
 
       await this.mailService.notificationTransactionApproved(
@@ -516,9 +651,13 @@ export class TransactionsService {
         approverName,
       );
 
-      console.log(`✉️ Approval notification sent for transaction: ${transaction.transactionNumber}`);
+      console.log(
+        `✉️ Approval notification sent for transaction: ${transaction.transactionNumber}`,
+      );
     } catch (error) {
-      console.error(`⚠️ Failed to send approval notification: ${error.message}`);
+      console.error(
+        `⚠️ Failed to send approval notification: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
       // Ne pas throw pour ne pas bloquer l'approbation
     }
   }
@@ -550,9 +689,13 @@ export class TransactionsService {
         approverName,
       );
 
-      console.log(`✉️ Rejection notification sent for transaction: ${transaction.transactionNumber}`);
+      console.log(
+        `✉️ Rejection notification sent for transaction: ${transaction.transactionNumber}`,
+      );
     } catch (error) {
-      console.error(`⚠️ Failed to send rejection notification: ${error.message}`);
+      console.error(
+        `⚠️ Failed to send rejection notification: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
       // Ne pas throw pour ne pas bloquer le rejet
     }
   }
@@ -580,9 +723,13 @@ export class TransactionsService {
         transaction.transactionNumber,
       );
 
-      console.log(`✉️ Creation notification sent for transaction: ${transaction.transactionNumber}`);
+      console.log(
+        `✉️ Creation notification sent for transaction: ${transaction.transactionNumber}`,
+      );
     } catch (error) {
-      console.error(`⚠️ Failed to send creation notification: ${error.message}`);
+      console.error(
+        `⚠️ Failed to send creation notification: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
       // Ne pas throw pour ne pas bloquer la création
     }
   }
