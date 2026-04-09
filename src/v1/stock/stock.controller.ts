@@ -20,6 +20,65 @@ export class StockController {
   // ÉTAPES DE MOUVEMENTS (FLUX 0 À 12)
   // ==========================================
 
+  @Post('depot')
+  @Auth()
+  @ApiOperation({
+    summary: 'Dépôt initial de produit en stock (premier enregistrement)',
+    description: `Enregistre un mouvement DEPOT: première mise en stock d'un produit sur un site.
+
+Flux métier (Première Déposition):
+1. Propriétaire/détenteur crée un dépôt initial
+2. Sélectionne le produit et la quantité
+3. Désigne le site de destination (Hangar, Entrepôt, etc.)
+4. Valide les informations
+5. Mouvement type DEPOT enregistré
+6. Produit marqué automatiquement comme "EN STOCK" (isStocker = true)
+7. Actif créé pour le propriétaire
+8. Passif créé si dépôt chez un tiers (pas le propriétaire du site)
+
+Utilisation:
+- Première immatriculation d'un produit en stock
+- Initialisation de l'inventaire
+- Début du suivi de propriété
+- Création des registres actifs/passifs
+
+Champs requis:
+- productId: ID du produit à stocker
+- quantite: Quantité à stocker (minimum 1)
+- prixUnitaire: Prix unitaire du produit
+- siteDestinationId: Site de destination (Hangar, Entrepôt, etc.)
+- detentaire: (optionnel) Qui détient physiquement le produit
+- observations: (optionnel) Notes sur le dépôt
+
+Champs optionnels:
+- siteOrigineId: NULL pour dépôt initial (calculé automatiquement)
+
+Impact système après dépôt:
+- Produit.isStocker passe à TRUE
+- Création d'un Actif (ce que j'ai)
+- Création d'un Passif si tiers impliqué
+- Mouvement enregistré pour traçabilité
+- Notification des acteurs
+
+Validations:
+- Quantité > 0
+- Produit existe
+- Site destination existe
+- Prix unitaire >= 0
+
+Erreurs possibles:
+- 400: Quantité invalid ou paramètres manquants
+- 401: Non authentifié
+- 404: Produit ou site non trouvé`,
+  })
+  async createDeposit(@Body() dto: CreateMovementDto, @Req() req: any) {
+    return this.stockService.createMovement(
+      dto,
+      req.user.userId,
+      MovementType.DEPOT,
+    );
+  }
+
   @Post('transfer')
   @Auth()
   @ApiOperation({
