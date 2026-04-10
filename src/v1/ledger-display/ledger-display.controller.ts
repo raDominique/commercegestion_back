@@ -400,7 +400,7 @@ Comparaison avec PASSIFS:
 - Si Actifs < Passifs = risque d'insolvabilité
 - Ratio Actifs/Passifs = pouvoir de crédit
 
-Note: C'est une vue simplifiée de getUserLedger() mais avec UNIQUEMENT les actifs (sans passifs).
+Note: Retourne les actifs actuels avec pagination et recherche. Incluent les actifs créés par Stock Movement (ex: /depot) et Transactions.
 
 Erreurs possibles:
 - 401: Non authentifié
@@ -410,10 +410,31 @@ Erreurs possibles:
     name: 'userId',
     description: "ID unique (MongoDB ObjectId) de l'utilisateur",
   })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Numéro de page (défaut: 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Nombre d\'actifs par page (défaut: 10)',
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Recherche par productId ou depotId',
+    example: '69989c5cdff25ef7fe0a460f',
+  })
   @ApiResponse({
     status: 200,
     description:
-      "Mouvements d'actifs: tous les produits possédés par l'utilisateur",
+      "Mouvements d'actifs: tous les produits possédés par l'utilisateur avec pagination",
   })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
   @ApiResponse({
@@ -422,16 +443,28 @@ Erreurs possibles:
   })
   async getActifs(
     @Param('userId') userId: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('search') search?: string,
   ): Promise<PaginationResult<any>> {
     if (!userId) {
       throw new BadRequestException('userId is required');
     }
-    const ledger = await this.ledgerDisplayService.getUserLedger(userId);
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
+
+    const result = await this.ledgerDisplayService.getActifsWithPagination(
+      userId,
+      pageNum,
+      limitNum,
+      search,
+    );
+
     return {
       status: 'success',
-      message: `Mouvements d'actifs pour l'utilisateur ${userId}`,
-      data: ledger.movements.actifs,
-    };
+      message: `Actifs pour l'utilisateur ${userId} (page ${result.page}/${result.totalPages})`,
+      data: result.data,
+    } as any;
   }
 
   /**
