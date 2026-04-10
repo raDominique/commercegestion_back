@@ -521,4 +521,109 @@ export class LedgerDisplayService {
     }
     return 'Unknown User';
   }
+
+  /**
+   * Récupère les ACTIFS BRUTS (Stock Movement + Transaction) pour un utilisateur avec pagination et search
+   * Ceci affiche les actifs créés par TOUS les mouvements (Stock Movement + Transaction)
+   * C'est l'endpoint critique pour afficher les actifs du /stock/depot
+   */
+  async getActifsWithPagination(
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+  ): Promise<{
+    data: any[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const userIdObj = new Types.ObjectId(userId);
+    const skip = (page - 1) * limit;
+
+    // Construire le filtre pour la recherche
+    const filter: any = {
+      userId: userIdObj,
+      isActive: true, // Uniquement les actifs actifs (quantité > 0)
+    };
+
+    if (search) {
+      // Si search fourni, chercher par productId partiellement ou par autres champs
+      try {
+        // Essayer de chercher par ObjectId si c'est un ID valide
+        const searchObjId = new Types.ObjectId(search);
+        filter.$or = [
+          { productId: searchObjId },
+          { depotId: searchObjId },
+        ];
+      } catch {
+        // Sinon, ignorer si c'est pas un ObjectId valide
+      }
+    }
+
+    // Récupérer les actifs bruts avec pagination
+    const [actifs, total] = await Promise.all([
+      this.actifModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate([
+          {
+            path: 'productId',
+            select: 'productName codeCPC productImage prixUnitaire productVolume',
+          },
+          {
+            path: 'depotId',
+            select: 'siteName siteAddress location siteUserID',
+            populate: {
+              path: 'siteUserID',
+              select: 'userName userNickName',
+            },
+          },
+          {
+            path: 'detentaire',
+            select: 'userName userNickName userPhone',
+          },
+          {
+            path: 'ayant_droit',
+            select: 'userName userNickName userPhone',
+          },
+        ])
+        .lean()
+        .exec() as any,
+      this.actifModel.countDocuments(filter),
+    ]);
+
+    // Formater les données pour une meilleure lisibilité
+    const formattedActifs = (actifs || []).map((actif: any) => ({
+      id: actif._id,
+      productName: (actif.productId as any)?.productName || 'N/A',
+      productCode: (actif.productId as any)?.codeCPC || 'N/A',
+      productImage: (actif.productId as any)?.productImage || null,
+      quantite: actif.quantite,
+      prixUnitaire: actif.prixUnitaire,
+      valeurTotale: (actif.quantite || 0) * (actif.prixUnitaire || 0),
+      depot: (actif.depotId as any)?.siteName || 'N/A',
+      depotAdresse: (actif.depotId as any)?.siteAddress || 'N/A',
+      detentaire: (actif.detentaire as any)
+        ? `${(actif.detentaire as any).userName} (${(actif.detentaire as any).userNickName})`
+        : 'N/A',
+      ayantDroit: (actif.ayant_droit as any)
+        ? `${(actif.ayant_droit as any).userName} (${(actif.ayant_droit as any).userNickName})`
+        : 'N/A',
+      dateCreation: (actif as any).createdAt,
+      dateModification: (actif as any).updatedAt,
+      isActive: actif.isActive,
+    }));
+
+    return {
+      data: formattedActifs,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
 }
