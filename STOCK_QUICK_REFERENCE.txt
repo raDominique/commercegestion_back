@@ -1,0 +1,165 @@
+# 📋 Référence rapide - Endpoints Stock
+
+```
+╔════════════════════════════════════════════════════════════════════════════╗
+║                         ENDPOINTS STOCK SUMMARY                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+🔴 DEPOT (Première mise en stock)
+├─ Endpoint:     POST /api/v1/stock/depot
+├─ Quand:        Première immatriculation d'un produit
+├─ Création:     Actif ✅  Passif ✅ (si tiers)
+├─ Requis:       productId, quantite, prixUnitaire, siteDestinationId
+├─ Exemple URL:  POST http://localhost:5000/api/v1/stock/depot
+└─ Payload:
+   {
+     "productId": "xxx",
+     "quantite": 1000,
+     "prixUnitaire": 500,
+     "siteDestinationId": "yyy"
+   }
+
+🟡 TRANSFERT (Déplacement entre sites)
+├─ Endpoint:     POST /api/v1/stock/transfert
+├─ Quand:        Déplacement de stock A → B
+├─ Création:     Actif ✅ (déplacé)  Passif ❌
+├─ Requis:       productId, quantite, prixUnitaire, siteOrigineId, siteDestinationId
+├─ Exemple URL:  POST http://localhost:5000/api/v1/stock/transfert
+└─ Payload:
+   {
+     "productId": "xxx",
+     "quantite": 500,
+     "prixUnitaire": 500,
+     "siteOrigineId": "aaa",
+     "siteDestinationId": "bbb"
+   }
+
+🟢 RETRAIT (Sortie de stock)
+├─ Endpoint:     POST /api/v1/stock/retrait
+├─ Quand:        Vente, don, destruction
+├─ Création:     Actif ❌  Passif ❌
+├─ Requis:       productId, quantite, prixUnitaire, siteOrigineId, siteDestinationId
+├─ Exemple URL:  POST http://localhost:5000/api/v1/stock/retrait
+└─ Payload:
+   {
+     "productId": "xxx",
+     "quantite": 200,
+     "prixUnitaire": 500,
+     "siteOrigineId": "aaa",
+     "siteDestinationId": "aaa"
+   }
+
+🔵 VIREMENT (Changement propriétaire)
+├─ Endpoint:     POST /api/v1/stock/virement
+├─ Quand:        Changement de propriétaire
+├─ Création:     Actif ✅ (nouveau proprio)  Passif ✅ (si tiers détenteur)
+├─ Requis:       productId, quantite, prixUnitaire, siteDestinationId, ayant_droit
+├─ Exemple URL:  POST http://localhost:5000/api/v1/stock/virement
+└─ Payload:
+   {
+     "productId": "xxx",
+     "quantite": 1000,
+     "prixUnitaire": 600,
+     "siteDestinationId": "yyy",
+     "ayant_droit": "nouveau_proprio_id"
+   }
+
+════════════════════════════════════════════════════════════════════════════
+
+📊 LEDGER (Consulter les registres)
+├─ Actifs (ce que vous possédez):
+│  GET /api/v1/ledger/actifs/:userId?page=1&limit=10
+├─ Passifs (ce que vous devez):
+│  GET /api/v1/ledger/passifs/:userId?page=1&limit=10
+└─ Historique:
+   GET /api/v1/stock/history?page=1&limit=10&type=DEPOT
+
+════════════════════════════════════════════════════════════════════════════
+
+🔑 PARAMÈTRES OPTIONNELS (tous les endpoints)
+├─ detentaire:     Qui détient physiquement (défaut: proprio site)
+├─ ayant_droit:    Qui possède légalement (défaut: vous)
+└─ observations:   Notes additionnelles
+
+════════════════════════════════════════════════════════════════════════════
+
+⚙️ HEADERS REQUIS
+└─ Authorization: Bearer YOUR_ACCESS_TOKEN
+└─ Content-Type: application/json
+
+════════════════════════════════════════════════════════════════════════════
+
+📈 TABLEAU DE COHÉRENCE ACTIFS/PASSIFS
+
+Type          │ Détentaire │ Ayant-droit │ Création Actif │ Création Passif
+──────────────┼────────────┼─────────────┼────────────────┼─────────────────
+DEPOT         │ Param/Site │ Param/User  │ ✅ OUI         │ ✅ Si différent
+TRANSFERT     │ Param/Site │ Param/User  │ ✅ OUI         │ ✅ Si différent
+RETRAIT       │ -          │ -           │ ❌ NON         │ ❌ NON
+VIREMENT      │ Param/Site │ Nouveau     │ ✅ OUI         │ ✅ Si différent
+
+════════════════════════════════════════════════════════════════════════════
+
+✅ SUCCESS = Status 201 Created
+   Response:
+   {
+     "_id": "507f...",
+     "type": "DEPOT",
+     "quantite": 1000,
+     "createdAt": "2026-04-10T12:30:00Z"
+   }
+
+❌ ERROR = Status 400/401/404
+   Response:
+   {
+     "statusCode": 400,
+     "message": "Quantité doit être > 0",
+     "error": "Bad Request"
+   }
+
+════════════════════════════════════════════════════════════════════════════
+
+🧪 TESTER MAINTENANT
+
+Via Swagger: http://localhost:5000/swagger
+   → Chercher "Stocks & Mouvements"
+   → Click "Try it out"
+
+Via cURL:
+   curl -X POST http://localhost:5000/api/v1/stock/depot \
+     -H "Authorization: Bearer TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"productId":"ID","quantite":100,"prixUnitaire":500,"siteDestinationId":"ID"}'
+
+════════════════════════════════════════════════════════════════════════════
+
+📚 DOCUMENTATION COMPLÈTE
+
+→ QUICK_START_STOCK.md ........... Démarrage rapide (5 min)
+→ STOCK_ENDPOINTS_GUIDE.md ....... Guide complet avec exemples métier (30 min)
+→ MOVEMENT_APPLICATION_GUIDE.md .. Guide des mouvements comptables (15 min)
+
+════════════════════════════════════════════════════════════════════════════
+
+💡 RÈGLE D'OR
+
+   SI détentaire ≠ ayant-droit ALORS passif créé
+   SINON aucun passif (c'est ton propre stock)
+
+════════════════════════════════════════════════════════════════════════════
+```
+
+## Choix rapide: Quel endpoint?
+
+```
+┌─ Je mets en stock pour la 1ère fois?     → DEPOT
+├─ Je déplace du stock entre deux sites?   → TRANSFERT
+├─ Je vends / retire du stock?             → RETRAIT
+└─ Je change le propriétaire?              → VIREMENT
+```
+
+---
+
+**Version:** v1.0  
+**Dernière mise à jour:** 2026-04-10  
+**Statut:** ✅ Complet & Testé

@@ -7,6 +7,7 @@ import { ActifsModule } from '../actifs/actifs.module';
 import { PassifsModule } from '../passifs/passifs.module';
 import { SharedModule } from '../../shared/shared.module';
 import { ProductsModule } from '../products/products.module';
+import { StockModule } from '../stock/stock.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ProductsModule } from '../products/products.module';
     PassifsModule,
     SharedModule,
     ProductsModule,
+    StockModule,
   ],
   controllers: [TransactionsController],
   providers: [TransactionsService],

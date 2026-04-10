@@ -24,6 +24,8 @@ import { ActifsService } from '../actifs/actifs.service';
 import { PassifsService } from '../passifs/passifs.service';
 import { MailService } from '../../shared/mail/mail.service';
 import { ProductService } from '../products/products.service';
+import { StockService } from '../stock/stock.service';
+import { MovementType } from '../stock/stock-movement.schema';
 
 @Injectable()
 export class TransactionsService {
@@ -34,6 +36,7 @@ export class TransactionsService {
     private readonly passifsService: PassifsService,
     private readonly productService: ProductService,
     private readonly mailService: MailService,
+    private readonly stockService: StockService,
   ) {}
 
   /**
@@ -286,54 +289,53 @@ export class TransactionsService {
   }
 
   /**
-   * Applique les mouvements pour un dépôt
-   * Diminue l'actif du déposant, augmente l'actif du recevant
-   * Crée un passif pour le recevant envers le déposant
+   * Applique les mouvements pour un dépôt en créant un StockMovement
+   * SOLUTION 1: Utilise StockService pour une source de vérité unique
+   * 
+   * Flux:
+   * 1. Transaction approuvée
+   * 2. Crée un StockMovement type DEPOT
+   * 3. StockMovement crée les actifs/passifs et marque isStocker=true
+   * 
+   * Avantages:
+   * - Une SOURCE DE VÉRITÉ (StockMovement)
+   * - Traçabilité complète (Transaction + StockMovement lié)
+   * - Pas de doublons
+   * - Facile à audit/debug
    */
   private async applyDepositMovements(
     transaction: TransactionDocument,
   ): Promise<void> {
     try {
-      const initiatorId = transaction.initiatorId.toString();
-      const recipientId = transaction.recipientId.toString();
-      const productId = transaction.productId.toString();
-      const originSiteId = transaction.siteOrigineId.toString();
-      const destinationSiteId = transaction.siteDestinationId.toString();
-      const quantity = transaction.quantite;
-      const unitPrice = transaction.prixUnitaire || 0;
+      // Construire un DTO pour StockMovement
+      const movementDto = {
+        siteOrigineId: transaction.siteOrigineId?.toString(),
+        siteDestinationId: transaction.siteDestinationId.toString(),
+        productId: transaction.productId.toString(),
+        quantite: transaction.quantite,
+        prixUnitaire: transaction.prixUnitaire || 0,
+        detentaire: transaction.recipientId?.toString(),
+        ayant_droit: transaction.initiatorId?.toString(),
+        observations: `Transaction DEPOT #${transaction.transactionNumber} approuvée`,
+      };
 
-      // 1. Diminuer l'actif du déposant (initiator) au site d'origine
-      await this.actifsService.decreaseActif(
-        initiatorId,
-        originSiteId,
-        productId,
-        quantity,
+      // Appeler StockService pour créer le mouvement
+      // Cela crée les actifs/passifs automatiquement
+      const stockMovement = await this.stockService.createMovement(
+        movementDto as any,
+        transaction.initiatorId.toString(),
+        MovementType.DEPOT,
       );
 
-      // 2. Augmenter l'actif du recevant (recipient) au site de destination
-      await this.actifsService.addOrIncreaseActif(
-        recipientId, // userId: Propriétaire du bilan
-        destinationSiteId, // depotId: Site physique
-        productId, // productId: Le produit
-        quantity, // quantite
-        unitPrice, // prixUnitaire
-        recipientId, // detentaireId: Qui garde le produit
-        initiatorId, // ayantDroitId: Qui possède le produit (initiator garde la propriété légale)
-      );
-
-      // 3. Créer un passif pour le recevant envers le déposant
-      // Le recevant doit la marchandise au déposant
-      await this.passifsService.addOrIncreasePassif(
-        recipientId, // detentaireId: Qui doit (le recevant)
-        destinationSiteId, // depotId: Site du dépôt
-        productId, // productId
-        quantity, // quantite
-        initiatorId, // creancierId: À qui il le doit (l'initiator/déposant)
-      );
+      // Lier la Transaction au StockMovement créé
+      transaction.linkedStockMovementId = stockMovement._id;
+      await transaction.save();
 
       console.log(
-        '✅ Deposit movements applied for transaction:',
+        '✅ Deposit movements applied via StockMovement for transaction:',
         transaction.transactionNumber,
+        'Movement ID:',
+        stockMovement._id,
       );
     } catch (error) {
       console.error('❌ Error applying deposit movements:', error);
