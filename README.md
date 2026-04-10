@@ -243,7 +243,9 @@ Pour une compréhension approfondie de l'API, consultez les guides suivants :
 
 | Guide | Description |
 |-------|-------------|
+| [⚡ QUICK_START_STOCK.md](./QUICK_START_STOCK.md) | **Démarrage ultra-rapide (5 min)** - Les 4 endpoints Stock et comment les utiliser tout de suite |
 | [📦 STOCK_ENDPOINTS_GUIDE.md](./STOCK_ENDPOINTS_GUIDE.md) | **Guide complet des endpoints Stock** - Quand utiliser DEPOT, TRANSFERT, RETRAIT, VIREMENT avec exemples métier et paramètres détaillés |
+| [🔄 STOCK_VS_TRANSACTIONS.md](./STOCK_VS_TRANSACTIONS.md) | **Différence Stock vs Transactions** - Comprendre quand utiliser `/stock/depot` (immédiat) vs `/transactions/deposit` (formel avec approbation) |
 | [💳 MOVEMENT_APPLICATION_GUIDE.md](./MOVEMENT_APPLICATION_GUIDE.md) | Guide des mouvements et flux de transactions appliquées avec exemples comptables |
 | [📊 TRANSACTIONS_LEDGER_GUIDE.md](./TRANSACTIONS_LEDGER_GUIDE.md) | Guide de gestion des transactions et des registres comptables |
 | [📋 STOCKMOVEMENT_VS_TRANSACTIONS.md](./STOCKMOVEMENT_VS_TRANSACTIONS.md) | Comparaison détaillée entre Stock Movement (immédiat) et Transactions (approuvé) |
