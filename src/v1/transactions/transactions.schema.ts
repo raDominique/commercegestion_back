@@ -92,6 +92,10 @@ export class Transaction {
   @Prop({ type: String, default: null })
   observations: string; // Observations ou notes sur la transaction
 
+  // SOLUTION 1: Lien vers StockMovement créé à l'approbation
+  @Prop({ type: Types.ObjectId, ref: 'StockMovement', default: null, index: true })
+  linkedStockMovementId: Types.ObjectId; // Référence au StockMovement créé lors de l'approbation
+
   // Métadonnées
   @Prop({ type: Object, default: {} })
   metadata: Record<string, any>; // Données additionnelles (notes, pièces jointes, etc.)

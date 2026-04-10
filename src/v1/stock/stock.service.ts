@@ -138,23 +138,37 @@ export class StockService {
     userId: string,
     siteDestOwnerId: string,
   ): Promise<void> {
+    // Utiliser les détenteur et ayant-droit fournis, sinon utiliser les defaults
+    // IMPORTANT: Cette logique est critique pour la cohérence Actifs/Passifs
+    
+    // Détenteur: qui garde physiquement le produit
+    // Default: propriétaire du site de destination
+    const detentaireId = dto.detentaire || siteDestOwnerId;
+    
+    // Ayant-droit: qui possède légalement le produit
+    // Default: l'utilisateur qui effectue le dépôt (userId)
+    const ayantDroitId = dto.ayant_droit || userId;
+
+    // Créer l'actif pour le propriétaire avec les détenteur et ayant-droit spécifiés
     await this.actifsService.addOrIncreaseActif(
-      userId,
+      ayantDroitId, // userId (propriétaire du bilan)
       dto.siteDestinationId,
       dto.productId,
       dto.quantite,
       dto.prixUnitaire,
-      siteDestOwnerId,
-      userId,
+      detentaireId, // Qui garde physiquement
+      ayantDroitId, // Qui possède légalement
     );
 
-    if (userId !== siteDestOwnerId) {
+    // Créer un passif si le détenteur n'est pas le propriétaire
+    // Le détenteur doit le produit au propriétaire
+    if (detentaireId !== ayantDroitId) {
       await this.passifsService.addOrIncreasePassif(
-        siteDestOwnerId,
+        detentaireId, // Le débiteur (celui qui détient)
         dto.siteDestinationId,
         dto.productId,
         dto.quantite,
-        userId,
+        ayantDroitId, // Le créancier (propriétaire)
       );
     }
   }
@@ -168,7 +182,22 @@ export class StockService {
       throw new Error("Le site d'origine est requis.");
     }
 
-    // 1. Sortie de l'actif
+    // IMPORTANT: Logger les détentaire/ayant-droit pour debug
+    this.loggerService.debug(
+      'ProcessTransferOrWithdraw',
+      `Original detentaire=${dto.detentaire}, ayant_droit=${dto.ayant_droit}`,
+    );
+
+    // Récupérer le détentaire et ayant-droit de l'origine
+    const siteOrigineOwnerId = siteOrigine.siteUserID._id
+      ? siteOrigine.siteUserID._id.toString()
+      : siteOrigine.siteUserID.toString();
+
+    // Détentaire du site origine (qui garde le produit) - par défaut le proprio du site
+    // Ayant-droit - par défaut l'utilisateur qui demande le transfert
+    // MAIS: on doit récupérer ces infos du produit actif existant pour maintenir la cohérence
+
+    // 1. Sortie de l'actif (diminuer du site origine)
     await this.actifsService.decreaseActif(
       userId,
       dto.siteOrigineId,
@@ -176,42 +205,42 @@ export class StockService {
       dto.quantite,
     );
 
-    // 2. Diminution du passif chez le gestionnaire du site d'origine
-    if (siteOrigine?.siteUserID) {
-      const siteOrigineOwnerId = siteOrigine.siteUserID._id
-        ? siteOrigine.siteUserID._id.toString()
-        : siteOrigine.siteUserID.toString();
-
-      // Si le proprio de la marchandise n'est pas le proprio du hangar,
-      // le hangar a une dette (passif) qui diminue.
-      if (userId !== siteOrigineOwnerId) {
-        await this.passifsService.decreasePassif(
-          siteOrigineOwnerId,
-          dto.productId,
-          dto.quantite,
-        );
-      }
+    // 2. Diminution du passif chez le détenteur du site d'origine
+    // Si le site possédait le produit initialement (endettement envers userId)
+    if (userId !== siteOrigineOwnerId) {
+      await this.passifsService.decreasePassifByCreditor(
+        siteOrigineOwnerId,
+        dto.productId,
+        userId,
+        dto.quantite,
+      );
     }
 
     // 3. Cas du TRANSFERT (si on déplace vers un autre site)
     if (MovementType.TRANSFERT) {
+      // Respecter les paramètres dto si fournis, sinon utiliser les defaults
+      const detentaireId = dto.detentaire || siteDestOwnerId;
+      const ayantDroitId = dto.ayant_droit || userId;
+
+      // Créer l'actif au site destination
       await this.actifsService.addOrIncreaseActif(
-        userId,
+        ayantDroitId, // Propriétaire
         dto.siteDestinationId,
         dto.productId,
         dto.quantite,
         dto.prixUnitaire,
-        siteDestOwnerId,
-        userId,
+        detentaireId, // Qui garde physiquement
+        ayantDroitId, // Qui possède légalement
       );
 
-      if (userId !== siteDestOwnerId) {
+      // Créer le passif si détentaire ≠ ayant-droit
+      if (detentaireId !== ayantDroitId) {
         await this.passifsService.addOrIncreasePassif(
-          siteDestOwnerId,
+          detentaireId,
           dto.siteDestinationId,
           dto.productId,
           dto.quantite,
-          userId,
+          ayantDroitId,
         );
       }
     }
@@ -231,6 +260,16 @@ export class StockService {
       );
     }
 
+    // IMPORTANT: Virement = transfert de propriété légale (ayant-droit)
+    // Le détentaire physique peut rester le même (par défaut du site ou fourni)
+    const detentaireId = dto.detentaire || siteDestOwnerId;
+
+    this.loggerService.debug(
+      'ProcessVirement',
+      `Old proprietaire=${ancienProprietaire}, New proprietaire=${nouveauProprietaire}, Detentaire=${detentaireId}`,
+    );
+
+    // 1. Retirer l'actif de l'ancien propriétaire
     await this.actifsService.decreaseActif(
       ancienProprietaire,
       dto.siteDestinationId,
@@ -238,23 +277,28 @@ export class StockService {
       dto.quantite,
     );
 
+    // 2. Ajouter l'actif au nouveau propriétaire avec le même détentaire
     await this.actifsService.addOrIncreaseActif(
       nouveauProprietaire,
       dto.siteDestinationId,
       dto.productId,
       dto.quantite,
       dto.prixUnitaire,
-      siteDestOwnerId,
-      nouveauProprietaire,
+      detentaireId, // Qui garde physiquement (peut changer ou rester le même)
+      nouveauProprietaire, // Le nouveau propriétaire
     );
 
-    await this.passifsService.updateCreancier(
-      siteDestOwnerId,
-      dto.productId,
-      dto.quantite,
-      ancienProprietaire,
-      nouveauProprietaire,
-    );
+    // 3. Transfert de créance entre ancienProprietaire et nouveauProprietaire
+    // Si le détentaire n'est pas le propriétaire, la dette change de créancier
+    if (detentaireId !== ancienProprietaire || detentaireId !== nouveauProprietaire) {
+      await this.passifsService.updateCreancier(
+        detentaireId,
+        dto.productId,
+        dto.quantite,
+        ancienProprietaire,
+        nouveauProprietaire,
+      );
+    }
   }
 
   async getHistory(userId: string, query: any): Promise<any> {
