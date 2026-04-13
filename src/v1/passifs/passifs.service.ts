@@ -162,4 +162,27 @@ export class PassifsService {
 
     return passif;
   }
+
+  /**
+   * Récupère tous les passifs d'un site sans pagination - pour utilisation en select
+   * Retourne: quantité, nom du produit et id du produit
+   */
+  async getAllPassifsByIdSite(siteId: string) {
+    return this.passifModel
+      .find({
+        depotId: new Types.ObjectId(siteId),
+        isActive: true,
+        quantite: { $gt: 0 },
+      })
+      .populate('productId', 'productName _id')
+      .select('quantite productId')
+      .exec()
+      .then((passifs) =>
+        passifs.map((p) => ({
+          quantite: p.quantite,
+          productId: (p.productId as any)?._id,
+          productName: (p.productId as any)?.productName,
+        })),
+      );
+  }
 }

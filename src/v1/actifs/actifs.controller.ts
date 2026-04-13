@@ -221,4 +221,46 @@ Erreurs possibles:
   async getShopProducts(@Query() query: any) {
     return this.actifsService.getAvailableValidatedProducts(query);
   }
+
+  @Get('all-by-site/:siteId')
+  @Auth()
+  @ApiOperation({
+    summary: 'Récupère tous les actifs d\'un site pour un select2',
+    description: `Récupère tous les actifs disponibles sur un site sans pagination.
+    
+Retourne:
+- quantité: Quantité disponible
+- productId: ID du produit
+- productName: Nom du produit
+
+Utilisation: Remplir des listes déroulantes (select2)
+
+Conditions:
+- Site valide
+- Actifs actifs (isActive = true)
+- Quantité > 0`,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste de tous les actifs du site',
+    schema: {
+      example: [
+        {
+          quantite: 500,
+          productId: '507f1f77bcf86cd799439030',
+          productName: 'Ciment Portland 42,5',
+        },
+        {
+          quantite: 1000,
+          productId: '507f1f77bcf86cd799439031',
+          productName: 'Gravier 0-20 mm',
+        },
+      ],
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  @ApiResponse({ status: 404, description: 'Site non trouvé' })
+  async getAllActifsByIdSite(@Param('siteId') siteId: string) {
+    return this.actifsService.getAllActifsByIdSite(siteId);
+  }
 }
