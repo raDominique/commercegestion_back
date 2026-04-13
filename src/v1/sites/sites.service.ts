@@ -300,4 +300,24 @@ export class SiteService {
       data: formattedData,
     };
   }
+
+  /**
+   * Récupère tous les sites d'un utilisateur donné
+   */
+  async getAllSitesByUserId(userId: string): Promise<any> {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('ID utilisateur invalide');
+    }
+
+    const sites = await this.siteModel
+      .find({ siteUserID: new Types.ObjectId(userId) })
+      .select('siteName siteAddress _id')
+      .exec();
+
+    return {
+      status: 'success',
+      message: 'Sites de l\'utilisateur récupérés',
+      data: sites,
+    };
+  }
 }
