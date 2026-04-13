@@ -90,7 +90,8 @@ export class TransactionsService {
 
     return {
       status: 'success',
-      message: 'Transaction de dépôt créée avec succès et en attente d\'approbation',
+      message:
+        "Transaction de dépôt créée avec succès et en attente d'approbation",
       data: [savedTransaction],
       total: 1,
     };
@@ -131,7 +132,8 @@ export class TransactionsService {
 
     return {
       status: 'success',
-      message: 'Transaction de retour créée avec succès et en attente d\'approbation',
+      message:
+        "Transaction de retour créée avec succès et en attente d'approbation",
       data: [savedTransaction],
       total: 1,
     };
@@ -142,6 +144,7 @@ export class TransactionsService {
    */
   async createInitialization(
     createInitDto: CreateInitializationDto,
+    userId: string,
   ): Promise<PaginationResult<TransactionDocument>> {
     const transactionNumber = this.generateTransactionNumber();
 
@@ -149,14 +152,14 @@ export class TransactionsService {
       transactionNumber,
       type: TransactionType.INITIALISATION,
       status: TransactionStatus.PENDING,
-      initiatorId: new Types.ObjectId(createInitDto.ayant_droit),
+      initiatorId: new Types.ObjectId(userId),
       productId: new Types.ObjectId(createInitDto.productId),
       siteOrigineId: new Types.ObjectId(createInitDto.siteOrigineId),
       siteDestinationId: new Types.ObjectId(createInitDto.siteOrigineId),
       quantite: createInitDto.quantite,
       prixUnitaire: createInitDto.prixUnitaire || null,
-      detentaire: new Types.ObjectId(createInitDto.detentaire),
-      ayant_droit: new Types.ObjectId(createInitDto.ayant_droit),
+      detentaire: new Types.ObjectId(userId),
+      ayant_droit: new Types.ObjectId(userId),
       observations: createInitDto.observations || null,
       isActive: true,
     });
@@ -170,7 +173,8 @@ export class TransactionsService {
 
     return {
       status: 'success',
-      message: 'Transaction d\'initialisation créée avec succès et en attente d\'approbation',
+      message:
+        "Transaction d'initialisation créée avec succès et en attente d'approbation",
       data: [savedTransaction],
       total: 1,
     };
@@ -291,12 +295,12 @@ export class TransactionsService {
   /**
    * Applique les mouvements pour un dépôt en créant un StockMovement
    * SOLUTION 1: Utilise StockService pour une source de vérité unique
-   * 
+   *
    * Flux:
    * 1. Transaction approuvée
    * 2. Crée un StockMovement type DEPOT
    * 3. StockMovement crée les actifs/passifs et marque isStocker=true
-   * 
+   *
    * Avantages:
    * - Une SOURCE DE VÉRITÉ (StockMovement)
    * - Traçabilité complète (Transaction + StockMovement lié)
