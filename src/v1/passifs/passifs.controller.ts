@@ -65,4 +65,46 @@ Création d\'un passif:\nUn passif est créé quand:\n1. Je REÇOIS un DÉPÔT: 
   async findOne(@Param('id') id: string) {
     return this.passifsService.getPassifDetails(id);
   }
+
+  @Get('all-by-site/:siteId')
+  @Auth()
+  @ApiOperation({
+    summary: 'Récupère tous les passifs d\'un site pour un select2',
+    description: `Récupère tous les passifs (dettes) disponibles sur un site sans pagination.
+    
+Retourne:
+- quantite: Quantité due/restante
+- productId: ID du produit
+- productName: Nom du produit
+
+Utilisation: Remplir des listes déroulantes (select2) pour les dettes
+
+Conditions:
+- Site valide
+- Passifs actifs (isActive = true)
+- Quantité > 0`,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste de tous les passifs du site',
+    schema: {
+      example: [
+        {
+          quantite: 300,
+          productId: '507f1f77bcf86cd799439030',
+          productName: 'Ciment Portland 42,5',
+        },
+        {
+          quantite: 500,
+          productId: '507f1f77bcf86cd799439031',
+          productName: 'Gravier 0-20 mm',
+        },
+      ],
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  @ApiResponse({ status: 404, description: 'Site non trouvé' })
+  async getAllPassifsByIdSite(@Param('siteId') siteId: string) {
+    return this.passifsService.getAllPassifsByIdSite(siteId);
+  }
 }

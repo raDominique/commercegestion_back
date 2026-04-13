@@ -266,4 +266,27 @@ export class ActifsService {
       limit: Number(limit),
     };
   }
+
+  /**
+   * Récupère tous les actifs d'un site sans pagination - pour utilisation en select
+   * Retourne: quantité, nom du produit et id du produit
+   */
+  async getAllActifsByIdSite(siteId: string) {
+    return this.actifModel
+      .find({
+        depotId: new Types.ObjectId(siteId),
+        isActive: true,
+        quantite: { $gt: 0 },
+      })
+      .populate('productId', 'productName _id')
+      .select('quantite productId')
+      .exec()
+      .then((actifs) =>
+        actifs.map((a) => ({
+          quantite: a.quantite,
+          productId: (a.productId as any)?._id,
+          productName: (a.productId as any)?.productName,
+        })),
+      );
+  }
 }
