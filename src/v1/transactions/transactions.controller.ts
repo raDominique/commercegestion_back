@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -193,8 +194,6 @@ Utilisation:
 Champs requis:
 - productId: ID du produit
 - quantite: Quantité à initialiser (strictement positive)
-- detentaire: ID du détentaire
-- ayant_droit: ID de l'ayant-droit
 - siteOrigineId: Site d'initialisation
 - prixUnitaire: (optionnel) Prix unitaire
 - observations: (optionnel) Observations
@@ -231,8 +230,8 @@ Erreurs possibles:
     description: 'Paramètres invalides ou quantité négative',
   })
   @ApiBody({ type: CreateInitializationDto })
-  async createInitialization(@Body() createInitDto: CreateInitializationDto) {
-    return this.transactionsService.createInitialization(createInitDto);
+  async createInitialization(@Req() req: any, @Body() createInitDto: CreateInitializationDto) {
+    return this.transactionsService.createInitialization(createInitDto, req.user.userId);
   }
 
   /**
