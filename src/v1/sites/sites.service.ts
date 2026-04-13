@@ -4,6 +4,7 @@ import {
   BadRequestException,
   forwardRef,
   Inject,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -302,18 +303,47 @@ export class SiteService {
   }
 
   /**
-   * Récupère tous les sites d'un utilisateur donné
+   * Récupère tous les sites d'un utilisateur donné avec gestion des erreurs
    */
   async getAllSitesByUserId(userId: string): Promise<any> {
-    const sites = await this.siteModel
-      .find({ siteUserID: new Types.ObjectId(userId) })
-      .select('siteName siteAddress _id')
-      .exec();
+    // 1. Validation de base (optionnel si géré par un Pipe)
+    if (!userId) {
+      throw new BadRequestException("L'ID de l'utilisateur est requis");
+    }
 
-    return {
-      status: 'success',
-      message: 'Sites de l\'utilisateur récupérés',
-      data: sites,
-    };
+    try {
+      const sites = await this.siteModel
+        .find({ siteUserID: userId })
+        .select('siteName siteAddress _id')
+        .lean() // Utilisation de .lean() pour de meilleures performances (retourne du JSON pur)
+        .exec();
+
+      // 2. Cas où aucun site n'est trouvé (dépend de votre logique métier)
+      if (!sites || sites.length === 0) {
+        return {
+          status: 'success',
+          message: 'Aucun site trouvé pour cet utilisateur',
+          data: [],
+        };
+      }
+
+      return {
+        status: 'success',
+        message: "Sites de l'utilisateur récupérés avec succès",
+        data: sites,
+      };
+    } catch (error: any) {
+      // 3. Gestion des erreurs de format d'ID Mongoose (CastError)
+      if (error.name === 'CastError') {
+        throw new BadRequestException(
+          `Format de l'ID utilisateur invalide : ${userId}`,
+        );
+      }
+
+      // 4. Erreur générique (Problème de connexion DB, etc.)
+      throw new InternalServerErrorException(
+        'Une erreur est survenue lors de la récupération des sites',
+      );
+    }
   }
 }
