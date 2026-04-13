@@ -154,4 +154,36 @@ export class SiteController {
     const sites = await this.siteService.findAllSelect();
     return sites;
   }
+
+  /* ===================== FIND ALL BY USER ID ===================== */
+  @Get('by-user/:userId')
+  @ApiOperation({ summary: 'Récupérer tous les sites d\'un utilisateur' })
+  @ApiParam({ name: 'userId', description: 'ID de l\'utilisateur' })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des sites de l\'utilisateur',
+    schema: {
+      example: {
+        status: 'success',
+        message: 'Sites de l\'utilisateur récupérés',
+        data: [
+          {
+            _id: '507f1f77bcf86cd799439100',
+            siteName: 'Dépôt Principal',
+            siteAddress: 'Rue de la Paix, Antananarivo',
+          },
+          {
+            _id: '507f1f77bcf86cd799439101',
+            siteName: 'Hangar Secondaire',
+            siteAddress: 'Rue du Commerce, Antsirabe',
+          },
+        ],
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'ID utilisateur invalide' })
+  @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
+  async getAllSitesByUserId(@Param('userId') userId: string) {
+    return this.siteService.getAllSitesByUserId(userId);
+  }
 }
