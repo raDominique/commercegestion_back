@@ -682,7 +682,7 @@ export class TransactionsService {
       const transactionType = this.getTransactionTypeLabel(transaction.type);
 
       // Récupérer les infos du destinataire de manière simple
-      const recipientEmail = `${transaction.recipientId}@app.local`;
+      const recipientEmail = `${transaction.recipientId}`;
 
       await this.mailService.notificationTransactionRejected(
         recipientEmail,

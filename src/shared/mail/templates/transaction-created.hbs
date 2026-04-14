@@ -1,0 +1,224 @@
+<html lang='fr'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>Nouvelle transaction créée</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial, sans-serif;
+        background-color: #f4f7fa;
+        padding: 20px;
+      }
+
+      .email-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .header {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        padding: 40px 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        color: #ffffff;
+        font-size: 28px;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+
+      .header p {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 16px;
+      }
+
+      .content {
+        padding: 40px 30px;
+      }
+
+      .greeting {
+        font-size: 18px;
+        color: #1a202c;
+        margin-bottom: 24px;
+        line-height: 1.6;
+      }
+
+      .message {
+        font-size: 15px;
+        color: #4a5568;
+        line-height: 1.8;
+        margin-bottom: 24px;
+      }
+
+      .transaction-details {
+        background-color: #f7fafc;
+        border-left: 4px solid #28a745;
+        padding: 16px;
+        margin: 24px 0;
+        border-radius: 4px;
+      }
+
+      .detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        font-size: 14px;
+        color: #4a5568;
+        border-bottom: 1px solid #e2e8f0;
+      }
+
+      .detail-row:last-child {
+        border-bottom: none;
+      }
+
+      .detail-label {
+        font-weight: 600;
+        color: #2d3748;
+      }
+
+      .detail-value {
+        color: #4a5568;
+        text-align: right;
+      }
+
+      .button-container {
+        text-align: center;
+        margin: 32px 0;
+      }
+
+      .button {
+        display: inline-block;
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: #ffffff;
+        padding: 14px 40px;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 16px;
+        transition: all 0.3s ease;
+      }
+
+      .button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+      }
+
+      .footer {
+        border-top: 1px solid #e2e8f0;
+        margin-top: 32px;
+        padding-top: 24px;
+        font-size: 12px;
+        color: #718096;
+        text-align: center;
+        line-height: 1.8;
+      }
+
+      .footer-link {
+        color: #28a745;
+        text-decoration: none;
+      }
+
+      .footer-link:hover {
+        text-decoration: underline;
+      }
+
+      .info-box {
+        background-color: #e7f3ff;
+        border-left: 4px solid #2196f3;
+        padding: 12px 16px;
+        margin: 15px 0;
+        border-radius: 4px;
+        font-size: 14px;
+        color: #0c5460;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class='email-container'>
+      <!-- Header -->
+      <div class='header'>
+        <h1>✓ Nouvelle Transaction</h1>
+        <p>Confirmé et enregistré</p>
+      </div>
+
+      <!-- Content -->
+      <div class='content'>
+        <div class='greeting'>
+          Bonjour
+          {{recipientName}},
+        </div>
+
+        <div class='message'>
+          Une nouvelle transaction a été créée avec succès dans
+          {{appName}}. Retrouvez ci-dessous les détails de votre transaction.
+        </div>
+
+        <!-- Transaction Details -->
+        <div class='transaction-details'>
+          <div class='detail-row'>
+            <span class='detail-label'>Numéro de transaction</span>
+            <span class='detail-value'>#{{transactionNumber}}</span>
+          </div>
+          <div class='detail-row'>
+            <span class='detail-label'>Type de transaction</span>
+            <span class='detail-value'>{{transactionType}}</span>
+          </div>
+          <div class='detail-row'>
+            <span class='detail-label'>Produit</span>
+            <span class='detail-value'>{{productName}}</span>
+          </div>
+          <div class='detail-row'>
+            <span class='detail-label'>Quantité</span>
+            <span class='detail-value'>{{quantity}}</span>
+          </div>
+          <div class='detail-row'>
+            <span class='detail-label'>Date de création</span>
+            <span class='detail-value'>{{currentDate}}</span>
+          </div>
+        </div>
+
+        <div class='info-box'>
+          ℹ️ Vous pouvez consulter toutes vos transactions directement depuis
+          votre tableau de bord.
+        </div>
+
+        <!-- Button -->
+        <div class='button-container'>
+          <a href='{{dashboardLink}}' class='button'>Voir le Tableau de Bord</a>
+        </div>
+
+        <div class='message'>
+          Si vous avez des questions ou besoin d'assistance, n'hésitez pas à
+          nous contacter via notre
+          <a
+            href='{{supportLink}}'
+            style='color: #28a745; text-decoration: none;'
+          >page de support</a>.
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class='footer'>
+        <p>© {{currentDate}} {{appName}}. Tous droits réservés.</p>
+        <p>
+          Vous recevez cet email car vous avez créé une transaction dans
+          {{appName}}.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
