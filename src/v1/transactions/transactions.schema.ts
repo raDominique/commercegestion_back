@@ -11,14 +11,14 @@ export enum TransactionType {
 }
 
 export enum TransactionStatus {
-  PENDING = 'PENDING',     // En attente de validation
-  APPROVED = 'APPROVED',   // Approuvée
-  REJECTED = 'REJECTED',   // Rejetée
+  PENDING = 'PENDING', // En attente de validation
+  APPROVED = 'APPROVED', // Approuvée
+  REJECTED = 'REJECTED', // Rejetée
 }
 
 export enum MovementType {
-  ACTIF = 'ACTIF',         // Mouvement d'actif
-  PASSIF = 'PASSIF',       // Mouvement de passif
+  ACTIF = 'ACTIF', // Mouvement d'actif
+  PASSIF = 'PASSIF', // Mouvement de passif
 }
 
 /**
@@ -93,7 +93,12 @@ export class Transaction {
   observations: string; // Observations ou notes sur la transaction
 
   // SOLUTION 1: Lien vers StockMovement créé à l'approbation
-  @Prop({ type: Types.ObjectId, ref: 'StockMovement', default: null, index: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'StockMovement',
+    default: null,
+    index: true,
+  })
   linkedStockMovementId: Types.ObjectId; // Référence au StockMovement créé lors de l'approbation
 
   // Métadonnées
