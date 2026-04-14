@@ -464,8 +464,8 @@ export class TransactionsService {
         'initiatorId',
         'recipientId',
         'productId',
-        'originSiteId',
-        'destinationSiteId',
+        'siteOrigineId',
+        'siteDestinationId',
       ])
       .exec();
 
@@ -514,8 +514,8 @@ export class TransactionsService {
         'initiatorId',
         'recipientId',
         'productId',
-        'originSiteId',
-        'destinationSiteId',
+        'siteOrigineId',
+        'siteDestinationId',
       ])
       .exec();
 
@@ -543,8 +543,8 @@ export class TransactionsService {
         'initiatorId',
         'recipientId',
         'productId',
-        'originSiteId',
-        'destinationSiteId',
+        'siteOrigineId',
+        'siteDestinationId',
       ])
       .exec();
 
@@ -572,8 +572,8 @@ export class TransactionsService {
         'initiatorId',
         'recipientId',
         'productId',
-        'originSiteId',
-        'destinationSiteId',
+        'siteOrigineId',
+        'siteDestinationId',
       ])
       .exec();
 
@@ -616,8 +616,8 @@ export class TransactionsService {
         'initiatorId',
         'recipientId',
         'productId',
-        'originSiteId',
-        'destinationSiteId',
+        'siteOrigineId',
+        'siteDestinationId',
       ])
       .exec();
 
