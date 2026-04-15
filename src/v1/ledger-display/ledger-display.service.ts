@@ -66,12 +66,12 @@ export class LedgerDisplayService {
       })
       .sort({ approvedAt: 1 }) // Tri ascendant pour le calcul chronologique du stock
       .populate([
-        { path: 'initiatorId', select: 'firstName lastName' },
-        { path: 'recipientId', select: 'firstName lastName' },
+        { path: 'initiatorId', select: 'userFirstname userName' },
+        { path: 'recipientId', select: 'userFirstname userName' },
         { path: 'productId', select: 'productName codeCPC' },
         { path: 'siteOrigineId', select: 'siteName' },
         { path: 'siteDestinationId', select: 'siteName' },
-        { path: 'detentaire', select: 'firstName lastName' },
+        { path: 'detentaire', select: 'userFirstname userName' },
       ])
       .exec();
 
@@ -242,12 +242,12 @@ export class LedgerDisplayService {
       .skip(skip)
       .limit(limit)
       .populate([
-        { path: 'initiatorId', select: 'firstName lastName' },
-        { path: 'recipientId', select: 'firstName lastName' },
+        { path: 'initiatorId', select: 'userFirstname userName' },
+        { path: 'recipientId', select: 'userFirstname userName' },
         { path: 'productId', select: 'name' },
         { path: 'siteOrigineId', select: 'name' },
         { path: 'siteDestinationId', select: 'name' },
-        { path: 'detentaire', select: 'firstName lastName' },
+        { path: 'detentaire', select: 'userFirstname userName' },
       ])
       .exec();
 
@@ -291,12 +291,12 @@ export class LedgerDisplayService {
       .find(query)
       .sort({ approvedAt: -1 })
       .populate([
-        { path: 'initiatorId', select: 'firstName lastName' },
-        { path: 'recipientId', select: 'firstName lastName' },
+        { path: 'initiatorId', select: 'userFirstname userName' },
+        { path: 'recipientId', select: 'userFirstname userName' },
         { path: 'productId', select: 'name' },
         { path: 'siteOrigineId', select: 'name' },
         { path: 'siteDestinationId', select: 'name' },
-        { path: 'detentaire', select: 'firstName lastName' },
+        { path: 'detentaire', select: 'userFirstname userName' },
       ])
       .exec();
 
@@ -328,8 +328,8 @@ export class LedgerDisplayService {
         productId: productIdObj,
       })
       .populate([
-        { path: 'productId', select: 'name' },
-        { path: 'depotId', select: 'name' },
+        { path: 'productId', select: 'productName' },
+        { path: 'depotId', select: 'siteName' },
       ])
       .exec();
 
@@ -504,12 +504,20 @@ export class LedgerDisplayService {
    */
   private getName(doc: any): string {
     if (!doc) return 'N/A';
-    if (typeof doc === 'string') return doc;
+    
+    // Si c'est juste un ID (string ou ObjectId), retourner N/A pour forcer l'investigation
+    if (typeof doc === 'string') {
+      return 'N/A';
+    }
+    if (doc._id && !doc.useruserFirstname && !doc.userName && !doc.name && !doc.productName && !doc.siteName) {
+      return 'N/A';
+    }
+    
+    if (doc.useruserFirstname && doc.userName)
+      return `${doc.useruserFirstname} ${doc.userName}`;
     if (doc.name) return doc.name;
     if (doc.productName) return doc.productName;
     if (doc.siteName) return doc.siteName;
-    if (doc.firstName && doc.lastName)
-      return `${doc.firstName} ${doc.lastName}`;
     if (doc._id) return doc._id.toString();
     if (doc.id) return doc.id.toString();
     return 'N/A';
