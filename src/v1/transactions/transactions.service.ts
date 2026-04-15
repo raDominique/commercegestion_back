@@ -336,13 +336,6 @@ export class TransactionsService {
       // Lier la Transaction au StockMovement créé
       transaction.linkedStockMovementId = stockMovement._id;
       await transaction.save();
-
-      console.log(
-        '✅ Deposit movements applied via StockMovement for transaction:',
-        transaction.transactionNumber,
-        'Movement ID:',
-        stockMovement._id,
-      );
     } catch (error) {
       console.error('❌ Error applying deposit movements:', error);
       throw error;

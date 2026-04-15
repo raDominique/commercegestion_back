@@ -149,16 +149,10 @@ export class StockService {
     // Default: l'utilisateur qui effectue le dépôt (userId)
     const ayantDroitId = dto.ayant_droit || userId;
 
-    // Si c'est un dépôt avec site d'origine (mouvement, pas création initiale)
-    // L'initiateur doit perdre l'actif du site d'origine
-    if (dto.siteOrigineId) {
-      await this.actifsService.decreaseActif(
-        userId, // L'initiateur perd l'actif
-        dto.siteOrigineId, // Du site d'origine
-        dto.productId,
-        dto.quantite,
-      );
-    }
+    // IMPORTANT: Pour un DÉPÔT, on NE DOIT JAMAIS diminuer l'actif de l'initiateur
+    // car les propriétaires (ayant-droit) n'ont pas d'actifs physiques.
+    // Un DÉPÔT crée un nouvel actif au site de destination.
+    // Si le détenteur devait retirer d'un autre site, ce serait un TRANSFERT, pas un DÉPÔT.
 
     // Créer l'actif pour le propriétaire avec les détenteur et ayant-droit spécifiés
     await this.actifsService.addOrIncreaseActif(
