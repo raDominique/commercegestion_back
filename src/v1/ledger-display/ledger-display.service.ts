@@ -247,6 +247,7 @@ export class LedgerDisplayService {
         { path: 'productId', select: 'name' },
         { path: 'siteOrigineId', select: 'name' },
         { path: 'siteDestinationId', select: 'name' },
+        { path: 'detentaire', select: 'firstName lastName' },
       ])
       .exec();
 
@@ -295,6 +296,7 @@ export class LedgerDisplayService {
         { path: 'productId', select: 'name' },
         { path: 'siteOrigineId', select: 'name' },
         { path: 'siteDestinationId', select: 'name' },
+        { path: 'detentaire', select: 'firstName lastName' },
       ])
       .exec();
 
@@ -504,9 +506,13 @@ export class LedgerDisplayService {
     if (!doc) return 'N/A';
     if (typeof doc === 'string') return doc;
     if (doc.name) return doc.name;
+    if (doc.productName) return doc.productName;
+    if (doc.siteName) return doc.siteName;
     if (doc.firstName && doc.lastName)
       return `${doc.firstName} ${doc.lastName}`;
-    return doc.toString();
+    if (doc._id) return doc._id.toString();
+    if (doc.id) return doc.id.toString();
+    return 'N/A';
   }
 
   /**
