@@ -18,7 +18,7 @@ export interface LedgerMovement {
   transactionNumber: string;
   title: string;
   product: string;
-  holder: string; // Détenteur (pour actifs) ou Ayant-droit (pour passifs)
+  detentaire: string; // Détenteur (pour actifs) ou Ayant-droit (pour passifs)
   site: string;
   quantity: number;
   initialStock: number;
@@ -194,7 +194,7 @@ export class LedgerDisplayService {
       title,
       product: tx.productId?.productName || 'Produit inconnu',
       productCode: tx.productId?.codeCPC || 'N/A',
-      holder: this.getName(tx.detentaire || tx.initiatorId),
+      detentaire: this.getName(tx.detentaire || tx.initiatorId),
       site:
         tx.siteDestinationId?.siteName ||
         tx.siteOrigineId?.siteName ||
@@ -363,7 +363,7 @@ export class LedgerDisplayService {
           transactionNumber: transaction.transactionNumber,
           title: 'INITIALISATION',
           product: this.getName(transaction.productId),
-          holder: this.getName(transaction.detentaire),
+          detentaire: this.getName(transaction.detentaire),
           site: this.getName(transaction.siteOrigineId),
           quantity: transaction.quantite,
           initialStock: 0,
@@ -380,7 +380,7 @@ export class LedgerDisplayService {
           transactionNumber: transaction.transactionNumber,
           title: 'DEPOSITION',
           product: this.getName(transaction.productId),
-          holder: this.getName(transaction.initiatorId),
+          detentaire: this.getName(transaction.initiatorId),
           site: this.getName(transaction.siteOrigineId),
           quantity: -transaction.quantite,
           initialStock: 0,
@@ -395,7 +395,7 @@ export class LedgerDisplayService {
           transactionNumber: transaction.transactionNumber,
           title: 'RECEPTION',
           product: this.getName(transaction.productId),
-          holder: this.getName(transaction.recipientId),
+          detentaire: this.getName(transaction.recipientId),
           site: this.getName(transaction.siteDestinationId),
           quantity: transaction.quantite,
           initialStock: 0,
@@ -410,7 +410,7 @@ export class LedgerDisplayService {
           transactionNumber: transaction.transactionNumber,
           title: 'DEPOSITION',
           product: this.getName(transaction.productId),
-          holder: this.getName(transaction.initiatorId),
+          detentaire: this.getName(transaction.initiatorId),
           site: this.getName(transaction.siteDestinationId),
           quantity: transaction.quantite,
           initialStock: 0,
@@ -427,7 +427,7 @@ export class LedgerDisplayService {
           transactionNumber: transaction.transactionNumber,
           title: 'RETOUR',
           product: this.getName(transaction.productId),
-          holder: this.getName(transaction.initiatorId),
+          detentaire: this.getName(transaction.initiatorId),
           site: this.getName(transaction.siteOrigineId),
           quantity: -transaction.quantite,
           initialStock: 0,
@@ -442,7 +442,7 @@ export class LedgerDisplayService {
           transactionNumber: transaction.transactionNumber,
           title: 'RETOUR',
           product: this.getName(transaction.productId),
-          holder: this.getName(transaction.recipientId),
+          detentaire: this.getName(transaction.recipientId),
           site: this.getName(transaction.siteDestinationId),
           quantity: transaction.quantite,
           initialStock: 0,
@@ -457,7 +457,7 @@ export class LedgerDisplayService {
           transactionNumber: transaction.transactionNumber,
           title: 'RETOUR',
           product: this.getName(transaction.productId),
-          holder: this.getName(transaction.initiatorId),
+          detentaire: this.getName(transaction.initiatorId),
           site: this.getName(transaction.siteOrigineId),
           quantity: -transaction.quantite,
           initialStock: 0,
@@ -475,18 +475,18 @@ export class LedgerDisplayService {
     movements: LedgerMovement[],
     actifs: ActifDocument[],
   ): void {
-    // Grouper par holder et product
+    // Grouper par detentaire et product
     const stockMap = new Map<string, number>();
 
     movements.forEach((movement) => {
-      const key = `${movement.holder}-${movement.product}-${movement.site}`;
+      const key = `${movement.detentaire}-${movement.product}-${movement.site}`;
 
       if (!stockMap.has(key)) {
         // Chercher le stock initial
         const initialStock =
           actifs.find(
             (a) =>
-              this.getName(a.detentaire) === movement.holder &&
+              this.getName(a.detentaire) === movement.detentaire &&
               this.getName(a.productId) === movement.product,
           )?.quantite || 0;
         stockMap.set(key, initialStock);
