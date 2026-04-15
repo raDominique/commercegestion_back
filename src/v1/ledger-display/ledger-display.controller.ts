@@ -79,17 +79,32 @@ Erreurs possibles:
   })
   @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
-  async getUserLedger(
-    @Param('userId') userId: string,
-  ): Promise<PaginationResult<any>> {
-    if (!userId) {
-      throw new BadRequestException('userId is required');
+  async getUserLedger(@Param('userId') userId: string) {
+    if (!userId || userId.length !== 24) {
+      throw new BadRequestException('Un ID utilisateur valide est requis');
     }
+
     const ledger = await this.ledgerDisplayService.getUserLedger(userId);
+
     return {
       status: 'success',
-      message: `Grand livre pour l'utilisateur ${userId}`,
-      data: ledger.movements.actifs.concat(ledger.movements.passifs), // Combinaison des actifs et passifs
+      message: `Grand livre pour l'utilisateur ${ledger.userName}`,
+      data: {
+        info: {
+          userId: ledger.userId,
+          userName: ledger.userName,
+          generatedAt: new Date(),
+        },
+        // On sépare pour que le front puisse faire deux onglets
+        movements: {
+          actifs: ledger.movements.actifs,
+          passifs: ledger.movements.passifs,
+          // Optionnel: Liste consolidée pour un flux global
+          all: [...ledger.movements.actifs, ...ledger.movements.passifs].sort(
+            (a, b) => b.dateTime.getTime() - a.dateTime.getTime(),
+          ),
+        },
+      },
     };
   }
 
@@ -421,7 +436,7 @@ Erreurs possibles:
     name: 'limit',
     required: false,
     type: Number,
-    description: 'Nombre d\'actifs par page (défaut: 10)',
+    description: "Nombre d'actifs par page (défaut: 10)",
     example: 10,
   })
   @ApiQuery({

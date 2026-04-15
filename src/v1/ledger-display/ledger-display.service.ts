@@ -49,15 +49,14 @@ export class LedgerDisplayService {
 
   /**
    * Récupère le grand livre complet pour un utilisateur
-   * Affiche les actifs et passifs avec mouvements historiques
    */
-  async getUserLedger(userId: string): Promise<UserLedger> {
+  async getUserLedger(userId: string): Promise<any> {
     const userIdObj = new Types.ObjectId(userId);
 
-    // Récupérer toutes les transactions approuvées de l'utilisateur
+    // 1. Récupérer les transactions approuvées
     const transactions = await this.transactionModel
       .find({
-        status: TransactionStatus.APPROVED,
+        status: 'APPROVED',
         $or: [
           { initiatorId: userIdObj },
           { recipientId: userIdObj },
@@ -65,161 +64,164 @@ export class LedgerDisplayService {
           { detentaire: userIdObj },
         ],
       })
-      .sort({ approvedAt: -1 })
+      .sort({ approvedAt: 1 }) // Tri ascendant pour le calcul chronologique du stock
       .populate([
         { path: 'initiatorId', select: 'firstName lastName' },
         { path: 'recipientId', select: 'firstName lastName' },
         { path: 'productId', select: 'name codeCPC' },
         { path: 'siteOrigineId', select: 'name' },
         { path: 'siteDestinationId', select: 'name' },
-      ])
-      .exec();
-
-    // Récupérer les actifs de l'utilisateur
-    const actifs = await this.actifModel
-      .find({ userId: userIdObj })
-      .populate([
-        { path: 'productId', select: 'name' },
-        { path: 'depotId', select: 'name' },
         { path: 'detentaire', select: 'firstName lastName' },
-        { path: 'ayant_droit', select: 'firstName lastName' },
       ])
       .exec();
 
-    // Construire les mouvements d'actifs
-    const activesMovements: LedgerMovement[] = [];
-    const passivesMovements: LedgerMovement[] = [];
+    const activesMovements: any[] = [];
+    const passivesMovements: any[] = [];
 
-    // Traiter les transactions pour créer les mouvements
-    for (const transaction of transactions) {
-      if (transaction.status === TransactionStatus.APPROVED) {
-        if (transaction.type === TransactionType.INITIALISATION) {
-          // Pour l'initialisation, ajouter un mouvement actif
-          activesMovements.push({
-            dateTime: transaction.approvedAt,
-            transactionId: transaction._id.toString(),
-            transactionNumber: transaction.transactionNumber,
-            title: 'INITIALISATION',
-            product: this.getName(transaction.productId),
-            holder: this.getName(transaction.detentaire),
-            site: this.getName(transaction.siteOrigineId),
-            quantity: transaction.quantite,
-            initialStock: 0, // À calculer depuis les actifs
-            finalStock: transaction.quantite, // À calculer depuis les actifs
-            movementType: 'ACTIF',
-          });
-        } else if (transaction.type === TransactionType.DEPOT) {
-          // Pour un dépôt: mouvement négatif pour l'initiateur, positif pour le recipient
-          if (transaction.initiatorId.equals(userIdObj)) {
-            activesMovements.push({
-              dateTime: transaction.approvedAt,
-              transactionId: transaction._id.toString(),
-              transactionNumber: transaction.transactionNumber,
-              title: 'DEPOSITION',
-              product: this.getName(transaction.productId),
-              holder: this.getName(transaction.initiatorId),
-              site: this.getName(transaction.siteOrigineId),
-              quantity: -transaction.quantite, // Négatif (diminution)
-              initialStock: 0,
-              finalStock: 0,
-              movementType: 'ACTIF',
-            });
-          }
+    // 2. Transformer les transactions en mouvements comptables
+    for (const tx of transactions) {
+      const isInitiator = tx.initiatorId?._id?.equals(userIdObj);
+      const isRecipient = tx.recipientId?._id?.equals(userIdObj);
 
-          if (transaction.recipientId.equals(userIdObj)) {
-            activesMovements.push({
-              dateTime: transaction.approvedAt,
-              transactionId: transaction._id.toString(),
-              transactionNumber: transaction.transactionNumber,
-              title: 'DEPOSITION',
-              product: this.getName(transaction.productId),
-              holder: this.getName(transaction.recipientId),
-              site: this.getName(transaction.siteDestinationId),
-              quantity: transaction.quantite, // Positif (augmentation)
-              initialStock: 0,
-              finalStock: 0,
-              movementType: 'ACTIF',
-            });
-
-            // Ajouter aussi un passif
-            passivesMovements.push({
-              dateTime: transaction.approvedAt,
-              transactionId: transaction._id.toString(),
-              transactionNumber: transaction.transactionNumber,
-              title: 'DEPOSITION',
-              product: this.getName(transaction.productId),
-              holder: this.getName(transaction.initiatorId),
-              site: this.getName(transaction.siteDestinationId),
-              quantity: transaction.quantite,
-              initialStock: 0,
-              finalStock: 0,
-              movementType: 'PASSIF',
-            });
-          }
-        } else if (transaction.type === TransactionType.RETOUR) {
-          // Pour un retour: inverse du dépôt
-          if (transaction.initiatorId.equals(userIdObj)) {
-            activesMovements.push({
-              dateTime: transaction.approvedAt,
-              transactionId: transaction._id.toString(),
-              transactionNumber: transaction.transactionNumber,
-              title: 'RETOUR',
-              product: this.getName(transaction.productId),
-              holder: this.getName(transaction.initiatorId),
-              site: this.getName(transaction.siteOrigineId),
-              quantity: -transaction.quantite, // Négatif (diminution)
-              initialStock: 0,
-              finalStock: 0,
-              movementType: 'ACTIF',
-            });
-          }
-
-          if (transaction.recipientId.equals(userIdObj)) {
-            activesMovements.push({
-              dateTime: transaction.approvedAt,
-              transactionId: transaction._id.toString(),
-              transactionNumber: transaction.transactionNumber,
-              title: 'RETOUR',
-              product: this.getName(transaction.productId),
-              holder: this.getName(transaction.recipientId),
-              site: this.getName(transaction.siteDestinationId),
-              quantity: transaction.quantite, // Positif (augmentation)
-              initialStock: 0,
-              finalStock: 0,
-              movementType: 'ACTIF',
-            });
-
-            // Ajouter aussi un passif diminué
-            passivesMovements.push({
-              dateTime: transaction.approvedAt,
-              transactionId: transaction._id.toString(),
-              transactionNumber: transaction.transactionNumber,
-              title: 'RETOUR',
-              product: this.getName(transaction.productId),
-              holder: this.getName(transaction.initiatorId),
-              site: this.getName(transaction.siteOrigineId),
-              quantity: -transaction.quantite, // Négatif
-              initialStock: 0,
-              finalStock: 0,
-              movementType: 'PASSIF',
-            });
-          }
+      // --- Logique ACTIF ---
+      if (tx.type === TransactionType.INITIALISATION) {
+        activesMovements.push(
+          this.mapMovement(
+            tx,
+            'INITIALISATION',
+            tx.quantite,
+            'ACTIF',
+            tx.siteOrigineId,
+          ),
+        );
+      } else if (tx.type === TransactionType.DEPOT) {
+        if (isInitiator) {
+          activesMovements.push(
+            this.mapMovement(
+              tx,
+              'DÉPÔT (SORTIE)',
+              -tx.quantite,
+              'ACTIF',
+              tx.siteOrigineId,
+            ),
+          );
+        }
+        if (isRecipient) {
+          activesMovements.push(
+            this.mapMovement(
+              tx,
+              'DÉPÔT (RÉCEPTION)',
+              tx.quantite,
+              'ACTIF',
+              tx.siteDestinationId,
+            ),
+          );
+          // Création d'un passif (dette de marchandise envers l'initiateur)
+          passivesMovements.push(
+            this.mapMovement(
+              tx,
+              'DETTE MARCHANDISE',
+              tx.quantite,
+              'PASSIF',
+              tx.siteDestinationId,
+            ),
+          );
+        }
+      } else if (tx.type === TransactionType.RETOUR) {
+        if (isInitiator) {
+          activesMovements.push(
+            this.mapMovement(
+              tx,
+              'RETOUR (SORTIE)',
+              -tx.quantite,
+              'ACTIF',
+              tx.siteOrigineId,
+            ),
+          );
+          // Diminution du passif (on rend ce qu'on devait)
+          passivesMovements.push(
+            this.mapMovement(
+              tx,
+              'RETOUR (ANNULATION DETTE)',
+              -tx.quantite,
+              'PASSIF',
+              tx.siteOrigineId,
+            ),
+          );
+        }
+        if (isRecipient) {
+          activesMovements.push(
+            this.mapMovement(
+              tx,
+              'RETOUR (REÇU)',
+              tx.quantite,
+              'ACTIF',
+              tx.siteDestinationId,
+            ),
+          );
         }
       }
     }
 
-    // Calculer les stocks initiaux et finaux
-    this.calculateStocks(activesMovements, actifs);
-    this.calculateStocks(passivesMovements, actifs);
+    // 3. Calculer les stocks glissants
+    this.calculateRunningStocks(activesMovements);
+    this.calculateRunningStocks(passivesMovements);
 
     return {
       userId,
-      userName: this.getUserName(transactions),
+      userName:
+        transactions.length > 0
+          ? this.extractUserName(userIdObj, transactions[0])
+          : 'Utilisateur Inconnu',
       movements: {
-        actifs: activesMovements,
-        passifs: passivesMovements,
+        actifs: activesMovements.reverse(), // On inverse pour l'affichage (plus récent en premier)
+        passifs: passivesMovements.reverse(),
       },
     };
+  }
+
+  private mapMovement(
+    tx: any,
+    title: string,
+    qty: number,
+    type: string,
+    siteObj: any,
+  ) {
+    return {
+      dateTime: tx.approvedAt,
+      transactionId: tx._id.toString(),
+      transactionNumber: tx.transactionNumber,
+      title,
+      product: tx.productId?.name || 'Produit inconnu',
+      productCode: tx.productId?.codeCPC || 'N/A',
+      holder: this.getName(tx.detentaire || tx.initiatorId),
+      site:
+        tx.siteDestinationId?.name ||
+        tx.siteOrigineId?.name ||
+        'Site non spécifié',
+      quantity: qty,
+      initialStock: 0,
+      finalStock: 0,
+      movementType: type,
+    };
+  }
+
+  private calculateRunningStocks(movements: any[]) {
+    const balances: Record<string, number> = {};
+    movements.forEach((m) => {
+      const key = m.product;
+      m.initialStock = balances[key] || 0;
+      m.finalStock = m.initialStock + m.quantity;
+      balances[key] = m.finalStock;
+    });
+  }
+
+  private extractUserName(userId: Types.ObjectId, tx: any): string {
+    if (tx.initiatorId?._id?.equals(userId))
+      return this.getName(tx.initiatorId);
+    if (tx.recipientId?._id?.equals(userId))
+      return this.getName(tx.recipientId);
+    return 'Utilisateur';
   }
 
   /**
@@ -553,10 +555,7 @@ export class LedgerDisplayService {
       try {
         // Essayer de chercher par ObjectId si c'est un ID valide
         const searchObjId = new Types.ObjectId(search);
-        filter.$or = [
-          { productId: searchObjId },
-          { depotId: searchObjId },
-        ];
+        filter.$or = [{ productId: searchObjId }, { depotId: searchObjId }];
       } catch {
         // Sinon, ignorer si c'est pas un ObjectId valide
       }
@@ -572,7 +571,8 @@ export class LedgerDisplayService {
         .populate([
           {
             path: 'productId',
-            select: 'productName codeCPC productImage prixUnitaire productVolume',
+            select:
+              'productName codeCPC productImage prixUnitaire productVolume',
           },
           {
             path: 'depotId',
