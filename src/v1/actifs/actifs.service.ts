@@ -86,7 +86,7 @@ export class ActifsService {
 
     if (!actif || actif.quantite < quantite) {
       throw new NotFoundException(
-        `Stock insuffisant ou actif inexistant. (Demandé: ${quantite}, Dispo: ${actif?.quantite || 0})`,
+        `Stock insuffisant ou actif inexistant. (Demandé: ${quantite}, Dispo: ${actif?.quantite})`,
       );
     }
 
