@@ -68,9 +68,9 @@ export class LedgerDisplayService {
       .populate([
         { path: 'initiatorId', select: 'firstName lastName' },
         { path: 'recipientId', select: 'firstName lastName' },
-        { path: 'productId', select: 'name codeCPC' },
-        { path: 'siteOrigineId', select: 'name' },
-        { path: 'siteDestinationId', select: 'name' },
+        { path: 'productId', select: 'productName codeCPC' },
+        { path: 'siteOrigineId', select: 'siteName' },
+        { path: 'siteDestinationId', select: 'siteName' },
         { path: 'detentaire', select: 'firstName lastName' },
       ])
       .exec();
@@ -192,12 +192,12 @@ export class LedgerDisplayService {
       transactionId: tx._id.toString(),
       transactionNumber: tx.transactionNumber,
       title,
-      product: tx.productId?.name || 'Produit inconnu',
+      product: tx.productId?.productName || 'Produit inconnu',
       productCode: tx.productId?.codeCPC || 'N/A',
       holder: this.getName(tx.detentaire || tx.initiatorId),
       site:
-        tx.siteDestinationId?.name ||
-        tx.siteOrigineId?.name ||
+        tx.siteDestinationId?.siteName ||
+        tx.siteOrigineId?.siteName ||
         'Site non spécifié',
       quantity: qty,
       initialStock: 0,
