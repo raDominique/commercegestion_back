@@ -196,34 +196,6 @@ export class UsersService implements OnModuleInit {
         this.createDefaultSite(user),
       ];
 
-      // Envoi des emails aux parrains
-      if (user.parrain1ID && user.parrain1Token) {
-        const p1 = await this.getInfoParrain(user.parrain1ID);
-        console.log('Parrain 1:', p1, 'Token:', user.parrain1Token);
-        if (p1) {
-          tasks.push(
-            this.mailService.sendParrainValidationEmail(
-              p1.userEmail,
-              user.userName,
-              `${this.frontendUrl}/login`,
-            ),
-          );
-        }
-      }
-      if (user.parrain2ID && user.parrain2Token) {
-        const p2 = await this.getInfoParrain(user.parrain2ID);
-        console.log('Parrain 2:', p2, 'Token:', user.parrain2Token);
-        if (p2) {
-          tasks.push(
-            this.mailService.sendParrainValidationEmail(
-              p2.userEmail,
-              user.userName,
-              `${this.frontendUrl}/login`,
-            ),
-          );
-        }
-      }
-
       await Promise.all(tasks);
     } catch (err) {
       console.error(`[Background Tasks Error]:`, err);
@@ -497,13 +469,73 @@ export class UsersService implements OnModuleInit {
 
       await tokenDoc.deleteOne();
 
+      const user = await this.userModel.findById(tokenDoc.userId);
+      if (!user) {
+        return buildRedirectUrl(false, 'user_not_found');
+      }
+
+      // ✅ ÉTAPE 1 : Déclarer le tableau de tâches emails
+      const emailTasks: Promise<void>[] = [];
+
+      // ✅ Email 1 : Informer l'utilisateur que son email est vérifié, en attente de validation parrain
+      emailTasks.push(
+        this.mailService
+          .notificationCompteAverifier(
+            user.userEmail,
+            user.userName ?? 'Utilisateur',
+          )
+          .catch((err) => this.logger.error('Erreur email utilisateur:', err)),
+      );
+
+      // ✅ Email 2 : Informer le parrain 1 (si présent et token actif)
+      if (user.parrain1ID && user.parrain1Token) {
+        const parrain1 = await this.getInfoParrain(user.parrain1ID);
+        if (parrain1) {
+          emailTasks.push(
+            this.mailService
+              .sendParrainValidationEmail(
+                parrain1.userEmail,
+                user.userName ?? 'Nouvel utilisateur',
+                `${this.frontendUrl}/login`,
+              )
+              .catch((err) =>
+                this.logger.error('Erreur email parrain 1:', err),
+              ),
+          );
+        }
+      }
+
+      // ✅ Email 3 : Informer le parrain 2 (si présent et token actif)
+      if (user.parrain2ID && user.parrain2Token) {
+        const parrain2 = await this.getInfoParrain(user.parrain2ID);
+        if (parrain2) {
+          emailTasks.push(
+            this.mailService
+              .sendParrainValidationEmail(
+                parrain2.userEmail,
+                user.userName ?? 'Nouvel utilisateur',
+                `${this.frontendUrl}/login`,
+              )
+              .catch((err) =>
+                this.logger.error('Erreur email parrain 2:', err),
+              ),
+          );
+        }
+      }
+
+      // ✅ ÉTAPE 2 : Exécuter tous les emails en parallèle SANS bloquer la réponse
+      // On utilise .catch() pour éviter qu'une erreur n'interrompe le flux principal
+      Promise.all(emailTasks).catch((err) =>
+        this.logger.error('Erreur globale envoi emails parrainage:', err),
+      );
+
+      // ✅ Retourner immédiatement la redirection de succès
       return buildRedirectUrl(true);
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Erreur de vérification du compte:', error);
       return buildRedirectUrl(false, 'server_error');
     }
   }
-
   /**
    * Active manuellement un compte (Admin)
    */
@@ -686,7 +718,7 @@ export class UsersService implements OnModuleInit {
         siteLng: Number(user.userMainLng) || 0,
       };
       await this.siteService.create(siteDto, user._id.toString(), true);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e.message);
     }
   }
