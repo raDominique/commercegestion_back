@@ -590,7 +590,7 @@ export class LedgerDisplayService {
           },
           {
             path: 'depotId',
-            select: 'siteName siteAddress location siteUserID',
+            select: 'siteId siteName siteAddress location siteUserID',
             populate: {
               path: 'siteUserID',
               select: 'userName userNickName',
@@ -619,6 +619,7 @@ export class LedgerDisplayService {
       quantite: actif.quantite,
       prixUnitaire: actif.prixUnitaire,
       valeurTotale: (actif.quantite || 0) * (actif.prixUnitaire || 0),
+      depotId: (actif.depotId as any)?._id || 'N/A',
       depot: (actif.depotId as any)?.siteName || 'N/A',
       depotAdresse: (actif.depotId as any)?.siteAddress || 'N/A',
       detentaire: (actif.detentaire as any)

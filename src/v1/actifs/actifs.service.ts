@@ -156,7 +156,7 @@ export class ActifsService {
       })
       .populate('productId')
       .populate('detentaire', 'userName userNickName')
-      .populate('depotId', 'siteName siteAddress')
+      .populate('depotId', 'siteId siteName siteAddress location')
       .exec();
   }
 
@@ -166,7 +166,7 @@ export class ActifsService {
       .populate('productId', 'productName codeCPC productImage prixUnitaire') // Détails techniques du produit
       .populate('ayant_droit', 'userNickName userName userPhone') // Le propriétaire (souvent l'utilisateur lui-même)
       .populate('detentaire', 'userNickName userName userPhone') // Le gardien actuel (ex: Hangar ou Transporteur)
-      .populate('depotId', 'siteName siteAddress location') // Localisation géographique
+      .populate('depotId', 'siteId siteName siteAddress location') // Localisation géographique
       .exec();
 
     if (!actif) {
