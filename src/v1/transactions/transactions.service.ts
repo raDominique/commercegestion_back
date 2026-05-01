@@ -168,6 +168,17 @@ export class TransactionsService {
 
     const savedTransaction = await transaction.save();
 
+    // Faire update l'Actif du produit pour refléter la nouvelle quantité initialisée
+    await this.actifsService.addOrIncreaseActif(
+      userId, // userId: Propriétaire du bilan
+      createInitDto.siteOrigineId, // depotId: Site d'initialisation
+      createInitDto.productId, // productId: Le produit
+      createInitDto.quantite, // quantite
+      createInitDto.prixUnitaire || 0, // prixUnitaire
+      userId, // detentaireId: Qui garde le produit (l'initialisateur)
+      userId, // ayantDroitId: Qui possède le produit (l'initialisateur)
+    );
+
     // Envoyer la notification de création (fire-and-forget)
     this.sendCreationNotification(savedTransaction).catch((error) => {
       console.error('Failed to send creation notification:', error);
