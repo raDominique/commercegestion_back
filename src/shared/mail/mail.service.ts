@@ -325,7 +325,7 @@ export class MailService {
         quantity,
         transactionNumber,
         currentDate: new Date().toLocaleString('fr-FR'),
-        dashboardLink: `${this.frontUrl}/transactions`,
+        dashboardLink: `${this.frontUrl}/`,
         supportLink: `${this.frontUrl}/support`,
         appName: this.appName,
       },
