@@ -28,7 +28,7 @@ export class StockMovement {
   quantite: number;
 
   @Prop({ type: Number, default: null })
-  prixUnitaire: number;
+  prixUnitaire?: number;
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
   detentaire: Types.ObjectId;

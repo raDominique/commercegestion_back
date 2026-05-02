@@ -20,7 +20,7 @@ export class ActifsService {
     depotId: string, // Site physique
     productId: string, // Le produit
     quantite: number,
-    prixUnitaire: number,
+    prixUnitaire: number = 0,
     detentaireId: string, // Qui garde le produit (Hangar ou User)
     ayantDroitId: string, // Qui possède le produit (User)
   ) {

@@ -34,7 +34,7 @@ export class CreateMovementDto {
   @ApiProperty({ example: 1500 })
   @IsNumber()
   @Min(0)
-  prixUnitaire: number;
+  prixUnitaire?: number;
 
   @ApiProperty({
     required: false,
@@ -42,7 +42,7 @@ export class CreateMovementDto {
     description: 'Le gardien physique (Hangar, Transporteur, ou Soi-même)',
   })
   @IsOptional()
-  detentaire?: string;
+  detentaire: string;
 
   @ApiProperty({
     required: false,
