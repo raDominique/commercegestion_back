@@ -185,4 +185,30 @@ export class ProductController {
   async findById(@Param('id') id: string, @Req() req: any) {
     return this.productService.findById(id, req.user?.userId);
   }
+
+  @Get('select-all-produits')
+  @ApiOperation({
+    summary: 'Liste de tous les produits validés',
+    description: 'Récupère tous les produits validés, triés par nom.',
+  })
+  //@Auth()
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des produits validés récupérée.',
+    schema: { example: {
+      status: 'success',
+      message: 'Liste des produits validés récupérée',
+      data: [ {
+        _id: '65dcf...',
+        productImage: '/upload/products/hash.jpg',
+        productName: 'Blé dur',
+        categoryNom: 'Céréales',
+        codeCPC: '01111',
+      }]
+    } },
+  })
+  async getActiveProducts(@Query() query: any) {
+    return this.productService.getSelectProducts(query);
+  }
 }

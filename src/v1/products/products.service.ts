@@ -583,4 +583,35 @@ export class ProductService {
     product.isStocker = isStocker;
     await product.save();
   }
+
+  async getSelectProducts(query: any): Promise<PaginationResult<any>> {
+    const { search } = query;
+    const filter: any = { productValidation: true };
+    if (search) {
+      filter.$or = [
+        { productName: { $regex: search, $options: 'i' } },
+        { codeCPC: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const data = await this.productModel
+      .find(filter)
+      .populate('categoryId', 'nom')
+      .select(
+        '_id productImage productName categoryId codeCPC createdAt',
+      )
+      .sort({ productName: 1 })
+      .exec();
+    return {
+      status: 'success',
+      message: 'Liste des produits validés récupérée',
+      data: data.map((product) => ({
+        _id: product._id,
+        productImage: product.productImage,
+        productName: product.productName,
+        categoryNom: product.categoryId?.toJSON()?.nom || null,
+        codeCPC: product.codeCPC,
+      })),
+    };
+  }
 }
