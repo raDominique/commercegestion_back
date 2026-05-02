@@ -781,6 +781,7 @@ export class TransactionsService {
         transaction.productId.toString(),
         transaction.quantite,
         transaction.transactionNumber,
+        true,
       );
 
       console.log(
@@ -799,6 +800,7 @@ export class TransactionsService {
         transaction.productId.toString(),
         transaction.quantite,
         transaction.transactionNumber,
+        false,
       );
       console.log(
         `✉️ Creation notification sent to initiator for transaction: ${transaction.transactionNumber}`,
