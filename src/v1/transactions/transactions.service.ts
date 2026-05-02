@@ -698,7 +698,7 @@ export class TransactionsService {
   /**
    * Envoie les notifications de rejet de transaction
    * Notifie le destinataire que sa transaction a été rejetée
-   * Notifie aussi le déposant/initiator que sa transaction a été rejetée 
+   * Notifie aussi le déposant/initiator que sa transaction a été rejetée
    * Fire-and-forget: n'attend pas la confirmation d'envoi
    */
   private async sendRejectionNotification(
@@ -758,58 +758,93 @@ export class TransactionsService {
 
   /**
    * Envoie les notifications de création de transaction
-   * Notifie le destinataire qu'une nouvelle transaction l'attend
-   * Notifie le depositaire/initiator que sa transaction a été créée et est en attente d'approbation
-   * Fire-and-forget: n'attend pas la confirmation d'envoi
+   * 1. Destinataire: Reçoit "Demande de réception faite par [Initiateur]"
+   * 2. Initiateur: Reçoit "Demande de dépôt faite vers [Destinataire]"
    */
   private async sendCreationNotification(
     transaction: TransactionDocument,
   ): Promise<void> {
     try {
-      const transactionType = this.getTransactionTypeLabel(transaction.type);
-
-      // Récupérer les infos du destinataire via la base de données
-      const recipientUser = await this.usersService.getById(
-        transaction.recipientId.toString(),
-      );
-      const recipientEmail = recipientUser.userEmail;
-
-      await this.mailService.notificationTransactionCreated(
-        recipientEmail,
-        recipientUser.userName,
-        transactionType,
-        transaction.productId.toString(),
-        transaction.quantite,
-        transaction.transactionNumber,
-        true,
-      );
-
-      console.log(
-        `✉️ Creation notification sent for transaction: ${transaction.transactionNumber}`,
-      );
-
-      // Envoyer une notification au déposant/initiator que sa transaction a été créée et est en attente d'approbation
+      // 1. Récupération sécurisée des utilisateurs
+      // On utilise await séparément ou Promise.all. Ici, on fait simple et robuste.
       const initiatorUser = await this.usersService.getById(
         transaction.initiatorId.toString(),
       );
-      const initiatorEmail = initiatorUser.userEmail;
-      await this.mailService.notificationTransactionCreated(
-        initiatorEmail,
-        initiatorUser.userName,
-        transactionType,
-        transaction.productId.toString(),
-        transaction.quantite,
-        transaction.transactionNumber,
-        false,
+      const recipientUser = await this.usersService.getById(
+        transaction.recipientId.toString(),
       );
-      console.log(
-        `✉️ Creation notification sent to initiator for transaction: ${transaction.transactionNumber}`,
-      );
-    } catch (error) {
+
+      // Vérification critique : Si un utilisateur est introuvable, on ne peut pas envoyer de mail.
+      if (!initiatorUser || !recipientUser) {
+        console.error(
+          '⚠️ Abandon envoi notification: Utilisateur introuvable.',
+        );
+        console.error('Initiator ID:', transaction.initiatorId);
+        console.error('Recipient ID:', transaction.recipientId);
+        return;
+      }
+
+      const transactionType = this.getTransactionTypeLabel(transaction.type);
+
+      // NOTE: Pour afficher le vrai nom du produit au lieu de l'ID,
+      // il faudrait appeler this.productService.findById ici.
+      // Pour l'instant, on garde l'ID ou un placeholder.
+      const productName = transaction.productId.toString();
+
+      // ---------------------------------------------------------
+      // ÉTAPE 1 : Mail au DESTINATAIRE (Celui qui doit valider/recevoir)
+      // Template attendu : 'transaction-created-destinataire'
+      // Contexte : "Demande de réception faite par M. X"
+      // ---------------------------------------------------------
+      try {
+        await this.mailService.notificationTransactionCreated(
+          recipientUser.userEmail, // to: Email du destinataire
+          recipientUser.userName, // recipientName: Pour le "Bonjour [Nom]"
+          transactionType, // Type (ex: Dépôt)
+          productName, // Produit
+          transaction.quantite, // Quantité
+          transaction.transactionNumber, // Numéro de suivi
+          true, // isDestinataire: TRUE -> Déclenche le template '...-destinataire'
+          initiatorUser.userName, // envoyeurName: C'est le nom de l'initiateur qui apparaît ("fait par...")
+        );
+        console.log(
+          `✅ Mail envoyé au DESTINATAIRE (${recipientUser.userName})`,
+        );
+      } catch (mailError: any) {
+        // On capture l'erreur sans bloquer la suite
+        console.error(
+          `❌ Échec envoi mail au destinataire: ${mailError.message}`,
+        );
+      }
+
+      // ---------------------------------------------------------
+      // ÉTAPE 2 : Mail à l'INITIATEUR (Celui qui a créé la demande)
+      // Template attendu : 'transaction-created'
+      // Contexte : "Demande de dépôt faite vers M. Y"
+      // ---------------------------------------------------------
+      try {
+        await this.mailService.notificationTransactionCreated(
+          initiatorUser.userEmail, // to: Email de l'initiateur
+          initiatorUser.userName, // recipientName: Pour le "Bonjour [Nom]"
+          transactionType, // Type
+          productName, // Produit
+          transaction.quantite, // Quantité
+          transaction.transactionNumber, // Numéro de suivi
+          false, // isDestinataire: FALSE -> Déclenche le template standard '...'
+          recipientUser.userName, // envoyeurName: Ici, ce paramètre sert à dire "vers [Nom du destinataire]"
+        );
+        console.log(
+          `✅ Mail envoyé à l'INITIATEUR (${initiatorUser.userName})`,
+        );
+      } catch (mailError: any) {
+        console.error(
+          `❌ Échec envoi mail à l'initiateur: ${mailError.message}`,
+        );
+      }
+    } catch (globalError: any) {
       console.error(
-        `⚠️ Failed to send creation notification: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `⚠️ Erreur globale dans sendCreationNotification: ${globalError instanceof Error ? globalError.message : 'Inconnue'}`,
       );
-      // Ne pas throw pour ne pas bloquer la création
     }
   }
 

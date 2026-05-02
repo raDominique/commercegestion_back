@@ -212,7 +212,7 @@
     <div class='email-container'>
       <!-- Header -->
       <div class='header'>
-        <h1>Demande de dépôt faite</h1>
+        <h1>Demande de réception faite par <strong>{{envoyeurName}}</strong></h1>
         <p>Numéro de suivi: <strong>#{{transactionNumber}}</strong></p>
       </div>
 
@@ -224,7 +224,8 @@
         </div>
 
         <div class='intro-text'>
-          Nous vous confirmons que votre demande de dépôt a été enregistrée avec
+          Nous vous confirmons que votre demande de réception de
+          <strong>{{productName}}</strong> a été enregistrée avec
           succès dans le système
           <span class='app-name'>{{appName}}</span>. Les détails complets de
           votre transaction sont disponibles ci-dessous.
@@ -258,7 +259,7 @@
         <!-- Information -->
         <div class='info-box'>
           <strong>ℹ️ Statut actuel:</strong>
-          Vous devez approuver cette depot pour qu'il soit effectif
+          Vous devez approuver cette réception pour qu'elle soit effectif
         </div>
 
         <!-- Prochaines Étapes -->
