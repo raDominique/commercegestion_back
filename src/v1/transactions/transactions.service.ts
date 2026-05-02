@@ -640,6 +640,7 @@ export class TransactionsService {
   /**
    * Envoie les notifications d'approbation de transaction
    * Notifie le destinataire que sa transaction a été approuvée
+   * Notifie aussi le déposant/initiator que sa transaction a été approuvée
    * Fire-and-forget: n'attend pas la confirmation d'envoi
    */
   private async sendApprovalNotification(
@@ -668,6 +669,24 @@ export class TransactionsService {
       console.log(
         `✉️ Approval notification sent for transaction: ${transaction.transactionNumber}`,
       );
+
+      // Envoyer aussi la notification au déposant/initiator que sa transaction a été approuvée
+      const initiatorUser = await this.usersService.getById(
+        transaction.initiatorId.toString(),
+      );
+      const initiatorEmail = initiatorUser.userEmail;
+      await this.mailService.notificationTransactionApproved(
+        initiatorEmail,
+        initiatorUser.userName,
+        transactionType,
+        transaction.productId.toString(),
+        transaction.quantite,
+        transaction.transactionNumber,
+        approverName,
+      );
+      console.log(
+        `✉️ Approval notification sent to initiator for transaction: ${transaction.transactionNumber}`,
+      );
     } catch (error) {
       console.error(
         `⚠️ Failed to send approval notification: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -679,6 +698,7 @@ export class TransactionsService {
   /**
    * Envoie les notifications de rejet de transaction
    * Notifie le destinataire que sa transaction a été rejetée
+   * Notifie aussi le déposant/initiator que sa transaction a été rejetée 
    * Fire-and-forget: n'attend pas la confirmation d'envoi
    */
   private async sendRejectionNotification(
@@ -708,6 +728,25 @@ export class TransactionsService {
 
       console.log(
         `✉️ Rejection notification sent for transaction: ${transaction.transactionNumber}`,
+      );
+
+      // Envoyer aussi la notification au déposant/initiator que sa transaction a été rejetée
+      const initiatorUser = await this.usersService.getById(
+        transaction.initiatorId.toString(),
+      );
+      const initiatorEmail = initiatorUser.userEmail;
+      await this.mailService.notificationTransactionRejected(
+        initiatorEmail,
+        initiatorUser.userName,
+        transactionType,
+        transaction.productId.toString(),
+        transaction.quantite,
+        transaction.transactionNumber,
+        rejectionReason,
+        approverName,
+      );
+      console.log(
+        `✉️ Rejection notification sent to initiator for transaction: ${transaction.transactionNumber}`,
       );
     } catch (error) {
       console.error(
