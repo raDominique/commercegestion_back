@@ -720,6 +720,7 @@ export class TransactionsService {
   /**
    * Envoie les notifications de création de transaction
    * Notifie le destinataire qu'une nouvelle transaction l'attend
+   * Notifie le depositaire/initiator que sa transaction a été créée et est en attente d'approbation
    * Fire-and-forget: n'attend pas la confirmation d'envoi
    */
   private async sendCreationNotification(
@@ -745,6 +746,23 @@ export class TransactionsService {
 
       console.log(
         `✉️ Creation notification sent for transaction: ${transaction.transactionNumber}`,
+      );
+
+      // Envoyer une notification au déposant/initiator que sa transaction a été créée et est en attente d'approbation
+      const initiatorUser = await this.usersService.getById(
+        transaction.initiatorId.toString(),
+      );
+      const initiatorEmail = initiatorUser.userEmail;
+      await this.mailService.notificationTransactionCreated(
+        initiatorEmail,
+        initiatorUser.userName,
+        transactionType,
+        transaction.productId.toString(),
+        transaction.quantite,
+        transaction.transactionNumber,
+      );
+      console.log(
+        `✉️ Creation notification sent to initiator for transaction: ${transaction.transactionNumber}`,
       );
     } catch (error) {
       console.error(
