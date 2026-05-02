@@ -90,6 +90,13 @@ export class TransactionsService {
       console.error('Failed to send creation notification:', error);
     });
 
+    // reduire la quantité du produit dans le stock du déposant (site d'origine) en attendant l'approbation
+    await this.actifsService.decreaseActif(
+      createDepositDto.ayant_droit, // userId: Qui dépose (détenteur)
+      createDepositDto.siteOrigineId, // siteId: Site d'origine
+      createDepositDto.productId, // productId: Le produit
+      createDepositDto.quantite, // quantite: Diminuer la quantité du stock du déposant
+    );
     return {
       status: 'success',
       message:
