@@ -26,10 +26,13 @@ import { MailService } from '../../shared/mail/mail.service';
 import { ProductService } from '../products/products.service';
 import { StockService } from '../stock/stock.service';
 import { MovementType } from '../stock/stock-movement.schema';
+import { CreateMovementDto } from '../stock/dto/create-movement.dto';
 import { UsersService } from '../users/users.service';
+import { LoggerService } from 'src/common/logger/logger.service';
 
 @Injectable()
 export class TransactionsService {
+  logger: any;
   constructor(
     @InjectModel(Transaction.name)
     private readonly transactionModel: Model<TransactionDocument>,
@@ -39,6 +42,7 @@ export class TransactionsService {
     private readonly mailService: MailService,
     private readonly stockService: StockService,
     private readonly usersService: UsersService,
+    private readonly loggers: LoggerService,
   ) {}
 
   /**
@@ -332,7 +336,7 @@ export class TransactionsService {
   ): Promise<void> {
     try {
       // Construire un DTO pour StockMovement
-      const movementDto = {
+      const movementDto: CreateMovementDto = {
         siteOrigineId: transaction.siteOrigineId?.toString(),
         siteDestinationId: transaction.siteDestinationId.toString(),
         productId: transaction.productId.toString(),
@@ -346,7 +350,7 @@ export class TransactionsService {
       // Appeler StockService pour créer le mouvement
       // Cela crée les actifs/passifs automatiquement
       const stockMovement = await this.stockService.createMovement(
-        movementDto as any,
+        movementDto,
         transaction.initiatorId.toString(),
         MovementType.DEPOT,
       );
@@ -355,7 +359,7 @@ export class TransactionsService {
       transaction.linkedStockMovementId = stockMovement._id;
       await transaction.save();
     } catch (error) {
-      console.error('❌ Error applying deposit movements:', error);
+      console.error('Error applying deposit movements:', error);
       throw error;
     }
   }
@@ -407,11 +411,11 @@ export class TransactionsService {
       );
 
       console.log(
-        '✅ Return movements applied for transaction:',
+        'Return movements applied for transaction:',
         transaction.transactionNumber,
       );
     } catch (error) {
-      console.error('❌ Error applying return movements:', error);
+      console.error('Error applying return movements:', error);
       throw error;
     }
   }
@@ -444,11 +448,11 @@ export class TransactionsService {
       // 2. Pas de passif pour l'initialisation (c'est pour l'utilisateur lui-même)
 
       console.log(
-        '✅ Initialization movements applied for transaction:',
+        'Initialization movements applied for transaction:',
         transaction.transactionNumber,
       );
     } catch (error) {
-      console.error('❌ Error applying initialization movements:', error);
+      console.error('Error applying initialization movements:', error);
       throw error;
     }
   }
@@ -655,11 +659,15 @@ export class TransactionsService {
     approverName: string = 'Admin',
   ): Promise<void> {
     try {
+      this.loggers.debug(
+        'sendApprovalNotification',
+        `Sending approval notification for transaction: ${transaction.transactionNumber}`,
+      );
       const transactionType = this.getTransactionTypeLabel(transaction.type);
 
       // Récupérer les infos du destinataire via la base de données
       const recipientUser = await this.usersService.getById(
-        transaction.recipientId.toString(),
+        transaction.recipientId?.toString(),
       );
       const recipientEmail = recipientUser.userEmail;
 
@@ -674,7 +682,7 @@ export class TransactionsService {
       );
 
       console.log(
-        `✉️ Approval notification sent for transaction: ${transaction.transactionNumber}`,
+        `Approval notification sent for transaction: ${transaction.transactionNumber}`,
       );
 
       // Envoyer aussi la notification au déposant/initiator que sa transaction a été approuvée
@@ -692,11 +700,11 @@ export class TransactionsService {
         approverName,
       );
       console.log(
-        `✉️ Approval notification sent to initiator for transaction: ${transaction.transactionNumber}`,
+        `Approval notification sent to initiator for transaction: ${transaction.transactionNumber}`,
       );
     } catch (error) {
       console.error(
-        `⚠️ Failed to send approval notification: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to send approval notification: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
       // Ne pas throw pour ne pas bloquer l'approbation
     }
@@ -734,7 +742,7 @@ export class TransactionsService {
       );
 
       console.log(
-        `✉️ Rejection notification sent for transaction: ${transaction.transactionNumber}`,
+        `Rejection notification sent for transaction: ${transaction.transactionNumber}`,
       );
 
       // Envoyer aussi la notification au déposant/initiator que sa transaction a été rejetée
@@ -753,11 +761,11 @@ export class TransactionsService {
         approverName,
       );
       console.log(
-        `✉️ Rejection notification sent to initiator for transaction: ${transaction.transactionNumber}`,
+        `Rejection notification sent to initiator for transaction: ${transaction.transactionNumber}`,
       );
     } catch (error) {
       console.error(
-        `⚠️ Failed to send rejection notification: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to send rejection notification: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
       // Ne pas throw pour ne pas bloquer le rejet
     }
@@ -765,93 +773,88 @@ export class TransactionsService {
 
   /**
    * Envoie les notifications de création de transaction
-   * 1. Destinataire: Reçoit "Demande de réception faite par [Initiateur]"
-   * 2. Initiateur: Reçoit "Demande de dépôt faite vers [Destinataire]"
    */
   private async sendCreationNotification(
     transaction: TransactionDocument,
   ): Promise<void> {
     try {
-      // 1. Récupération sécurisée des utilisateurs
-      // On utilise await séparément ou Promise.all. Ici, on fait simple et robuste.
-      const initiatorUser = await this.usersService.getById(
-        transaction.initiatorId.toString(),
-      );
-      const recipientUser = await this.usersService.getById(
-        transaction.recipientId.toString(),
+      this.loggers.debug(
+        'sendCreationNotification',
+        `Demarrage notification pour transaction: ${transaction.transactionNumber}`,
       );
 
-      // Vérification critique : Si un utilisateur est introuvable, on ne peut pas envoyer de mail.
-      if (!initiatorUser || !recipientUser) {
+      // 1. Récupération des utilisateurs
+      const initiatorId = transaction.initiatorId?.toString();
+      const recipientId = transaction.recipientId?.toString();
+
+      const initiatorUser = initiatorId
+        ? await this.usersService.getById(initiatorId)
+        : null;
+      const recipientUser = recipientId
+        ? await this.usersService.getById(recipientId)
+        : null;
+
+      if (!initiatorUser) {
         console.error(
-          '⚠️ Abandon envoi notification: Utilisateur introuvable.',
+          `[Notification Error] Initiateur introuvable: ${initiatorId}`,
         );
-        console.error('Initiator ID:', transaction.initiatorId);
-        console.error('Recipient ID:', transaction.recipientId);
         return;
       }
 
       const transactionType = this.getTransactionTypeLabel(transaction.type);
-
-      // NOTE: Pour afficher le vrai nom du produit au lieu de l'ID,
-      // il faudrait appeler this.productService.findById ici.
-      // Pour l'instant, on garde l'ID ou un placeholder.
       const productName = transaction.productId.toString();
 
-      // ---------------------------------------------------------
-      // ÉTAPE 1 : Mail au DESTINATAIRE (Celui qui doit valider/recevoir)
-      // Template attendu : 'transaction-created-destinataire'
-      // Contexte : "Demande de réception faite par M. X"
-      // ---------------------------------------------------------
-      try {
-        await this.mailService.notificationTransactionCreated(
-          recipientUser.userEmail, // to: Email du destinataire
-          recipientUser.userName, // recipientName: Pour le "Bonjour [Nom]"
-          transactionType, // Type (ex: Dépôt)
-          productName, // Produit
-          transaction.quantite, // Quantité
-          transaction.transactionNumber, // Numéro de suivi
-          true, // isDestinataire: TRUE -> Déclenche le template '...-destinataire'
-          initiatorUser.userName, // envoyeurName: C'est le nom de l'initiateur qui apparaît ("fait par...")
-        );
-        console.log(
-          `✅ Mail envoyé au DESTINATAIRE (${recipientUser.userName})`,
-        );
-      } catch (mailError: any) {
-        // On capture l'erreur sans bloquer la suite
-        console.error(
-          `❌ Échec envoi mail au destinataire: ${mailError.message}`,
+      // --- ÉTAPE 1 : Mail au DESTINATAIRE ---
+      if (recipientUser && recipientUser.userEmail) {
+        try {
+          await this.mailService.notificationTransactionCreated(
+            recipientUser.userEmail,
+            recipientUser.userName,
+            transactionType,
+            productName,
+            transaction.quantite,
+            transaction.transactionNumber,
+            true, // isDestinataire: TRUE pour que le destinataire reçoive le bon template
+            initiatorUser.userName,
+          );
+          console.log(
+            `Mail envoyé au DESTINATAIRE (${recipientUser.userName})`,
+          );
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+          console.error(`Échec envoi mail au destinataire: ${errorMessage}`);
+        }
+      } else if (recipientId) {
+        console.warn(
+          `[Notification Warning] Destinataire introuvable ou sans email: ${recipientId}`,
         );
       }
 
-      // ---------------------------------------------------------
-      // ÉTAPE 2 : Mail à l'INITIATEUR (Celui qui a créé la demande)
-      // Template attendu : 'transaction-created'
-      // Contexte : "Demande de dépôt faite vers M. Y"
-      // ---------------------------------------------------------
-      try {
-        await this.mailService.notificationTransactionCreated(
-          initiatorUser.userEmail, // to: Email de l'initiateur
-          initiatorUser.userName, // recipientName: Pour le "Bonjour [Nom]"
-          transactionType, // Type
-          productName, // Produit
-          transaction.quantite, // Quantité
-          transaction.transactionNumber, // Numéro de suivi
-          false, // isDestinataire: FALSE -> Déclenche le template standard '...'
-          recipientUser.userName, // envoyeurName: Ici, ce paramètre sert à dire "vers [Nom du destinataire]"
-        );
-        console.log(
-          `✅ Mail envoyé à l'INITIATEUR (${initiatorUser.userName})`,
-        );
-      } catch (mailError: any) {
-        console.error(
-          `❌ Échec envoi mail à l'initiateur: ${mailError.message}`,
-        );
+      // --- ÉTAPE 2 : Mail à l'INITIATEUR ---
+      if (initiatorUser.userEmail) {
+        try {
+          await this.mailService.notificationTransactionCreated(
+            initiatorUser.userEmail,
+            initiatorUser.userName,
+            transactionType,
+            productName,
+            transaction.quantite,
+            transaction.transactionNumber,
+            false, // isDestinataire: FALSE pour l'initiateur
+            recipientUser?.userName || 'Inconnu',
+          );
+          console.log(`Mail envoyé à l'INITIATEUR (${initiatorUser.userName})`);
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+          console.error(`Échec envoi mail à l'initiateur: ${errorMessage}`);
+        }
       }
-    } catch (globalError: any) {
-      console.error(
-        `⚠️ Erreur globale dans sendCreationNotification: ${globalError instanceof Error ? globalError.message : 'Inconnue'}`,
-      );
+    } catch (globalError: unknown) {
+      const errorMessage =
+        globalError instanceof Error ? globalError.message : 'Inconnue';
+      console.error(`Erreur globale sendCreationNotification: ${errorMessage}`);
     }
   }
 
@@ -859,11 +862,11 @@ export class TransactionsService {
    * Retourne le label lisible du type de transaction
    */
   private getTransactionTypeLabel(type: TransactionType): string {
-    const labels = {
+    const labels: Partial<Record<TransactionType, string>> = {
       [TransactionType.DEPOT]: 'Dépôt',
       [TransactionType.RETOUR]: 'Retour',
       [TransactionType.INITIALISATION]: 'Initialisation',
     };
-    return labels[type] || type;
+    return labels[type] || (type as string);
   }
 }

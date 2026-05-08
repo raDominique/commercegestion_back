@@ -28,6 +28,8 @@ import {
   RejectTransactionDto,
 } from './dto/create-transaction.dto';
 import { Auth } from '../auth';
+import { TransactionStatus } from './transactions.schema';
+import { Request } from 'express';
 
 @ApiTags('Transactions')
 @Controller('transactions')
@@ -230,8 +232,14 @@ Erreurs possibles:
     description: 'Paramètres invalides ou quantité négative',
   })
   @ApiBody({ type: CreateInitializationDto })
-  async createInitialization(@Req() req: any, @Body() createInitDto: CreateInitializationDto) {
-    return this.transactionsService.createInitialization(createInitDto, req.user.userId);
+  async createInitialization(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() createInitDto: CreateInitializationDto,
+  ) {
+    return this.transactionsService.createInitialization(
+      createInitDto,
+      req.user.userId,
+    );
   }
 
   /**
@@ -625,13 +633,13 @@ Erreurs possibles:
     @Param('userId') userId: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
-    @Query('status') status?: string,
+    @Query('status') status?: TransactionStatus,
   ) {
     return this.transactionsService.getUserTransactions(
       userId,
       page,
       limit,
-      status as any,
+      status,
     );
   }
 }
