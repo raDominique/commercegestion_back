@@ -8,6 +8,7 @@ import {
   TransactionType,
 } from '../transactions/transactions.schema';
 import { Actif, ActifDocument } from '../actifs/actifs.schema';
+import { Passif, PassifDocument } from '../passifs/passifs.schema';
 
 /**
  * Structure d'un mouvement dans le grand livre
@@ -45,6 +46,8 @@ export class LedgerDisplayService {
     private readonly transactionModel: Model<TransactionDocument>,
     @InjectModel(Actif.name)
     private readonly actifModel: Model<ActifDocument>,
+    @InjectModel(Passif.name)
+    private readonly passifModel: Model<PassifDocument>,
   ) {}
 
   /**
@@ -620,6 +623,7 @@ export class LedgerDisplayService {
     // Formater les données pour une meilleure lisibilité
     const formattedActifs = (actifs || []).map((actif: any) => ({
       id: actif._id,
+      productId: (actif.productId as any)?._id || 'N/A',
       productName: (actif.productId as any)?.productName || 'N/A',
       productCode: (actif.productId as any)?.codeCPC || 'N/A',
       productImage: (actif.productId as any)?.productImage || null,
@@ -642,6 +646,111 @@ export class LedgerDisplayService {
 
     return {
       data: formattedActifs,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Récupère les PASSIFS BRUTS (Stock Movement + Transaction) pour un utilisateur avec pagination et search
+   * Ceci affiche les passifs créés par TOUS les mouvements (Stock Movement + Transaction)
+   * C'est l'endpoint critique pour afficher les passifs du /stock/depot
+   */
+  async getPassifsWithPagination(
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+  ): Promise<{
+    data: any[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const userIdObj = new Types.ObjectId(userId);
+    const skip = (page - 1) * limit;
+
+    // Construire le filtre pour la recherche
+    const filter: any = {
+      userId: userIdObj,
+      isActive: true, // Uniquement les passifs actifs (quantité > 0)
+    };
+
+    if (search) {
+      // Si search fourni, chercher par productId partiellement ou par autres champs
+      try {
+        // Essayer de chercher par ObjectId si c'est un ID valide
+        const searchObjId = new Types.ObjectId(search);
+        filter.$or = [{ productId: searchObjId }, { depotId: searchObjId }];
+      } catch {
+        // Sinon, ignorer si c'est pas un ObjectId valide
+      }
+    }
+
+    // Récupérer les passifs bruts avec pagination
+    const [passifs, total] = await Promise.all([
+      this.passifModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate([
+          {
+            path: 'productId',
+            select:
+              'productName codeCPC productImage prixUnitaire productVolume',
+          },
+          {
+            path: 'depotId',
+            select: 'siteId siteName siteAddress location siteUserID',
+            populate: {
+              path: 'siteUserID',
+              select: 'userName userNickName',
+            },
+          },
+          {
+            path: 'detentaire',
+            select: 'userName userNickName userPhone',
+          },
+          {
+            path: 'ayant_droit',
+            select: 'userName userNickName userPhone',
+          },
+        ])
+        .lean()
+        .exec() as any,
+      this.passifModel.countDocuments(filter),
+    ]);
+
+    // Formater les données pour une meilleure lisibilité
+    const formattedPassifs = (passifs || []).map((passif: any) => ({
+      id: passif._id,
+      productId: (passif.productId as any)?._id || 'N/A',
+      productName: (passif.productId as any)?.productName || 'N/A',
+      productCode: (passif.productId as any)?.codeCPC || 'N/A',
+      productImage: (passif.productId as any)?.productImage || null,
+      quantite: passif.quantite,
+      prixUnitaire: passif.prixUnitaire,
+      valeurTotale: (passif.quantite || 0) * (passif.prixUnitaire || 0),
+      depotId: (passif.depotId as any)?._id || 'N/A',
+      depot: (passif.depotId as any)?.siteName || 'N/A',
+      depotAdresse: (passif.depotId as any)?.siteAddress || 'N/A',
+      detentaire: (passif.detentaire as any)
+        ? `${(passif.detentaire as any).userNickName} ${(passif.detentaire as any).userName}`
+        : 'N/A',
+      ayantDroit: (passif.ayant_droit as any)
+        ? `${(passif.ayant_droit as any).userNickName} ${(passif.ayant_droit as any).userName}`
+        : 'N/A',
+      dateCreation: (passif as any).createdAt,
+      dateModification: (passif as any).updatedAt,
+      isActive: passif.isActive,
+    }));
+
+    return {
+      data: formattedPassifs,
       total,
       page,
       limit,
