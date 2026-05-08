@@ -324,8 +324,8 @@ export class MailService {
       to,
       subject: `Nouvelle transaction créée - ${this.appName}`,
       template: isDestinataire
-        ? 'transaction-created'
-        : 'transaction-created-destinataire',
+        ? 'transaction-created-destinataire'
+        : 'transaction-created',
       context: {
         envoyeurName: envoyeurName,
         recipientName,
