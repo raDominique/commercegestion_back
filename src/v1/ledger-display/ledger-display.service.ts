@@ -145,7 +145,7 @@ export class LedgerDisplayService {
           passivesMovements.push(
             this.mapMovement(
               tx,
-              'RETOUR (ANNULATION DETTE)',
+              'RETRAIT (ANNULATION DETTE)',
               -tx.quantite,
               'PASSIF',
               tx.siteOrigineId,
@@ -156,7 +156,7 @@ export class LedgerDisplayService {
           activesMovements.push(
             this.mapMovement(
               tx,
-              'RETOUR (REÇU)',
+              'RETRAIT (APPROUVÉ)',
               tx.quantite,
               'ACTIF',
               tx.siteDestinationId,
