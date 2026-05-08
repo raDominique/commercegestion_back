@@ -16,7 +16,7 @@ import { LedgerDisplayService } from './ledger-display.service';
 import { Auth } from '../auth';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 
-@ApiTags('Ledger Display')
+@ApiTags('Livre')
 @Controller('ledger')
 export class LedgerDisplayController {
   constructor(private readonly ledgerDisplayService: LedgerDisplayService) {}
@@ -569,7 +569,7 @@ Erreurs possibles:
     name: 'limit',
     required: false,
     type: Number,
-    description: "Nombre de passifs par page (défaut: 10)",
+    description: 'Nombre de passifs par page (défaut: 10)',
     example: 10,
   })
   @ApiQuery({

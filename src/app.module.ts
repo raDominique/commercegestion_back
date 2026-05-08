@@ -15,6 +15,8 @@ import { StockModule } from './v1/stock/stock.module';
 import { NotificationsModule } from './shared/notifications/notifications.module';
 import { ActifsModule } from './v1/actifs/actifs.module';
 import { PassifsModule } from './v1/passifs/passifs.module';
+import { LedgerDisplayModule } from './v1/ledger-display';
+import { TransactionsModule } from './v1/transactions/transactions.module';
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { PassifsModule } from './v1/passifs/passifs.module';
           { path: 'notifications', module: NotificationsModule },
           { path: 'actifs', module: ActifsModule },
           { path: 'passifs', module: PassifsModule },
+          { path: 'transactions', module: TransactionsModule },
+          { path: '', module: LedgerDisplayModule },
         ],
       },
       {

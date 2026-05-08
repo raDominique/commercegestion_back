@@ -757,4 +757,245 @@ export class LedgerDisplayService {
       totalPages: Math.ceil(total / limit),
     };
   }
+
+  /**
+   * Statistique de tous les actifs  et passifs
+   *qui peut afficher dans le dashboard
+   */
+  async getActifsAndPassifsStats(userId: string): Promise<{
+    actifs: number;
+    passifs: number;
+    valeurTotaleActifs: number;
+    valeurTotalePassifs: number;
+  }> {
+    const userIdObj = new Types.ObjectId(userId);
+
+    // Calculer les statistiques des actifs
+    const actifsStats = await this.actifModel.aggregate([
+      {
+        $match: { userId: userIdObj },
+      },
+      {
+        $group: {
+          _id: null,
+          actifs: { $sum: 1 },
+          valeurTotaleActifs: {
+            $sum: { $multiply: ['$quantite', '$prixUnitaire'] },
+          },
+        },
+      },
+    ]);
+
+    // Calculer les statistiques des passifs
+    const passifsStats = await this.passifModel.aggregate([
+      {
+        $match: { userId: userIdObj },
+      },
+      {
+        $group: {
+          _id: null,
+          passifs: { $sum: 1 },
+          valeurTotalePassifs: {
+            $sum: { $multiply: ['$quantite', '$prixUnitaire'] },
+          },
+        },
+      },
+    ]);
+
+    return {
+      actifs: actifsStats[0]?.actifs || 0,
+      passifs: passifsStats[0]?.passifs || 0,
+      valeurTotaleActifs: actifsStats[0]?.valeurTotaleActifs || 0,
+      valeurTotalePassifs: passifsStats[0]?.valeurTotalePassifs || 0,
+    };
+  }
+
+  /**
+   * Statistique des actifs et passifs par site
+   */
+  async getActifsAndPassifsStatsBySite(userId: string): Promise<{
+    actifs: number;
+    passifs: number;
+    valeurTotaleActifs: number;
+    valeurTotalePassifs: number;
+  }> {
+    const userIdObj = new Types.ObjectId(userId);
+
+    // Calculer les statistiques des actifs
+    const actifsStats = await this.actifModel.aggregate([
+      {
+        $match: { userId: userIdObj },
+      },
+      {
+        $group: {
+          _id: null,
+          actifs: { $sum: 1 },
+          valeurTotaleActifs: {
+            $sum: { $multiply: ['$quantite', '$prixUnitaire'] },
+          },
+        },
+      },
+    ]);
+
+    // Calculer les statistiques des passifs
+    const passifsStats = await this.passifModel.aggregate([
+      {
+        $match: { userId: userIdObj },
+      },
+      {
+        $group: {
+          _id: null,
+          passifs: { $sum: 1 },
+          valeurTotalePassifs: {
+            $sum: { $multiply: ['$quantite', '$prixUnitaire'] },
+          },
+        },
+      },
+    ]);
+
+    return {
+      actifs: actifsStats[0]?.actifs || 0,
+      passifs: passifsStats[0]?.passifs || 0,
+      valeurTotaleActifs: actifsStats[0]?.valeurTotaleActifs || 0,
+      valeurTotalePassifs: passifsStats[0]?.valeurTotalePassifs || 0,
+    };
+  }
+
+  /**
+   * Statistique des actifs et passifs par produit
+   */
+  async getActifsAndPassifsStatsByProduct(userId: string): Promise<{
+    actifs: number;
+    passifs: number;
+    valeurTotaleActifs: number;
+    valeurTotalePassifs: number;
+  }> {
+    const userIdObj = new Types.ObjectId(userId);
+
+    // Calculer les statistiques des actifs
+    const actifsStats = await this.actifModel.aggregate([
+      {
+        $match: { userId: userIdObj },
+      },
+      {
+        $group: {
+          _id: null,
+          actifs: { $sum: 1 },
+          valeurTotaleActifs: {
+            $sum: { $multiply: ['$quantite', '$prixUnitaire'] },
+          },
+        },
+      },
+    ]);
+
+    // Calculer les statistiques des passifs
+    const passifsStats = await this.passifModel.aggregate([
+      {
+        $match: { userId: userIdObj },
+      },
+      {
+        $group: {
+          _id: null,
+          passifs: { $sum: 1 },
+          valeurTotalePassifs: {
+            $sum: { $multiply: ['$quantite', '$prixUnitaire'] },
+          },
+        },
+      },
+    ]);
+
+    return {
+      actifs: actifsStats[0]?.actifs || 0,
+      passifs: passifsStats[0]?.passifs || 0,
+      valeurTotaleActifs: actifsStats[0]?.valeurTotaleActifs || 0,
+      valeurTotalePassifs: passifsStats[0]?.valeurTotalePassifs || 0,
+    };
+  }
+
+  /**
+   * Statistique des actifs et passifs avec détails par produit
+   */
+  async getActifsAndPassifsWithDetailsByProduct(userId: string): Promise<{
+    actifs: number;
+    passifs: number;
+    valeurTotaleActifs: number;
+    valeurTotalePassifs: number;
+    actifsDetails: any[];
+    passifsDetails: any[];
+  }> {
+    const userIdObj = new Types.ObjectId(userId);
+
+    // Calculer les statistiques des actifs
+    const actifsStats = await this.actifModel.aggregate([
+      {
+        $match: { userId: userIdObj },
+      },
+      {
+        $group: {
+          _id: null,
+          actifs: { $sum: 1 },
+          valeurTotaleActifs: {
+            $sum: { $multiply: ['$quantite', '$prixUnitaire'] },
+          },
+        },
+      },
+    ]);
+
+    // Calculer les statistiques des passifs
+    const passifsStats = await this.passifModel.aggregate([
+      {
+        $match: { userId: userIdObj },
+      },
+      {
+        $group: {
+          _id: null,
+          passifs: { $sum: 1 },
+          valeurTotalePassifs: {
+            $sum: { $multiply: ['$quantite', '$prixUnitaire'] },
+          },
+        },
+      },
+    ]);
+
+    // Récupérer les détails des actifs
+    const actifsDetails = await this.actifModel
+      .find({
+        userId: userIdObj,
+      })
+      .populate([
+        {
+          path: 'productId',
+          select: 'productName codeCPC productImage',
+        },
+        {
+          path: 'depotId',
+          select: 'siteName',
+        },
+      ]);
+
+    // Récupérer les détails des passifs
+    const passifsDetails = await this.passifModel
+      .find({
+        userId: userIdObj,
+      })
+      .populate([
+        {
+          path: 'productId',
+          select: 'productName codeCPC productImage',
+        },
+        {
+          path: 'depotId',
+          select: 'siteName',
+        },
+      ]);
+
+    return {
+      actifs: actifsStats[0]?.actifs || 0,
+      passifs: passifsStats[0]?.passifs || 0,
+      valeurTotaleActifs: actifsStats[0]?.valeurTotaleActifs || 0,
+      valeurTotalePassifs: passifsStats[0]?.valeurTotalePassifs || 0,
+      actifsDetails,
+      passifsDetails,
+    };
+  }
 }

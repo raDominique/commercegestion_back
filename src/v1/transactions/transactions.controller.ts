@@ -32,7 +32,7 @@ import { TransactionStatus } from './transactions.schema';
 import { Request } from 'express';
 
 @ApiTags('Transactions')
-@Controller('transactions')
+@Controller()
 export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
 
