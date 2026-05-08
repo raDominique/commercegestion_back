@@ -258,7 +258,11 @@ export class MailService {
    * PASSWORD RESET
    * ========================================================================= */
 
-  async sendPasswordResetEmail(to: string, username: string, resetLink: string) {
+  async sendPasswordResetEmail(
+    to: string,
+    username: string,
+    resetLink: string,
+  ) {
     await this.mailQueue.enqueue({
       to,
       subject: `Réinitialisation de votre mot de passe - ${this.appName}`,
@@ -319,7 +323,9 @@ export class MailService {
     await this.mailQueue.enqueue({
       to,
       subject: `Nouvelle transaction créée - ${this.appName}`,
-      template: isDestinataire ? 'transaction-created-destinataire' : 'transaction-created',
+      template: isDestinataire
+        ? 'transaction-created-destinataire'
+        : 'transaction-created',
       context: {
         envoyeurName: envoyeurName,
         recipientName,
@@ -327,6 +333,32 @@ export class MailService {
         productName,
         quantity,
         transactionNumber,
+        currentDate: new Date().toLocaleString('fr-FR'),
+        dashboardLink: `${this.frontUrl}/`,
+        supportLink: `${this.frontUrl}/support`,
+        appName: this.appName,
+      },
+    });
+  }
+
+  async notificationTransactionInitialized(
+    to: string,
+    recipientName: string,
+    productName: string,
+    quantity: number,
+    transactionNumber: string,
+    siteName: string,
+  ) {
+    await this.mailQueue.enqueue({
+      to,
+      subject: `Stock Initialisé - ${this.appName}`,
+      template: 'transaction-initialized',
+      context: {
+        recipientName,
+        productName,
+        quantity,
+        transactionNumber,
+        siteName,
         currentDate: new Date().toLocaleString('fr-FR'),
         dashboardLink: `${this.frontUrl}/`,
         supportLink: `${this.frontUrl}/support`,

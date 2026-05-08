@@ -9,6 +9,7 @@ import { SharedModule } from '../../shared/shared.module';
 import { ProductsModule } from '../products/products.module';
 import { StockModule } from '../stock/stock.module';
 import { UsersModule } from '../users/users.module';
+import { SiteModule } from '../sites/sites.module';
 import { LoggerModule } from 'src/common/logger/logger.module';
 
 @Module({
@@ -22,6 +23,7 @@ import { LoggerModule } from 'src/common/logger/logger.module';
     ProductsModule,
     StockModule,
     UsersModule,
+    SiteModule,
     LoggerModule,
   ],
   controllers: [TransactionsController],

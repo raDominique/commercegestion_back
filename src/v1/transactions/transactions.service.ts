@@ -28,6 +28,7 @@ import { StockService } from '../stock/stock.service';
 import { MovementType } from '../stock/stock-movement.schema';
 import { CreateMovementDto } from '../stock/dto/create-movement.dto';
 import { UsersService } from '../users/users.service';
+import { SiteService } from '../sites/sites.service';
 import { LoggerService } from 'src/common/logger/logger.service';
 
 @Injectable()
@@ -42,6 +43,7 @@ export class TransactionsService {
     private readonly mailService: MailService,
     private readonly stockService: StockService,
     private readonly usersService: UsersService,
+    private readonly siteService: SiteService,
     private readonly loggers: LoggerService,
   ) {}
 
@@ -164,8 +166,9 @@ export class TransactionsService {
     const transaction = new this.transactionModel({
       transactionNumber,
       type: TransactionType.INITIALISATION,
-      status: TransactionStatus.PENDING,
+      status: TransactionStatus.APPROVED, // Initialisation est approuvée immédiatement
       initiatorId: new Types.ObjectId(userId),
+      recipientId: new Types.ObjectId(userId),
       productId: new Types.ObjectId(createInitDto.productId),
       siteOrigineId: new Types.ObjectId(createInitDto.siteOrigineId),
       siteDestinationId: new Types.ObjectId(createInitDto.siteOrigineId),
@@ -175,6 +178,7 @@ export class TransactionsService {
       ayant_droit: new Types.ObjectId(userId),
       observations: createInitDto.observations || null,
       isActive: true,
+      approvedAt: new Date(), // Date d'approbation immédiate
     });
 
     const savedTransaction = await transaction.save();
@@ -803,6 +807,39 @@ export class TransactionsService {
 
       const transactionType = this.getTransactionTypeLabel(transaction.type);
       const productName = transaction.productId.toString();
+
+      // --- CAS SPÉCIFIQUE : INITIALISATION ---
+      if (transaction.type === TransactionType.INITIALISATION) {
+        if (initiatorUser.userEmail) {
+          try {
+            // Récupérer le nom du site
+            let siteName = 'Site Principal';
+            if (transaction.siteOrigineId) {
+              const site = await this.siteService.findOne(
+                transaction.siteOrigineId.toString(),
+              );
+              if (site) siteName = site.siteName;
+            }
+
+            await this.mailService.notificationTransactionInitialized(
+              initiatorUser.userEmail,
+              initiatorUser.userName,
+              productName,
+              transaction.quantite,
+              transaction.transactionNumber,
+              siteName,
+            );
+            console.log(
+              `Mail d'initialisation envoyé à (${initiatorUser.userName})`,
+            );
+          } catch (error: unknown) {
+            console.error(
+              `Échec envoi mail initialisation: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            );
+          }
+        }
+        return; // Fin du traitement pour l'initialisation
+      }
 
       // --- ÉTAPE 1 : Mail au DESTINATAIRE ---
       if (recipientUser && recipientUser.userEmail) {
