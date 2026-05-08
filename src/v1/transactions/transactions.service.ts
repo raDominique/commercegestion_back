@@ -806,7 +806,12 @@ export class TransactionsService {
       }
 
       const transactionType = this.getTransactionTypeLabel(transaction.type);
-      const productName = transaction.productId.toString();
+
+      // Recuperer le nom du produit
+      const product = await this.productService.findById(
+        transaction.productId.toString(),
+      );
+      const productName = product?.data?.[0]?.productName || 'Produit';
 
       // --- CAS SPÉCIFIQUE : INITIALISATION ---
       if (transaction.type === TransactionType.INITIALISATION) {
