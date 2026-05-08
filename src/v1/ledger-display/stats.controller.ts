@@ -1,22 +1,24 @@
 import { Auth } from '../auth';
 import { LedgerDisplayService } from './ledger-display.service';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { Controller, Get, Param, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  BadRequestException,
+  Req,
+  UnauthorizedException,
+} from '@nestjs/common';
 
 @ApiTags('Tableau de bord')
 @Controller('dashboard')
 export class StatsController {
   constructor(private readonly ledgerDisplayService: LedgerDisplayService) {}
 
-  @Get('actifs-and-passifs/:userId')
+  @Get('actifs-and-passifs')
   @Auth()
   @ApiOperation({
     summary: 'Statistiques des actifs et passifs pour un utilisateur',
     description: 'Statistiques des actifs et passifs pour un utilisateur',
-  })
-  @ApiParam({
-    name: 'userId',
-    description: "ID unique (MongoDB ObjectId) de l'utilisateur",
   })
   @ApiResponse({
     status: 200,
@@ -27,34 +29,33 @@ export class StatsController {
     status: 404,
     description: 'Utilisateur non trouvé',
   })
-  async getActifsAndPassifsStats(@Param('userId') userId: string): Promise<{
+  async getActifsAndPassifsStats(
+    @Req() req: Request & { user: { userId: string } },
+  ): Promise<{
     actifs: number;
     passifs: number;
-    valeurTotaleActifs: number;
-    valeurTotalePassifs: number;
+    quantiteTotaleActifs: number;
+    quantiteTotalePassifs: number;
   }> {
-    if (!userId) {
-      throw new BadRequestException('userId is required');
+    if (!req.user.userId) {
+      throw new UnauthorizedException('user id is not defined');
     }
-    const result =
-      await this.ledgerDisplayService.getActifsAndPassifsStats(userId);
+    const result = await this.ledgerDisplayService.getActifsAndPassifsStats(
+      req.user.userId,
+    );
     return {
       status: 'success',
-      message: `Statistiques des actifs et passifs pour l'utilisateur ${userId}`,
+      message: `Statistiques des actifs et passifs pour l'utilisateur ${req.user.userId}`,
       data: result,
     } as any;
   }
 
-  @Get('actifs-and-passifs-by-site/:userId')
+  @Get('actifs-and-passifs-by-site')
   @Auth()
   @ApiOperation({
     summary: 'Statistiques des actifs et passifs par site pour un utilisateur',
     description:
       'Statistiques des actifs et passifs par site pour un utilisateur',
-  })
-  @ApiParam({
-    name: 'userId',
-    description: "ID unique (MongoDB ObjectId) de l'utilisateur",
   })
   @ApiResponse({
     status: 200,
@@ -67,36 +68,34 @@ export class StatsController {
     description: 'Utilisateur non trouvé',
   })
   async getActifsAndPassifsStatsBySite(
-    @Param('userId') userId: string,
+    @Req() req: Request & { user: { userId: string } },
   ): Promise<{
     actifs: number;
     passifs: number;
-    valeurTotaleActifs: number;
-    valeurTotalePassifs: number;
+    quantiteTotaleActifs: number;
+    quantiteTotalePassifs: number;
   }> {
-    if (!userId) {
-      throw new BadRequestException('userId is required');
+    if (!req.user.userId) {
+      throw new UnauthorizedException('user id is not defined');
     }
     const result =
-      await this.ledgerDisplayService.getActifsAndPassifsStatsBySite(userId);
+      await this.ledgerDisplayService.getActifsAndPassifsStatsBySite(
+        req.user.userId,
+      );
     return {
       status: 'success',
-      message: `Statistiques des actifs et passifs par site pour l'utilisateur ${userId}`,
+      message: `Statistiques des actifs et passifs par site pour l'utilisateur ${req.user.userId}`,
       data: result,
     } as any;
   }
 
-  @Get('actifs-and-passifs-by-product/:userId')
+  @Get('actifs-and-passifs-by-product')
   @Auth()
   @ApiOperation({
     summary:
       'Statistiques des actifs et passifs par produit pour un utilisateur',
     description:
       'Statistiques des actifs et passifs par produit pour un utilisateur',
-  })
-  @ApiParam({
-    name: 'userId',
-    description: "ID unique (MongoDB ObjectId) de l'utilisateur",
   })
   @ApiResponse({
     status: 200,
@@ -109,36 +108,34 @@ export class StatsController {
     description: 'Utilisateur non trouvé',
   })
   async getActifsAndPassifsStatsByProduct(
-    @Param('userId') userId: string,
+    @Req() req: Request & { user: { userId: string } },
   ): Promise<{
     actifs: number;
     passifs: number;
-    valeurTotaleActifs: number;
-    valeurTotalePassifs: number;
+    quantiteTotaleActifs: number;
+    quantiteTotalePassifs: number;
   }> {
-    if (!userId) {
-      throw new BadRequestException('userId is required');
+    if (!req.user.userId) {
+      throw new UnauthorizedException('user id is not defined');
     }
     const result =
-      await this.ledgerDisplayService.getActifsAndPassifsStatsByProduct(userId);
+      await this.ledgerDisplayService.getActifsAndPassifsStatsByProduct(
+        req.user.userId,
+      );
     return {
       status: 'success',
-      message: `Statistiques des actifs et passifs par produit pour l'utilisateur ${userId}`,
+      message: `Statistiques des actifs et passifs par produit pour l'utilisateur ${req.user.userId}`,
       data: result,
     } as any;
   }
 
-  @Get('actifs-and-passifs-with-details-by-product/:userId')
+  @Get('actifs-and-passifs-with-details-by-product')
   @Auth()
   @ApiOperation({
     summary:
       'Statistiques des actifs et passifs avec détails par produit pour un utilisateur',
     description:
       'Statistiques des actifs et passifs avec détails par produit pour un utilisateur',
-  })
-  @ApiParam({
-    name: 'userId',
-    description: "ID unique (MongoDB ObjectId) de l'utilisateur",
   })
   @ApiResponse({
     status: 200,
@@ -151,25 +148,25 @@ export class StatsController {
     description: 'Utilisateur non trouvé',
   })
   async getActifsAndPassifsWithDetailsByProduct(
-    @Param('userId') userId: string,
+    @Req() req: Request & { user: { userId: string } },
   ): Promise<{
     actifs: number;
     passifs: number;
-    valeurTotaleActifs: number;
-    valeurTotalePassifs: number;
+    quantiteTotaleActifs: number;
+    quantiteTotalePassifs: number;
     actifsDetails: any[];
     passifsDetails: any[];
   }> {
-    if (!userId) {
-      throw new BadRequestException('userId is required');
+    if (!req.user.userId) {
+      throw new UnauthorizedException('user id is not defined');
     }
     const result =
       await this.ledgerDisplayService.getActifsAndPassifsWithDetailsByProduct(
-        userId,
+        req.user.userId,
       );
     return {
       status: 'success',
-      message: `Statistiques des actifs et passifs avec détails par produit pour l'utilisateur ${userId}`,
+      message: `Statistiques des actifs et passifs avec détails par produit pour l'utilisateur ${req.user.userId}`,
       data: result,
     } as any;
   }

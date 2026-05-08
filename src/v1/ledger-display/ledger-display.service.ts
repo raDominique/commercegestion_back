@@ -765,8 +765,8 @@ export class LedgerDisplayService {
   async getActifsAndPassifsStats(userId: string): Promise<{
     actifs: number;
     passifs: number;
-    valeurTotaleActifs: number;
-    valeurTotalePassifs: number;
+    quantiteTotaleActifs: number;
+    quantiteTotalePassifs: number;
   }> {
     const userIdObj = new Types.ObjectId(userId);
 
@@ -779,8 +779,8 @@ export class LedgerDisplayService {
         $group: {
           _id: null,
           actifs: { $sum: 1 },
-          valeurTotaleActifs: {
-            $sum: { $multiply: ['$quantite', '$prixUnitaire'] },
+          quantiteTotaleActifs: {
+            $sum: '$quantite',
           },
         },
       },
@@ -795,8 +795,8 @@ export class LedgerDisplayService {
         $group: {
           _id: null,
           passifs: { $sum: 1 },
-          valeurTotalePassifs: {
-            $sum: { $multiply: ['$quantite', '$prixUnitaire'] },
+          quantiteTotalePassifs: {
+            $sum: '$quantite',
           },
         },
       },
@@ -805,8 +805,8 @@ export class LedgerDisplayService {
     return {
       actifs: actifsStats[0]?.actifs || 0,
       passifs: passifsStats[0]?.passifs || 0,
-      valeurTotaleActifs: actifsStats[0]?.valeurTotaleActifs || 0,
-      valeurTotalePassifs: passifsStats[0]?.valeurTotalePassifs || 0,
+      quantiteTotaleActifs: actifsStats[0]?.quantiteTotaleActifs || 0,
+      quantiteTotalePassifs: passifsStats[0]?.quantiteTotalePassifs || 0,
     };
   }
 
@@ -816,8 +816,8 @@ export class LedgerDisplayService {
   async getActifsAndPassifsStatsBySite(userId: string): Promise<{
     actifs: number;
     passifs: number;
-    valeurTotaleActifs: number;
-    valeurTotalePassifs: number;
+    quantiteTotaleActifs: number;
+    quantiteTotalePassifs: number;
   }> {
     const userIdObj = new Types.ObjectId(userId);
 
@@ -830,8 +830,8 @@ export class LedgerDisplayService {
         $group: {
           _id: null,
           actifs: { $sum: 1 },
-          valeurTotaleActifs: {
-            $sum: { $multiply: ['$quantite', '$prixUnitaire'] },
+          quantiteTotaleActifs: {
+            $sum: '$quantite',
           },
         },
       },
@@ -846,8 +846,8 @@ export class LedgerDisplayService {
         $group: {
           _id: null,
           passifs: { $sum: 1 },
-          valeurTotalePassifs: {
-            $sum: { $multiply: ['$quantite', '$prixUnitaire'] },
+          quantiteTotalePassifs: {
+            $sum: '$quantite',
           },
         },
       },
@@ -856,8 +856,8 @@ export class LedgerDisplayService {
     return {
       actifs: actifsStats[0]?.actifs || 0,
       passifs: passifsStats[0]?.passifs || 0,
-      valeurTotaleActifs: actifsStats[0]?.valeurTotaleActifs || 0,
-      valeurTotalePassifs: passifsStats[0]?.valeurTotalePassifs || 0,
+      quantiteTotaleActifs: actifsStats[0]?.quantiteTotaleActifs || 0,
+      quantiteTotalePassifs: passifsStats[0]?.quantiteTotalePassifs || 0,
     };
   }
 
@@ -867,8 +867,8 @@ export class LedgerDisplayService {
   async getActifsAndPassifsStatsByProduct(userId: string): Promise<{
     actifs: number;
     passifs: number;
-    valeurTotaleActifs: number;
-    valeurTotalePassifs: number;
+    quantiteTotaleActifs: number;
+    quantiteTotalePassifs: number;
   }> {
     const userIdObj = new Types.ObjectId(userId);
 
@@ -881,8 +881,8 @@ export class LedgerDisplayService {
         $group: {
           _id: null,
           actifs: { $sum: 1 },
-          valeurTotaleActifs: {
-            $sum: { $multiply: ['$quantite', '$prixUnitaire'] },
+          quantiteTotaleActifs: {
+            $sum: '$quantite',
           },
         },
       },
@@ -897,8 +897,8 @@ export class LedgerDisplayService {
         $group: {
           _id: null,
           passifs: { $sum: 1 },
-          valeurTotalePassifs: {
-            $sum: { $multiply: ['$quantite', '$prixUnitaire'] },
+          quantiteTotalePassifs: {
+            $sum: '$quantite',
           },
         },
       },
@@ -907,8 +907,8 @@ export class LedgerDisplayService {
     return {
       actifs: actifsStats[0]?.actifs || 0,
       passifs: passifsStats[0]?.passifs || 0,
-      valeurTotaleActifs: actifsStats[0]?.valeurTotaleActifs || 0,
-      valeurTotalePassifs: passifsStats[0]?.valeurTotalePassifs || 0,
+      quantiteTotaleActifs: actifsStats[0]?.quantiteTotaleActifs || 0,
+      quantiteTotalePassifs: passifsStats[0]?.quantiteTotalePassifs || 0,
     };
   }
 
@@ -918,8 +918,8 @@ export class LedgerDisplayService {
   async getActifsAndPassifsWithDetailsByProduct(userId: string): Promise<{
     actifs: number;
     passifs: number;
-    valeurTotaleActifs: number;
-    valeurTotalePassifs: number;
+    quantiteTotaleActifs: number;
+    quantiteTotalePassifs: number;
     actifsDetails: any[];
     passifsDetails: any[];
   }> {
@@ -934,8 +934,8 @@ export class LedgerDisplayService {
         $group: {
           _id: null,
           actifs: { $sum: 1 },
-          valeurTotaleActifs: {
-            $sum: { $multiply: ['$quantite', '$prixUnitaire'] },
+          quantiteTotaleActifs: {
+            $sum: '$quantite',
           },
         },
       },
@@ -950,8 +950,8 @@ export class LedgerDisplayService {
         $group: {
           _id: null,
           passifs: { $sum: 1 },
-          valeurTotalePassifs: {
-            $sum: { $multiply: ['$quantite', '$prixUnitaire'] },
+          quantiteTotalePassifs: {
+            $sum: '$quantite',
           },
         },
       },
@@ -992,8 +992,8 @@ export class LedgerDisplayService {
     return {
       actifs: actifsStats[0]?.actifs || 0,
       passifs: passifsStats[0]?.passifs || 0,
-      valeurTotaleActifs: actifsStats[0]?.valeurTotaleActifs || 0,
-      valeurTotalePassifs: passifsStats[0]?.valeurTotalePassifs || 0,
+      quantiteTotaleActifs: actifsStats[0]?.quantiteTotaleActifs || 0,
+      quantiteTotalePassifs: passifsStats[0]?.quantiteTotalePassifs || 0,
       actifsDetails,
       passifsDetails,
     };
