@@ -123,7 +123,7 @@ export class TransactionsService {
 
     const transaction = new this.transactionModel({
       transactionNumber,
-      type: TransactionType.RETOUR,
+      type: TransactionType.RETRAIT,
       status: TransactionStatus.PENDING,
       initiatorId: new Types.ObjectId(createReturnDto.detentaire),
       recipientId: new Types.ObjectId(createReturnDto.ayant_droit),
@@ -311,7 +311,7 @@ export class TransactionsService {
       case TransactionType.DEPOT:
         await this.applyDepositMovements(transaction);
         break;
-      case TransactionType.RETOUR:
+      case TransactionType.RETRAIT:
         await this.applyReturnMovements(transaction);
         break;
       case TransactionType.INITIALISATION:
@@ -906,7 +906,7 @@ export class TransactionsService {
   private getTransactionTypeLabel(type: TransactionType): string {
     const labels: Partial<Record<TransactionType, string>> = {
       [TransactionType.DEPOT]: 'Dépôt',
-      [TransactionType.RETOUR]: 'Retour',
+      [TransactionType.RETRAIT]: 'Retrait',
       [TransactionType.INITIALISATION]: 'Initialisation',
     };
     return labels[type] || (type as string);

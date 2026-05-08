@@ -127,12 +127,12 @@ export class LedgerDisplayService {
             ),
           );
         }
-      } else if (tx.type === TransactionType.RETOUR) {
+      } else if (tx.type === TransactionType.RETRAIT) {
         if (isInitiator) {
           activesMovements.push(
             this.mapMovement(
               tx,
-              'RETOUR (SORTIE)',
+              'RETRAIT (SORTIE)',
               -tx.quantite,
               'ACTIF',
               tx.siteOrigineId,
@@ -419,13 +419,13 @@ export class LedgerDisplayService {
         });
         break;
 
-      case TransactionType.RETOUR:
+      case TransactionType.RETRAIT:
         // Mouvement de retrait (initiator returns)
         movements.push({
           dateTime: transaction.approvedAt,
           transactionId: transaction._id.toString(),
           transactionNumber: transaction.transactionNumber,
-          title: 'RETOUR',
+          title: 'RETRAIT',
           product: this.getName(transaction.productId),
           detentaire: this.getName(transaction.initiatorId),
           site: this.getName(transaction.siteOrigineId),
@@ -440,7 +440,7 @@ export class LedgerDisplayService {
           dateTime: transaction.approvedAt,
           transactionId: transaction._id.toString(),
           transactionNumber: transaction.transactionNumber,
-          title: 'RETOUR',
+          title: 'RETRAIT',
           product: this.getName(transaction.productId),
           detentaire: this.getName(transaction.recipientId),
           site: this.getName(transaction.siteDestinationId),
@@ -455,7 +455,7 @@ export class LedgerDisplayService {
           dateTime: transaction.approvedAt,
           transactionId: transaction._id.toString(),
           transactionNumber: transaction.transactionNumber,
-          title: 'RETOUR',
+          title: 'RETRAIT',
           product: this.getName(transaction.productId),
           detentaire: this.getName(transaction.initiatorId),
           site: this.getName(transaction.siteOrigineId),
@@ -504,17 +504,24 @@ export class LedgerDisplayService {
    */
   private getName(doc: any): string {
     if (!doc) return 'N/A';
-    
+
     // Si c'est juste un ID (string ou ObjectId), retourner N/A pour forcer l'investigation
     if (typeof doc === 'string') {
       return 'N/A';
     }
-    if (doc._id && !doc.useruserFirstname && !doc.userName && !doc.name && !doc.productName && !doc.siteName) {
+    if (
+      doc._id &&
+      !doc.userFirstname &&
+      !doc.userName &&
+      !doc.name &&
+      !doc.productName &&
+      !doc.siteName
+    ) {
       return 'N/A';
     }
-    
-    if (doc.useruserFirstname && doc.userName)
-      return `${doc.useruserFirstname} ${doc.userName}`;
+
+    if (doc.userFirstname && doc.userName)
+      return `${doc.userFirstname} ${doc.userName}`;
     if (doc.name) return doc.name;
     if (doc.productName) return doc.productName;
     if (doc.siteName) return doc.siteName;
@@ -623,10 +630,10 @@ export class LedgerDisplayService {
       depot: (actif.depotId as any)?.siteName || 'N/A',
       depotAdresse: (actif.depotId as any)?.siteAddress || 'N/A',
       detentaire: (actif.detentaire as any)
-        ? `${(actif.detentaire as any).userName} (${(actif.detentaire as any).userNickName})`
+        ? `${(actif.detentaire as any).userNickName} ${(actif.detentaire as any).userName}`
         : 'N/A',
       ayantDroit: (actif.ayant_droit as any)
-        ? `${(actif.ayant_droit as any).userName} (${(actif.ayant_droit as any).userNickName})`
+        ? `${(actif.ayant_droit as any).userNickName} ${(actif.ayant_droit as any).userName}`
         : 'N/A',
       dateCreation: (actif as any).createdAt,
       dateModification: (actif as any).updatedAt,

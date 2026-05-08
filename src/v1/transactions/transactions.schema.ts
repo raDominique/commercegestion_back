@@ -5,7 +5,7 @@ export type TransactionDocument = Transaction & Document;
 
 export enum TransactionType {
   DEPOT = 'DÉPÔT',
-  RETOUR = 'RETOUR',
+  RETRAIT = 'RETRAIT',
   INITIALISATION = 'INITIALISATION',
   VENTE = 'VENTE',
 }
