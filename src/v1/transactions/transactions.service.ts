@@ -243,11 +243,12 @@ export class TransactionsService {
     await this.applyTransactionMovements(updatedTransaction);
 
     // Envoyer la notification d'approbation (fire-and-forget)
-    this.sendApprovalNotification(updatedTransaction, 'Admin').catch(
-      (error) => {
-        console.error('Failed to send approval notification:', error);
-      },
-    );
+    this.sendApprovalNotification(
+      updatedTransaction,
+      approveDto.approuveurId,
+    ).catch((error) => {
+      console.error('Failed to send approval notification:', error);
+    });
 
     return {
       status: 'success',
@@ -287,7 +288,7 @@ export class TransactionsService {
     this.sendRejectionNotification(
       updatedTransaction,
       rejectDto.motifRejet,
-      'Admin',
+      rejectDto.approuveurId,
     ).catch((error) => {
       console.error('Failed to send rejection notification:', error);
     });
@@ -387,7 +388,7 @@ export class TransactionsService {
       const quantity = transaction.quantite;
       const unitPrice = transaction.prixUnitaire || 0;
 
-      // 1. Diminuer l'actif de l'initiator (détenteur) au site d'origine
+      // 1. Diminuer l'actif de l'initiator (ayant droit) au site d'origine
       await this.actifsService.decreaseActif(
         initiatorId,
         originSiteId,
@@ -395,7 +396,7 @@ export class TransactionsService {
         quantity,
       );
 
-      // 2. Augmenter l'actif du recipient (propriétaire) au site de destination
+      // 2. Augmenter l'actif du recipient (detenteur) au site de destination
       await this.actifsService.addOrIncreaseActif(
         recipientId, // userId: Propriétaire du bilan
         destinationSiteId, // depotId: Site physique
@@ -412,6 +413,15 @@ export class TransactionsService {
         productId, // productId
         initiatorId, // creancierId: À qui il devait (l'initiator/propriétaire)
         quantity, // quantite: Diminuer la dette
+      );
+
+      // 4. Ajouter dans les passifs du initiateur
+      await this.passifsService.addOrIncreasePassif(
+        initiatorId, // detentaireId: Qui devait (le recipient)
+        destinationSiteId, // depotId
+        recipientId, // creancierId: À qui il devait (l'initiator/propriétaire)
+        quantity, // quantite: Diminuer la dette,
+        initiatorId, //detentaireId:Qui doit
       );
 
       console.log(
@@ -660,7 +670,7 @@ export class TransactionsService {
    */
   private async sendApprovalNotification(
     transaction: TransactionDocument,
-    approverName: string = 'Admin',
+    approverId: string,
   ): Promise<void> {
     try {
       this.loggers.debug(
@@ -668,6 +678,9 @@ export class TransactionsService {
         `Sending approval notification for transaction: ${transaction.transactionNumber}`,
       );
       const transactionType = this.getTransactionTypeLabel(transaction.type);
+
+      const approverUser = await this.usersService.getById(approverId);
+      const approverName = approverUser.userName;
 
       // Récupérer les infos du destinataire via la base de données
       const recipientUser = await this.usersService.getById(
@@ -723,10 +736,13 @@ export class TransactionsService {
   private async sendRejectionNotification(
     transaction: TransactionDocument,
     rejectionReason: string,
-    approverName: string = 'Admin',
+    approuverId: string,
   ): Promise<void> {
     try {
       const transactionType = this.getTransactionTypeLabel(transaction.type);
+
+      const approverUser = await this.usersService.getById(approuverId);
+      const approverName = approverUser.userName;
 
       // Récupérer les infos du destinataire via la base de données
       const recipientUser = await this.usersService.getById(
