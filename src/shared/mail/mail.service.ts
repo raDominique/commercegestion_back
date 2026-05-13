@@ -323,9 +323,14 @@ export class MailService {
     await this.mailQueue.enqueue({
       to,
       subject: `Nouvelle transaction créée - ${this.appName}`,
-      template: isDestinataire
-        ? 'transaction-created-destinataire'
-        : 'transaction-created',
+      template:
+        transactionType === 'DEPOT'
+          ? isDestinataire
+            ? 'transaction-created-destinataire'
+            : 'transaction-created'
+          : isDestinataire
+            ? 'transaction-retrait-created-destinataire'
+            : 'transaction-retrait-created',
       context: {
         envoyeurName: envoyeurName,
         recipientName,
