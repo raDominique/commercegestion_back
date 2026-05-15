@@ -1,30 +1,26 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DashboardController } from './dashboard.controller';
-import { LedgerDisplayService } from '../ledger-display/ledger-display.service';
+import { DashboardService } from './dashboard.service';
 
 describe('DashboardController', () => {
   let controller: DashboardController;
-  let ledgerDisplayService: LedgerDisplayService;
+  let dashboardService: DashboardService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DashboardController],
       providers: [
         {
-          provide: LedgerDisplayService,
+          provide: DashboardService,
           useValue: {
-            getActifsAndPassifsStats: jest.fn(),
-            getActifsAndPassifsStatsBySite: jest.fn(),
-            getActifsAndPassifsStatsByProduct: jest.fn(),
-            getActifsAndPassifsWithDetailsByProduct: jest.fn(),
+            getDashboard: jest.fn(),
           },
         },
       ],
     }).compile();
 
     controller = module.get<DashboardController>(DashboardController);
-    ledgerDisplayService =
-      module.get<LedgerDisplayService>(LedgerDisplayService);
+    dashboardService = module.get<DashboardService>(DashboardService);
   });
 
   it('should be defined', () => {
