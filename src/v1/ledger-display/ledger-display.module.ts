@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { LedgerDisplayService } from './ledger-display.service';
 import { LedgerDisplayController } from './ledger-display.controller';
-import { StatsController } from './stats.controller';
 import {
   Transaction,
   TransactionSchema,
@@ -18,7 +17,7 @@ import { Passif, PassifSchema } from '../passifs/passifs.schema';
       { name: Passif.name, schema: PassifSchema },
     ]),
   ],
-  controllers: [LedgerDisplayController, StatsController],
+  controllers: [LedgerDisplayController],
   providers: [LedgerDisplayService],
   exports: [LedgerDisplayService],
 })

@@ -17,6 +17,7 @@ import { ActifsModule } from './v1/actifs/actifs.module';
 import { PassifsModule } from './v1/passifs/passifs.module';
 import { LedgerDisplayModule } from './v1/ledger-display';
 import { TransactionsModule } from './v1/transactions/transactions.module';
+import { DashboardModule } from './v1/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -38,7 +39,8 @@ import { TransactionsModule } from './v1/transactions/transactions.module';
           { path: 'actifs', module: ActifsModule },
           { path: 'passifs', module: PassifsModule },
           { path: 'transactions', module: TransactionsModule },
-          { path: '', module: LedgerDisplayModule },
+          { path: 'ledger', module: LedgerDisplayModule },
+          { path: 'dashboard', module: DashboardModule },
         ],
       },
       {

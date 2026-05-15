@@ -17,7 +17,7 @@ import { Auth } from '../auth';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 
 @ApiTags('Livre')
-@Controller('ledger')
+@Controller()
 export class LedgerDisplayController {
   constructor(private readonly ledgerDisplayService: LedgerDisplayService) {}
 

@@ -16,6 +16,7 @@ import { ActifsModule } from './actifs/actifs.module';
 import { PassifsModule } from './passifs/passifs.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { LedgerDisplayModule } from './ledger-display/ledger-display.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { LedgerDisplayModule } from './ledger-display/ledger-display.module';
     PassifsModule,
     TransactionsModule,
     LedgerDisplayModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService, UploadService],
