@@ -55,4 +55,27 @@ export class AuditService {
     }
     return this.auditModel.find({ userId: userObjectId }).exec();
   }
+
+  async findAllLogs(page: number = 1, limit: number = 50) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.auditModel
+        .find()
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('userId', 'userName userFirstname userEmail')
+        .exec(),
+      this.auditModel.countDocuments(),
+    ]);
+
+    return {
+      status: 'success',
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
 }

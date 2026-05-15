@@ -9,6 +9,8 @@ import {
 } from '../transactions/transactions.schema';
 import { Actif, ActifDocument } from '../actifs/actifs.schema';
 import { Passif, PassifDocument } from '../passifs/passifs.schema';
+import { UploadService } from 'src/shared/upload/upload.service';
+const { Parser: Json2CsvParser } = require('json2csv');
 
 /**
  * Structure d'un mouvement dans le grand livre
@@ -48,6 +50,7 @@ export class LedgerDisplayService {
     private readonly actifModel: Model<ActifDocument>,
     @InjectModel(Passif.name)
     private readonly passifModel: Model<PassifDocument>,
+    private readonly uploadService: UploadService,
   ) {}
 
   /**
@@ -531,6 +534,87 @@ export class LedgerDisplayService {
     if (doc._id) return doc._id.toString();
     if (doc.id) return doc.id.toString();
     return 'N/A';
+  }
+
+  /**
+   * Exporte le grand livre d'un utilisateur en CSV
+   */
+  async exportUserLedger(userId: string): Promise<string> {
+    const ledger = await this.getUserLedger(userId);
+    const movements = [...ledger.movements.actifs, ...ledger.movements.passifs].sort(
+      (a, b) => b.dateTime.getTime() - a.dateTime.getTime(),
+    );
+
+    if (movements.length === 0) {
+      throw new NotFoundException('Aucun mouvement à exporter pour cet utilisateur');
+    }
+
+    const fields = [
+      { label: 'Date', value: 'dateTime' },
+      { label: 'N° Transaction', value: 'transactionNumber' },
+      { label: 'Titre', value: 'title' },
+      { label: 'Produit', value: 'product' },
+      { label: 'Code CPC', value: 'productCode' },
+      { label: 'Détenteur', value: 'detentaire' },
+      { label: 'Site', value: 'site' },
+      { label: 'Quantité', value: 'quantity' },
+      { label: 'Stock Initial', value: 'initialStock' },
+      { label: 'Stock Final', value: 'finalStock' },
+      { label: 'Type', value: 'movementType' },
+    ];
+
+    const json2csv = new Json2CsvParser({ fields });
+    const csvData = json2csv.parse(movements);
+
+    const fileName = `export_ledger_user_${userId}_${Date.now()}.csv`;
+    const buffer = Buffer.from(csvData, 'utf-8');
+
+    const fakeFile = {
+      buffer,
+      originalname: fileName,
+      mimetype: 'text/csv',
+    } as any;
+
+    return await this.uploadService.saveFile(fakeFile, 'ledger-export');
+  }
+
+  /**
+   * Exporte le grand livre global en CSV
+   */
+  async exportGlobalLedger(): Promise<string> {
+    // On récupère une grande quantité pour l'export (ex: 50000)
+    const result = await this.getGlobalLedger(1, 50000);
+
+    if (result.data.length === 0) {
+      throw new NotFoundException('Aucun mouvement à exporter');
+    }
+
+    const fields = [
+      { label: 'Date', value: 'dateTime' },
+      { label: 'N° Transaction', value: 'transactionNumber' },
+      { label: 'Titre', value: 'title' },
+      { label: 'Produit', value: 'product' },
+      { label: 'Détenteur', value: 'detentaire' },
+      { label: 'Site', value: 'site' },
+      { label: 'Quantité', value: 'quantity' },
+      { label: 'Stock Initial', value: 'initialStock' },
+      { label: 'Stock Final', value: 'finalStock' },
+      { label: 'Type', value: 'movementType' },
+    ];
+
+    const json2csv = new Json2CsvParser({ fields });
+    const csvData = json2csv.parse(result.data);
+
+    const fileName = `export_ledger_global_${Date.now()}.csv`;
+    const buffer = Buffer.from(csvData, 'utf-8');
+
+    const fakeFile = {
+      buffer,
+      originalname: fileName,
+      mimetype: 'text/csv',
+    } as any;
+
+    return await this.uploadService.saveFile(fakeFile, 'ledger-export');
   }
 
   /**

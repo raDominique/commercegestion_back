@@ -642,4 +642,47 @@ Erreurs possibles:
       status,
     );
   }
+
+  /**
+   * Exporte les transactions d'un utilisateur en CSV
+   */
+  @Get('user/:userId/export')
+  @Auth()
+  @ApiOperation({
+    summary: "Exporter l'historique des transactions d'un utilisateur en CSV",
+    description: "Génère un fichier CSV contenant toutes les transactions d'un utilisateur spécifique.",
+  })
+  @ApiParam({
+    name: 'userId',
+    description: "ID unique de l'utilisateur",
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'URL du fichier CSV généré',
+  })
+  async exportUserTransactions(@Param('userId') userId: string) {
+    if (!userId || userId.length !== 24) {
+      throw new BadRequestException('Un ID utilisateur valide est requis');
+    }
+    const fileUrl = await this.transactionsService.exportUserTransactions(userId);
+    return { status: 'success', file: fileUrl };
+  }
+
+  /**
+   * Exporte toutes les transactions du système en CSV
+   */
+  @Get('export/all')
+  @Auth()
+  @ApiOperation({
+    summary: 'Exporter toutes les transactions du système en CSV',
+    description: 'Génère un fichier CSV contenant toutes les transactions enregistrées dans le système.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'URL du fichier CSV généré',
+  })
+  async exportAllTransactions() {
+    const fileUrl = await this.transactionsService.exportAllTransactions();
+    return { status: 'success', file: fileUrl };
+  }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Req, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Req, Query, UnauthorizedException } from '@nestjs/common';
 import { AuditService } from './audit.service';
 import { ApiTags, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { Auth } from '../auth/decorators/auth.decorator';
@@ -18,5 +18,13 @@ export class AuditController {
       throw new UnauthorizedException('User ID not found in token');
     }
     return this.auditService.findLogsByUserId(userId);
+  }
+
+  @Get('all')
+  @Auth()
+  @ApiOperation({ summary: 'Get all audit logs in the system (Admin)' })
+  @ApiResponse({ status: 200, description: 'Paginated list of audit logs' })
+  findAll(@Query('page') page: number = 1, @Query('limit') limit: number = 50) {
+    return this.auditService.findAllLogs(Number(page), Number(limit));
   }
 }

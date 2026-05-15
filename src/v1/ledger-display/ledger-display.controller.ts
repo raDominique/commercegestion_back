@@ -109,6 +109,31 @@ Erreurs possibles:
   }
 
   /**
+   * Exporte le grand livre d'un utilisateur en CSV
+   */
+  @Get('user/:userId/export')
+  @Auth()
+  @ApiOperation({
+    summary: "Exporter le grand livre d'un utilisateur en CSV",
+    description: "Génère un fichier CSV contenant tous les mouvements d'un utilisateur spécifique.",
+  })
+  @ApiParam({
+    name: 'userId',
+    description: "ID unique de l'utilisateur",
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'URL du fichier CSV généré',
+  })
+  async exportUserLedger(@Param('userId') userId: string) {
+    if (!userId || userId.length !== 24) {
+      throw new BadRequestException('Un ID utilisateur valide est requis');
+    }
+    const fileUrl = await this.ledgerDisplayService.exportUserLedger(userId);
+    return { status: 'success', file: fileUrl };
+  }
+
+  /**
    * Affiche le grand livre global (tous les mouvements du système)
    */
   @Get('global')
@@ -180,6 +205,24 @@ Erreurs possibles:
     @Query('limit') limit: number = 50,
   ) {
     return this.ledgerDisplayService.getGlobalLedger(page, limit);
+  }
+
+  /**
+   * Exporte le grand livre global en CSV
+   */
+  @Get('global/export')
+  @Auth()
+  @ApiOperation({
+    summary: 'Exporter le grand livre global en CSV',
+    description: 'Génère un fichier CSV contenant tous les mouvements du système.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'URL du fichier CSV généré',
+  })
+  async exportGlobalLedger() {
+    const fileUrl = await this.ledgerDisplayService.exportGlobalLedger();
+    return { status: 'success', file: fileUrl };
   }
 
   /**

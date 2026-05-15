@@ -30,6 +30,8 @@ import { CreateMovementDto } from '../stock/dto/create-movement.dto';
 import { UsersService } from '../users/users.service';
 import { SiteService } from '../sites/sites.service';
 import { LoggerService } from 'src/common/logger/logger.service';
+import { UploadService } from 'src/shared/upload/upload.service';
+const { Parser: Json2CsvParser } = require('json2csv');
 
 @Injectable()
 export class TransactionsService {
@@ -45,6 +47,7 @@ export class TransactionsService {
     private readonly usersService: UsersService,
     private readonly siteService: SiteService,
     private readonly loggers: LoggerService,
+    private readonly uploadService: UploadService,
   ) {}
 
   /**
@@ -926,5 +929,140 @@ export class TransactionsService {
       [TransactionType.INITIALISATION]: 'Initialisation',
     };
     return labels[type] || (type as string);
+  }
+
+  /**
+   * Exporte les transactions d'un utilisateur en CSV
+   */
+  async exportUserTransactions(userId: string): Promise<string> {
+    const transactions = await this.transactionModel
+      .find({
+        $or: [
+          { initiatorId: new Types.ObjectId(userId) },
+          { recipientId: new Types.ObjectId(userId) },
+        ],
+      })
+      .sort({ createdAt: -1 })
+      .populate([
+        { path: 'initiatorId', select: 'userFirstname userName' },
+        { path: 'recipientId', select: 'userFirstname userName' },
+        { path: 'productId', select: 'productName' },
+        { path: 'siteOrigineId', select: 'siteName' },
+        { path: 'siteDestinationId', select: 'siteName' },
+      ])
+      .exec();
+
+    if (transactions.length === 0) {
+      throw new NotFoundException(
+        'Aucune transaction à exporter pour cet utilisateur',
+      );
+    }
+
+    return this.generateCsv(
+      transactions,
+      `export_transactions_user_${userId}_${Date.now()}.csv`,
+    );
+  }
+
+  /**
+   * Exporte toutes les transactions du système en CSV
+   */
+  async exportAllTransactions(): Promise<string> {
+    const transactions = await this.transactionModel
+      .find()
+      .sort({ createdAt: -1 })
+      .populate([
+        { path: 'initiatorId', select: 'userFirstname userName' },
+        { path: 'recipientId', select: 'userFirstname userName' },
+        { path: 'productId', select: 'productName' },
+        { path: 'siteOrigineId', select: 'siteName' },
+        { path: 'siteDestinationId', select: 'siteName' },
+      ])
+      .exec();
+
+    if (transactions.length === 0) {
+      throw new NotFoundException('Aucune transaction à exporter');
+    }
+
+    return this.generateCsv(
+      transactions,
+      `export_transactions_all_${Date.now()}.csv`,
+    );
+  }
+
+  /**
+   * Génère un fichier CSV à partir d'une liste de transactions
+   */
+  private async generateCsv(
+    transactions: any[],
+    fileName: string,
+  ): Promise<string> {
+    const fields = [
+      {
+        label: 'Date',
+        value: (row: any) =>
+          row.createdAt ? new Date(row.createdAt).toLocaleString() : 'N/A',
+      },
+      { label: 'N° Transaction', value: 'transactionNumber' },
+      {
+        label: 'Type',
+        value: (row: any) => this.getTransactionTypeLabel(row.type),
+      },
+      { label: 'Statut', value: 'status' },
+      {
+        label: 'Produit',
+        value: (row: any) => row.productId?.productName || 'N/A',
+      },
+      { label: 'Quantité', value: 'quantite' },
+      { label: 'Prix Unitaire', value: 'prixUnitaire' },
+      {
+        label: 'Valeur Totale',
+        value: (row: any) => (row.quantite || 0) * (row.prixUnitaire || 0),
+      },
+      {
+        label: 'Initiateur',
+        value: (row: any) => this.getName(row.initiatorId),
+      },
+      {
+        label: 'Destinataire',
+        value: (row: any) => this.getName(row.recipientId),
+      },
+      {
+        label: 'Site Origine',
+        value: (row: any) => row.siteOrigineId?.siteName || 'N/A',
+      },
+      {
+        label: 'Site Destination',
+        value: (row: any) => row.siteDestinationId?.siteName || 'N/A',
+      },
+      { label: 'Observations', value: 'observations' },
+    ];
+
+    const json2csv = new Json2CsvParser({ fields });
+    const csvData = json2csv.parse(transactions);
+
+    const buffer = Buffer.from(csvData, 'utf-8');
+    const fakeFile = {
+      buffer,
+      originalname: fileName,
+      mimetype: 'text/csv',
+    } as any;
+
+    return await this.uploadService.saveFile(fakeFile, 'transactions-export');
+  }
+
+  /**
+   * Helper pour extraire un nom lisible d'un document peuplé
+   */
+  private getName(doc: any): string {
+    if (!doc) return 'N/A';
+    if (doc.userFirstname && doc.userName)
+      return `${doc.userFirstname} ${doc.userName}`;
+    if (doc.userName) return doc.userName;
+    if (doc.name) return doc.name;
+    if (doc.productName) return doc.productName;
+    if (doc.siteName) return doc.siteName;
+    if (doc._id) return doc._id.toString();
+    return 'N/A';
   }
 }
