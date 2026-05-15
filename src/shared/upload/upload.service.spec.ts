@@ -31,13 +31,15 @@ describe('UploadService', () => {
       stream: undefined as any,
     };
 
-    const filePath = await service.saveFile(mockFile, destFolder);
-    expect(filePath).toContain('upload');
-    expect(filePath).toContain(destFolder);
+    const fileUrl = await service.saveFile(mockFile, destFolder);
+    expect(fileUrl).toContain('upload');
+    expect(fileUrl).toContain(destFolder);
     const fs = require('fs');
+    const path = require('path');
+    const filePath = path.join(process.cwd(), fileUrl);
     expect(fs.existsSync(filePath)).toBe(true);
     // Nettoyage
     fs.unlinkSync(filePath);
-    fs.rmdirSync(require('path').dirname(filePath), { recursive: true });
+    fs.rmdirSync(path.dirname(filePath), { recursive: true });
   });
 });

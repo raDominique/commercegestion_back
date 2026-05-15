@@ -8,7 +8,23 @@ describe('CpcController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CpcController],
-      providers: [CpcService],
+      providers: [
+        {
+          provide: CpcService,
+          useValue: {
+            create: jest.fn(),
+            getForSelect: jest.fn(),
+            findAll: jest.fn(),
+            findOne: jest.fn(),
+            findChildren: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
+            importCpcProduct: jest.fn(),
+            exportCpc: jest.fn(),
+            bulkCreate: jest.fn(),
+          },
+        },
+      ],
     }).compile();
 
     controller = module.get<CpcController>(CpcController);
