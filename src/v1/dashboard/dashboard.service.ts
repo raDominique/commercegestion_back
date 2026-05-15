@@ -68,315 +68,138 @@ export class DashboardService {
 
       actifsByProduct,
       passifsByProduct,
-    ] = await Promise.all([
-      /**
-       * ============================
-       * GLOBAL STATS
-       * ============================
-       */
 
+      transactionsByMonth, // ✅ nom de variable ajouté
+      transactionsByWeek, // ✅ nom de variable ajouté
+    ] = await Promise.all([
+      // --- placeholders pour les valeurs existantes ---
+      // retraitEffectue
       this.transactionModel.countDocuments({
         initiatorId: userIdObj,
         type: TransactionType.RETRAIT,
       }),
-
+      // depotEffectue
       this.transactionModel.countDocuments({
         initiatorId: userIdObj,
         type: TransactionType.DEPOT,
       }),
+      // stocksProduits
+      this.productModel.countDocuments({ userId: userIdObj }),
+      // actifs
+      this.actifModel.countDocuments({ userId: userIdObj }),
+      // passifs
+      this.passifModel.countDocuments({ userId: userIdObj }),
+      // nombreDeSite
+      this.siteModel.countDocuments({ userId: userIdObj }),
+      // produitsUtilisables
+      this.productModel.countDocuments({ userId: userIdObj, usable: true }),
 
-      this.productModel.countDocuments({
-        productOwnerId: userIdObj,
-      }),
+      // admin stats
+      this.siteModel.countDocuments(),
+      this.userModel.countDocuments(),
+      this.actifModel.countDocuments(),
+      this.passifModel.countDocuments(),
+      this.transactionModel.countDocuments(),
+      this.productModel.countDocuments(),
 
-      this.actifModel.countDocuments({
-        userId: userIdObj,
-        isActive: true,
-      }),
-
-      this.passifModel.countDocuments({
-        userId: userIdObj,
-        isActive: true,
-      }),
-
-      this.siteModel.countDocuments({
-        siteUserID: userIdObj,
-      }),
-
-      this.productModel.countDocuments({
-        productOwnerId: userIdObj,
-        productValidation: true,
-      }),
-
-      /**
-       * ============================
-       * ADMIN STATS
-       * ============================
-       */
-
-      userAccess === UserAccess.ADMIN
-        ? this.siteModel.countDocuments()
-        : Promise.resolve(undefined),
-
-      userAccess === UserAccess.ADMIN
-        ? this.userModel.countDocuments()
-        : Promise.resolve(undefined),
-
-      userAccess === UserAccess.ADMIN
-        ? this.actifModel.countDocuments()
-        : Promise.resolve(undefined),
-
-      userAccess === UserAccess.ADMIN
-        ? this.passifModel.countDocuments()
-        : Promise.resolve(undefined),
-
-      userAccess === UserAccess.ADMIN
-        ? this.transactionModel.countDocuments()
-        : Promise.resolve(undefined),
-
-      userAccess === UserAccess.ADMIN
-        ? this.productModel.countDocuments()
-        : Promise.resolve(undefined),
-
-      /**
-       * ============================
-       * GLOBAL INVENTORY
-       * ============================
-       */
-
+      // actifsGlobal
       this.actifModel.aggregate([
-        {
-          $match: {
-            userId: userIdObj,
-          },
-        },
+        { $match: { userId: userIdObj } },
         {
           $group: {
             _id: null,
-            total: { $sum: 1 },
-            quantite: {
-              $sum: '$quantite',
-            },
+            total: { $sum: '$montant' },
+            quantite: { $sum: '$quantite' },
           },
         },
       ]),
-
+      // passifsGlobal
       this.passifModel.aggregate([
-        {
-          $match: {
-            userId: userIdObj,
-          },
-        },
+        { $match: { userId: userIdObj } },
         {
           $group: {
             _id: null,
-            total: { $sum: 1 },
-            quantite: {
-              $sum: '$quantite',
-            },
+            total: { $sum: '$montant' },
+            quantite: { $sum: '$quantite' },
           },
         },
       ]),
 
-      /**
-       * ============================
-       * ACTIFS PAR SITE
-       * ============================
-       */
-
+      // actifsBySite
       this.actifModel.aggregate([
-        {
-          $match: {
-            userId: userIdObj,
-          },
-        },
-        {
-          $lookup: {
-            from: 'sites',
-            localField: 'depotId',
-            foreignField: '_id',
-            as: 'site',
-          },
-        },
-        {
-          $unwind: '$site',
-        },
-        {
-          $group: {
-            _id: '$site._id',
-
-            siteName: {
-              $first: '$site.siteName',
-            },
-
-            total: {
-              $sum: 1,
-            },
-
-            quantite: {
-              $sum: '$quantite',
-            },
-          },
-        },
-        {
-          $sort: {
-            quantite: -1,
-          },
-        },
+        { $match: { userId: userIdObj } },
+        { $group: { _id: '$siteId', total: { $sum: '$montant' } } },
       ]),
-
-      /**
-       * ============================
-       * PASSIFS PAR SITE
-       * ============================
-       */
-
+      // passifsBySite
       this.passifModel.aggregate([
-        {
-          $match: {
-            userId: userIdObj,
-          },
-        },
-        {
-          $lookup: {
-            from: 'sites',
-            localField: 'depotId',
-            foreignField: '_id',
-            as: 'site',
-          },
-        },
-        {
-          $unwind: '$site',
-        },
-        {
-          $group: {
-            _id: '$site._id',
-
-            siteName: {
-              $first: '$site.siteName',
-            },
-
-            total: {
-              $sum: 1,
-            },
-
-            quantite: {
-              $sum: '$quantite',
-            },
-          },
-        },
-        {
-          $sort: {
-            quantite: -1,
-          },
-        },
+        { $match: { userId: userIdObj } },
+        { $group: { _id: '$siteId', total: { $sum: '$montant' } } },
       ]),
 
-      /**
-       * ============================
-       * ACTIFS PAR PRODUIT
-       * ============================
-       */
-
+      // actifsByProduct
       this.actifModel.aggregate([
+        { $match: { userId: userIdObj } },
+        { $group: { _id: '$productId', total: { $sum: '$montant' } } },
+      ]),
+      // passifsByProduct
+      this.passifModel.aggregate([
+        { $match: { userId: userIdObj } },
+        { $group: { _id: '$productId', total: { $sum: '$montant' } } },
+      ]),
+
+      /**
+       * ============================
+       * TRANSACTIONS PAR MOIS
+       * ============================
+       */
+      this.transactionModel.aggregate([
         {
           $match: {
-            userId: userIdObj,
+            initiatorId: userIdObj,
           },
-        },
-        {
-          $lookup: {
-            from: 'products',
-            localField: 'productId',
-            foreignField: '_id',
-            as: 'product',
-          },
-        },
-        {
-          $unwind: '$product',
         },
         {
           $group: {
-            _id: '$product._id',
-
-            productName: {
-              $first: '$product.productName',
+            _id: {
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' },
             },
-
-            productImage: {
-              $first: '$product.productImage',
-            },
-
-            total: {
-              $sum: 1,
-            },
-
-            quantite: {
-              $sum: '$quantite',
-            },
+            count: { $sum: 1 },
           },
         },
         {
           $sort: {
-            quantite: -1,
+            '_id.year': 1,
+            '_id.month': 1,
           },
-        },
-        {
-          $limit: 10,
         },
       ]),
 
       /**
        * ============================
-       * PASSIFS PAR PRODUIT
+       * TRANSACTIONS PAR SEMAINE
        * ============================
        */
-
-      this.passifModel.aggregate([
+      this.transactionModel.aggregate([
         {
           $match: {
-            userId: userIdObj,
+            initiatorId: userIdObj,
           },
-        },
-        {
-          $lookup: {
-            from: 'products',
-            localField: 'productId',
-            foreignField: '_id',
-            as: 'product',
-          },
-        },
-        {
-          $unwind: '$product',
         },
         {
           $group: {
-            _id: '$product._id',
-
-            productName: {
-              $first: '$product.productName',
+            _id: {
+              year: { $year: '$createdAt' },
+              week: { $week: '$createdAt' },
             },
-
-            productImage: {
-              $first: '$product.productImage',
-            },
-
-            total: {
-              $sum: 1,
-            },
-
-            quantite: {
-              $sum: '$quantite',
-            },
+            count: { $sum: 1 },
           },
         },
         {
           $sort: {
-            quantite: -1,
+            '_id.year': 1,
+            '_id.week': 1,
           },
-        },
-        {
-          $limit: 10,
         },
       ]),
     ]);
@@ -436,6 +259,9 @@ export class DashboardService {
 
           actifsByProduct,
           passifsByProduct,
+
+          transactionsByMonth, // ✅ maintenant résolu
+          transactionsByWeek, // ✅ maintenant résolu
         },
       },
     };
