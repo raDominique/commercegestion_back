@@ -22,6 +22,7 @@ import { ConfigService } from '@nestjs/config';
 import { SiteService } from '../sites/sites.service';
 import { NotificationsService } from 'src/shared/notifications/notifications.service';
 import { LoggerService } from 'src/common/logger/logger.service';
+import { ExportService } from '../../shared/export/export.service';
 
 @Injectable()
 export class UsersService implements OnModuleInit {
@@ -40,6 +41,7 @@ export class UsersService implements OnModuleInit {
     private readonly siteService: SiteService,
     private readonly socketNotifications: NotificationsService,
     private readonly logger: LoggerService,
+    private readonly exportService: ExportService,
   ) {
     this.baseUrl =
       this.configService.get<string>('APP_URL') || 'http://localhost:3000';
@@ -758,5 +760,35 @@ export class UsersService implements OnModuleInit {
     }
 
     return query;
+  }
+
+  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<string> {
+    const items = await this.userModel.find().sort({ createdAt: -1 }).lean().exec();
+
+    if (!items.length) {
+      throw new NotFoundException('Aucune donnée à exporter');
+    }
+
+    const subfolder = 'users-export';
+    const columns = [
+      { header: 'ID', key: '_id' },
+      { header: 'Email', key: 'userEmail' },
+      { header: 'Nom', key: 'userName' },
+      { header: 'Type', key: 'userType' },
+      { header: 'Téléphone', key: 'userPhone' },
+      { header: 'Email vérifié', key: 'userEmailVerified' },
+      { header: 'Compte actif', key: 'userValidated' },
+      { header: 'Créé le', key: 'createdAt' },
+    ];
+
+    if (format === 'excel') {
+      return this.exportService.exportExcel(items, columns, 'Utilisateurs', subfolder);
+    }
+    return this.exportService.exportPDF(
+      'Liste des Utilisateurs',
+      columns.map(c => c.header),
+      items.map(item => columns.map(c => item[c.key] ?? '')),
+      subfolder,
+    );
   }
 }

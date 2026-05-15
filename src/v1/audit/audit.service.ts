@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
@@ -7,12 +7,14 @@ import {
   EntityType,
   AuditLogDocument,
 } from './audit-log.schema';
+import { ExportService } from '../../shared/export/export.service';
 
 @Injectable()
 export class AuditService {
   constructor(
     @InjectModel(AuditLog.name)
     private readonly auditModel: Model<AuditLogDocument>,
+    private readonly exportService: ExportService,
   ) {}
 
   async log(params: {
@@ -77,5 +79,33 @@ export class AuditService {
       limit,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<string> {
+    const items = await this.auditModel.find().sort({ createdAt: -1 }).lean().exec();
+
+    if (!items.length) {
+      throw new NotFoundException('Aucune donnée à exporter');
+    }
+
+    const subfolder = 'audit-export';
+    const columns = [
+      { header: 'ID', key: '_id' },
+      { header: 'Action', key: 'action' },
+      { header: 'Entité', key: 'entityType' },
+      { header: 'ID Entité', key: 'entityId' },
+      { header: 'Utilisateur', key: 'userId' },
+      { header: 'Date', key: 'createdAt' },
+    ];
+
+    if (format === 'excel') {
+      return this.exportService.exportExcel(items, columns, 'AuditLogs', subfolder);
+    }
+    return this.exportService.exportPDF(
+      'Liste des Audits',
+      columns.map(c => c.header),
+      items.map(item => columns.map(c => String(item[c.key] ?? ''))),
+      subfolder,
+    );
   }
 }

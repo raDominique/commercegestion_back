@@ -114,22 +114,23 @@ Erreurs possibles:
   @Get('user/:userId/export')
   @Auth()
   @ApiOperation({
-    summary: "Exporter le grand livre d'un utilisateur en CSV",
-    description: "Génère un fichier CSV contenant tous les mouvements d'un utilisateur spécifique.",
+    summary: "Exporter le grand livre d'un utilisateur en CSV, Excel ou PDF",
+    description: "Génère un fichier contenant tous les mouvements d'un utilisateur spécifique.",
   })
   @ApiParam({
     name: 'userId',
     description: "ID unique de l'utilisateur",
   })
+  @ApiQuery({ name: 'format', required: false, enum: ['csv', 'excel', 'pdf'], description: "Format d'export (défaut: csv)" })
   @ApiResponse({
     status: 200,
-    description: 'URL du fichier CSV généré',
+    description: 'URL du fichier généré',
   })
-  async exportUserLedger(@Param('userId') userId: string) {
+  async exportUserLedger(@Param('userId') userId: string, @Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv') {
     if (!userId || userId.length !== 24) {
       throw new BadRequestException('Un ID utilisateur valide est requis');
     }
-    const fileUrl = await this.ledgerDisplayService.exportUserLedger(userId);
+    const fileUrl = await this.ledgerDisplayService.exportUserLedger(userId, format);
     return { status: 'success', file: fileUrl };
   }
 
@@ -213,15 +214,16 @@ Erreurs possibles:
   @Get('global/export')
   @Auth()
   @ApiOperation({
-    summary: 'Exporter le grand livre global en CSV',
-    description: 'Génère un fichier CSV contenant tous les mouvements du système.',
+    summary: 'Exporter le grand livre global en CSV, Excel ou PDF',
+    description: 'Génère un fichier contenant tous les mouvements du système.',
   })
+  @ApiQuery({ name: 'format', required: false, enum: ['csv', 'excel', 'pdf'], description: "Format d'export (défaut: csv)" })
   @ApiResponse({
     status: 200,
-    description: 'URL du fichier CSV généré',
+    description: 'URL du fichier généré',
   })
-  async exportGlobalLedger() {
-    const fileUrl = await this.ledgerDisplayService.exportGlobalLedger();
+  async exportGlobalLedger(@Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv') {
+    const fileUrl = await this.ledgerDisplayService.exportGlobalLedger(format);
     return { status: 'success', file: fileUrl };
   }
 

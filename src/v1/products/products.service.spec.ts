@@ -7,6 +7,7 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../../shared/notifications/notifications.service';
 import { MailService } from '../../shared/mail/mail.service';
 import { UsersService } from '../users/users.service';
+import { ExportService } from '../../shared/export/export.service';
 
 describe('ProductService', () => {
   let service: ProductService;
@@ -64,6 +65,13 @@ describe('ProductService', () => {
           provide: UsersService,
           useValue: {
             findById: jest.fn(),
+          },
+        },
+        {
+          provide: ExportService,
+          useValue: {
+            exportExcel: jest.fn(),
+            exportPDF: jest.fn(),
           },
         },
       ],

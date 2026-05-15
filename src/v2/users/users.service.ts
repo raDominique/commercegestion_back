@@ -1,9 +1,10 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument, UserType } from './users.schema';
 import { LoggerService } from 'src/common/logger/logger.service';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
+import { ExportService } from '../../shared/export/export.service';
 
 @Injectable()
 export class UsersService {
@@ -13,6 +14,7 @@ export class UsersService {
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
     private readonly logger: LoggerService,
+    private readonly exportService: ExportService,
   ) {}
 
   // ========================= FIND ALL PAGINATED + SEARCH + SORT + FILTER =========================
@@ -81,5 +83,23 @@ export class UsersService {
       this.logger.error(this.context, 'Failed to fetch users', error.stack);
       throw new BadRequestException('Invalid query parameters');
     }
+  }
+
+  async exportAll(format: 'excel' | 'pdf'): Promise<string> {
+    const items = await this.userModel.find().sort({ createdAt: -1 }).lean().exec();
+    if (!items.length) throw new NotFoundException('Aucun utilisateur à exporter');
+    const subfolder = 'users-export';
+    const columns = [
+      { header: 'Email', key: 'userEmail' },
+      { header: 'Société', key: 'companyName' },
+      { header: 'Type', key: 'userType' },
+      { header: 'Téléphone', key: 'phone' },
+      { header: 'Actif', key: 'isActive' },
+      { header: 'Date création', key: 'createdAt' },
+    ];
+    if (format === 'excel') {
+      return this.exportService.exportExcel(items, columns, 'Utilisateurs', subfolder);
+    }
+    return this.exportService.exportPDF('Liste des utilisateurs', columns.map(c => c.header), items.map(item => columns.map(c => String(item[c.key] ?? ''))), subfolder);
   }
 }

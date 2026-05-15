@@ -13,6 +13,7 @@ import { LoggerService } from 'src/common/logger/logger.service';
 import { AuditAction, EntityType } from 'src/v1/audit/audit-log.schema';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { UploadService } from 'src/shared/upload/upload.service';
+import { ExportService } from '../../shared/export/export.service';
 import * as path from 'node:path';
 import { Readable } from 'node:stream';
 import { BulkCreateCpcDto } from './dto/bulk-create-cpc.dto';
@@ -28,6 +29,7 @@ export class CpcService {
     private readonly auditService: AuditService,
     private readonly logger: LoggerService,
     private readonly uploadService: UploadService,
+    private readonly exportService: ExportService,
   ) {}
 
   /**
@@ -309,9 +311,24 @@ export class CpcService {
   // EXPORT ET BULK
   // ==========================================
 
-  async exportCpc(): Promise<string> {
+  async exportCpc(format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<string> {
     const data = await this.model.find().sort({ code: 1 }).lean().exec();
     if (!data.length) throw new NotFoundException('Aucun CPC à exporter');
+
+    const subfolder = 'cpc-export';
+    const columns = [
+      { header: 'Code', key: 'code' },
+      { header: 'Nom', key: 'nom' },
+      { header: 'Niveau', key: 'niveau' },
+      { header: 'Code Parent', key: 'parentCode' },
+    ];
+
+    if (format === 'excel') {
+      return this.exportService.exportExcel(data, columns, 'CPC', subfolder);
+    }
+    if (format === 'pdf') {
+      return this.exportService.exportPDF('Liste des CPC', columns.map(c => c.header), data.map(item => columns.map(c => String(item[c.key] ?? ''))), subfolder);
+    }
 
     const fields = ['code', 'nom', 'niveau', 'parentCode', 'correspondances'];
     const json2csv = new Json2CsvParser({ fields });
@@ -320,13 +337,12 @@ export class CpcService {
     const fileName = `export_cpc_${Date.now()}.csv`;
     const buffer = Buffer.from(csvData, 'utf-8');
 
-    // Création d'un faux fichier Multer pour l'UploadService
     const fakeFile = {
       buffer,
       originalname: fileName,
       mimetype: 'text/csv',
     } as any;
-    return await this.uploadService.saveFile(fakeFile, 'cpc-export');
+    return await this.uploadService.saveFile(fakeFile, subfolder);
   }
 
   async bulkCreate(

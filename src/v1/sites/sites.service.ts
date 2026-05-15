@@ -17,6 +17,7 @@ import { AuditAction, EntityType } from '../audit/audit-log.schema';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { NotifyHelper } from 'src/shared/helpers/notify.helper';
 import { UsersService } from 'src/v1/users/users.service';
+import { ExportService } from '../../shared/export/export.service';
 
 @Injectable()
 export class SiteService {
@@ -28,6 +29,7 @@ export class SiteService {
     private readonly userService: UsersService,
 
     private readonly notifyHelper: NotifyHelper,
+    private readonly exportService: ExportService,
   ) {}
 
   /* ===================== CREATE ===================== */
@@ -345,5 +347,31 @@ export class SiteService {
         'Une erreur est survenue lors de la récupération des sites',
       );
     }
+  }
+
+  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<string> {
+    const items = await this.siteModel.find().sort({ createdAt: -1 }).lean().exec();
+
+    if (!items.length) {
+      throw new NotFoundException('Aucune donnée à exporter');
+    }
+
+    const subfolder = 'sites-export';
+    const columns = [
+      { header: 'ID', key: '_id' },
+      { header: 'Nom', key: 'siteName' },
+      { header: 'Adresse', key: 'siteAddress' },
+      { header: 'Créé le', key: 'createdAt' },
+    ];
+
+    if (format === 'excel') {
+      return this.exportService.exportExcel(items, columns, 'Sites', subfolder);
+    }
+    return this.exportService.exportPDF(
+      'Liste des Sites',
+      columns.map(c => c.header),
+      items.map(item => columns.map(c => item[c.key] ?? '')),
+      subfolder,
+    );
   }
 }

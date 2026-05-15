@@ -8,6 +8,7 @@ import { ActifsService } from '../actifs/actifs.service';
 import { PassifsService } from '../passifs/passifs.service';
 import { LoggerService } from '../../common/logger/logger.service';
 import { MailService } from '../../shared/mail/mail.service';
+import { ExportService } from '../../shared/export/export.service';
 
 describe('StockService', () => {
   let service: StockService;
@@ -76,6 +77,13 @@ describe('StockService', () => {
           provide: MailService,
           useValue: {
             sendMail: jest.fn(),
+          },
+        },
+        {
+          provide: ExportService,
+          useValue: {
+            exportExcel: jest.fn(),
+            exportPDF: jest.fn(),
           },
         },
       ],

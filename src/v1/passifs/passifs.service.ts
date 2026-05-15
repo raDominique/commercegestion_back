@@ -2,12 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Passif, PassifDocument } from './passifs.schema';
+import { ExportService } from '../../shared/export/export.service';
 
 @Injectable()
 export class PassifsService {
   constructor(
     @InjectModel(Passif.name)
     private readonly passifModel: Model<PassifDocument>,
+    private readonly exportService: ExportService,
   ) {}
 
   /**
@@ -184,5 +186,33 @@ export class PassifsService {
           productName: (p.productId as any)?.productName,
         })),
       );
+  }
+
+  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<string> {
+    const items = await this.passifModel.find().sort({ createdAt: -1 }).lean().exec();
+
+    if (!items.length) {
+      throw new NotFoundException('Aucune donnée à exporter');
+    }
+
+    const subfolder = 'passif-export';
+    const columns = [
+      { header: 'ID', key: '_id' },
+      { header: 'Utilisateur', key: 'userId' },
+      { header: 'Produit', key: 'productId' },
+      { header: 'Créancier', key: 'creancierId' },
+      { header: 'Quantité', key: 'quantite' },
+      { header: 'Date création', key: 'createdAt' },
+    ];
+
+    if (format === 'excel') {
+      return this.exportService.exportExcel(items, columns, 'Passifs', subfolder);
+    }
+    return this.exportService.exportPDF(
+      'Liste des Passifs',
+      columns.map(c => c.header),
+      items.map(item => columns.map(c => String(item[c.key] ?? ''))),
+      subfolder,
+    );
   }
 }

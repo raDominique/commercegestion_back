@@ -1,10 +1,11 @@
 // src/notifications/notifications.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { NotificationsGateway } from './notifications.gateway';
 import { Notification } from './notification.schema';
 import { PaginationResult } from '../interfaces/pagination.interface';
+import { ExportService } from '../export/export.service';
 
 @Injectable()
 export class NotificationsService {
@@ -12,6 +13,7 @@ export class NotificationsService {
     @InjectModel(Notification.name)
     private readonly notificationModel: Model<Notification>,
     private readonly gateway: NotificationsGateway,
+    private readonly exportService: ExportService,
   ) {}
 
   /**
@@ -78,5 +80,33 @@ export class NotificationsService {
       page,
       limit,
     };
+  }
+
+  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<string> {
+    const items = await this.notificationModel.find().sort({ createdAt: -1 }).lean().exec();
+
+    if (!items.length) {
+      throw new NotFoundException('Aucune donnée à exporter');
+    }
+
+    const subfolder = 'notification-export';
+    const columns = [
+      { header: 'ID', key: '_id' },
+      { header: 'Utilisateur', key: 'userId' },
+      { header: 'Titre', key: 'title' },
+      { header: 'Message', key: 'message' },
+      { header: 'Lu', key: 'isRead' },
+      { header: 'Date création', key: 'createdAt' },
+    ];
+
+    if (format === 'excel') {
+      return this.exportService.exportExcel(items, columns, 'Notifications', subfolder);
+    }
+    return this.exportService.exportPDF(
+      'Liste des Notifications',
+      columns.map(c => c.header),
+      items.map(item => columns.map(c => String(item[c.key] ?? ''))),
+      subfolder,
+    );
   }
 }

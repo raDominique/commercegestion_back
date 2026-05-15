@@ -3,6 +3,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { ActifsService } from './actifs.service';
 import { Actif } from './actifs.schema';
 import { ProductService } from '../products/products.service';
+import { ExportService } from '../../shared/export/export.service';
 
 describe('ActifsService', () => {
   let service: ActifsService;
@@ -35,6 +36,13 @@ describe('ActifsService', () => {
           useValue: {
             findById: jest.fn(),
             findAll: jest.fn(),
+          },
+        },
+        {
+          provide: ExportService,
+          useValue: {
+            exportExcel: jest.fn(),
+            exportPDF: jest.fn(),
           },
         },
       ],

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ProductService } from '../products/products.service';
@@ -14,6 +14,7 @@ import {
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { LoggerService } from 'src/common/logger/logger.service';
 import { MailService } from 'src/shared/mail/mail.service';
+import { ExportService } from '../../shared/export/export.service';
 
 @Injectable()
 export class StockService {
@@ -26,6 +27,7 @@ export class StockService {
     private readonly passifsService: PassifsService,
     private readonly loggerService: LoggerService,
     private readonly mailService: MailService,
+    private readonly exportService: ExportService,
   ) {}
 
   async createMovement(
@@ -617,5 +619,35 @@ export class StockService {
       message: 'Mouvement validé avec succès',
       data: updatedMovement,
     };
+  }
+
+  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<string> {
+    const items = await this.movementModel.find().sort({ createdAt: -1 }).lean().exec();
+
+    if (!items.length) {
+      throw new NotFoundException('Aucune donnée à exporter');
+    }
+
+    const subfolder = 'stock-export';
+    const columns = [
+      { header: 'ID', key: '_id' },
+      { header: 'Type', key: 'type' },
+      { header: 'Quantité', key: 'quantite' },
+      { header: 'Produit', key: 'productId' },
+      { header: 'Site destination', key: 'siteDestinationId' },
+      { header: 'Opérateur', key: 'operatorId' },
+      { header: 'Valide', key: 'isValide' },
+      { header: 'Créé le', key: 'createdAt' },
+    ];
+
+    if (format === 'excel') {
+      return this.exportService.exportExcel(items, columns, 'Mouvements', subfolder);
+    }
+    return this.exportService.exportPDF(
+      'Liste des Mouvements de Stock',
+      columns.map(c => c.header),
+      items.map(item => columns.map(c => item[c.key] ?? '')),
+      subfolder,
+    );
   }
 }

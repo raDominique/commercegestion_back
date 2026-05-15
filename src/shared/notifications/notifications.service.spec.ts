@@ -3,6 +3,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { NotificationsService } from './notifications.service';
 import { Notification } from './notification.schema';
 import { NotificationsGateway } from './notifications.gateway';
+import { ExportService } from '../export/export.service';
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
@@ -17,6 +18,7 @@ describe('NotificationsService', () => {
     sort: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
     limit: jest.fn().mockReturnThis(),
+    lean: jest.fn().mockReturnThis(),
   };
 
   beforeEach(async () => {
@@ -34,6 +36,13 @@ describe('NotificationsService', () => {
               to: jest.fn().mockReturnThis(),
               emit: jest.fn(),
             },
+          },
+        },
+        {
+          provide: ExportService,
+          useValue: {
+            exportExcel: jest.fn(),
+            exportPDF: jest.fn(),
           },
         },
       ],

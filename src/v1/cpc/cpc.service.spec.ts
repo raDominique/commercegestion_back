@@ -5,6 +5,7 @@ import { CpcProduct } from './cpc.schema';
 import { AuditService } from '../audit/audit.service';
 import { LoggerService } from '../../common/logger/logger.service';
 import { UploadService } from '../../shared/upload/upload.service';
+import { ExportService } from '../../shared/export/export.service';
 
 describe('CpcService', () => {
   let service: CpcService;
@@ -52,6 +53,13 @@ describe('CpcService', () => {
           provide: UploadService,
           useValue: {
             saveFile: jest.fn(),
+          },
+        },
+        {
+          provide: ExportService,
+          useValue: {
+            exportExcel: jest.fn(),
+            exportPDF: jest.fn(),
           },
         },
       ],

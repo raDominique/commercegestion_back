@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { AuditService } from './audit.service';
 import { AuditLog } from './audit-log.schema';
+import { ExportService } from '../../shared/export/export.service';
 
 describe('AuditService', () => {
   let service: AuditService;
@@ -12,6 +13,8 @@ describe('AuditService', () => {
     create: jest.fn(),
     save: jest.fn(),
     exec: jest.fn(),
+    sort: jest.fn().mockReturnThis(),
+    lean: jest.fn().mockReturnThis(),
   };
 
   beforeEach(async () => {
@@ -21,6 +24,13 @@ describe('AuditService', () => {
         {
           provide: getModelToken(AuditLog.name),
           useValue: mockModel,
+        },
+        {
+          provide: ExportService,
+          useValue: {
+            exportExcel: jest.fn(),
+            exportPDF: jest.fn(),
+          },
         },
       ],
     }).compile();

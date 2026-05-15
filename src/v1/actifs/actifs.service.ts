@@ -3,12 +3,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Actif, ActifDocument } from './actifs.schema';
 import { ProductService } from '../products/products.service';
+import { ExportService } from '../../shared/export/export.service';
 
 @Injectable()
 export class ActifsService {
   constructor(
     @InjectModel(Actif.name) private readonly actifModel: Model<ActifDocument>,
     private readonly productService: ProductService,
+    private readonly exportService: ExportService,
   ) {}
 
   /**
@@ -289,5 +291,33 @@ export class ActifsService {
           productName: (a.productId as any)?.productName,
         })),
       );
+  }
+
+  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<string> {
+    const items = await this.actifModel.find().sort({ createdAt: -1 }).lean().exec();
+
+    if (!items.length) {
+      throw new NotFoundException('Aucune donnée à exporter');
+    }
+
+    const subfolder = 'actif-export';
+    const columns = [
+      { header: 'ID', key: '_id' },
+      { header: 'Produit', key: 'productId' },
+      { header: 'Site', key: 'depotId' },
+      { header: 'Quantité', key: 'quantite' },
+      { header: 'Prix Unitaire', key: 'prixUnitaire' },
+      { header: 'Date création', key: 'createdAt' },
+    ];
+
+    if (format === 'excel') {
+      return this.exportService.exportExcel(items, columns, 'Actifs', subfolder);
+    }
+    return this.exportService.exportPDF(
+      'Liste des Actifs',
+      columns.map(c => c.header),
+      items.map(item => columns.map(c => String(item[c.key] ?? ''))),
+      subfolder,
+    );
   }
 }

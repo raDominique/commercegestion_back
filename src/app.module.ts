@@ -8,6 +8,7 @@ import { AuthModule } from './v1/auth/auth.module';
 import { AuditModule } from './v1/audit/audit.module';
 import { MailModule } from './shared/mail/mail.module';
 import { SharedModule } from './shared/shared.module';
+import { ExportModule } from './shared/export/export.module';
 import { ProductsModule } from './v1/products/products.module';
 import { CpcModule } from './v1/cpc/cpc.module';
 import { SiteModule } from './v1/sites/sites.module';
@@ -56,6 +57,7 @@ import { DashboardModule } from './v1/dashboard/dashboard.module';
     ]),
     MailModule,
     SharedModule,
+    ExportModule,
   ],
 })
 export class AppModule {}

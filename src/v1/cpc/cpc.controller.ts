@@ -182,9 +182,11 @@ export class CpcController {
   }
 
   @Get('export')
-  @ApiOperation({ summary: 'Exporter tous les CPC en CSV' })
-  async exportCpc() {
-    const fileUrl = await this.service.exportCpc();
+  @ApiOperation({ summary: 'Exporter les CPC en CSV, Excel ou PDF' })
+  @ApiQuery({ name: 'format', required: false, enum: ['csv', 'excel', 'pdf'], description: "Format d'export (défaut: csv)" })
+  @ApiResponse({ status: 200, description: 'URL du fichier généré' })
+  async exportCpc(@Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv') {
+    const fileUrl = await this.service.exportCpc(format);
     return { status: 'success', file: fileUrl };
   }
 

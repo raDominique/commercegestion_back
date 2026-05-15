@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UserType } from './users.schema';
@@ -95,5 +95,17 @@ export class UsersController {
       order,
       filter,
     );
+  }
+
+  @Get('export')
+  @ApiOperation({ summary: 'Exporter les utilisateurs en Excel ou PDF' })
+  @ApiQuery({ name: 'format', required: true, enum: ['excel', 'pdf'], description: "Format d'export" })
+  @ApiResponse({ status: 200, description: 'URL du fichier généré' })
+  async exportAll(@Query('format') format: 'excel' | 'pdf') {
+    if (!format || !['excel', 'pdf'].includes(format)) {
+      throw new BadRequestException('Format invalide. Utilisez "excel" ou "pdf".');
+    }
+    const fileUrl = await this.usersService.exportAll(format);
+    return { status: 'success', file: fileUrl };
   }
 }

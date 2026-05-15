@@ -10,6 +10,7 @@ import {
 import { Actif, ActifDocument } from '../actifs/actifs.schema';
 import { Passif, PassifDocument } from '../passifs/passifs.schema';
 import { UploadService } from 'src/shared/upload/upload.service';
+import { ExportService } from '../../shared/export/export.service';
 const { Parser: Json2CsvParser } = require('json2csv');
 
 /**
@@ -51,6 +52,7 @@ export class LedgerDisplayService {
     @InjectModel(Passif.name)
     private readonly passifModel: Model<PassifDocument>,
     private readonly uploadService: UploadService,
+    private readonly exportService: ExportService,
   ) {}
 
   /**
@@ -539,7 +541,7 @@ export class LedgerDisplayService {
   /**
    * Exporte le grand livre d'un utilisateur en CSV
    */
-  async exportUserLedger(userId: string): Promise<string> {
+  async exportUserLedger(userId: string, format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<string> {
     const ledger = await this.getUserLedger(userId);
     const movements = [...ledger.movements.actifs, ...ledger.movements.passifs].sort(
       (a, b) => b.dateTime.getTime() - a.dateTime.getTime(),
@@ -547,6 +549,23 @@ export class LedgerDisplayService {
 
     if (movements.length === 0) {
       throw new NotFoundException('Aucun mouvement à exporter pour cet utilisateur');
+    }
+
+    const subfolder = 'ledger-export';
+    const columns = [
+      { header: 'Date', key: 'dateTime' },
+      { header: 'Type', key: 'title' },
+      { header: 'Produit', key: 'product' },
+      { header: 'Quantité', key: 'quantity' },
+      { header: 'Site', key: 'site' },
+      { header: 'Contrepartie', key: 'detentaire' },
+    ];
+
+    if (format === 'excel') {
+      return this.exportService.exportExcel(movements, columns, 'Grand livre', subfolder);
+    }
+    if (format === 'pdf') {
+      return this.exportService.exportPDF('Grand livre', columns.map(c => c.header), movements.map(item => columns.map(c => String(item[c.key] ?? ''))), subfolder);
     }
 
     const fields = [
@@ -575,18 +594,35 @@ export class LedgerDisplayService {
       mimetype: 'text/csv',
     } as any;
 
-    return await this.uploadService.saveFile(fakeFile, 'ledger-export');
+    return await this.uploadService.saveFile(fakeFile, subfolder);
   }
 
   /**
    * Exporte le grand livre global en CSV
    */
-  async exportGlobalLedger(): Promise<string> {
+  async exportGlobalLedger(format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<string> {
     // On récupère une grande quantité pour l'export (ex: 50000)
     const result = await this.getGlobalLedger(1, 50000);
 
     if (result.data.length === 0) {
       throw new NotFoundException('Aucun mouvement à exporter');
+    }
+
+    const subfolder = 'ledger-export';
+    const columns = [
+      { header: 'Date', key: 'dateTime' },
+      { header: 'Type', key: 'title' },
+      { header: 'Produit', key: 'product' },
+      { header: 'Quantité', key: 'quantity' },
+      { header: 'Site', key: 'site' },
+      { header: 'Contrepartie', key: 'detentaire' },
+    ];
+
+    if (format === 'excel') {
+      return this.exportService.exportExcel(result.data, columns, 'Grand livre global', subfolder);
+    }
+    if (format === 'pdf') {
+      return this.exportService.exportPDF('Grand livre global', columns.map(c => c.header), result.data.map(item => columns.map(c => String(item[c.key] ?? ''))), subfolder);
     }
 
     const fields = [
@@ -614,7 +650,7 @@ export class LedgerDisplayService {
       mimetype: 'text/csv',
     } as any;
 
-    return await this.uploadService.saveFile(fakeFile, 'ledger-export');
+    return await this.uploadService.saveFile(fakeFile, subfolder);
   }
 
   /**

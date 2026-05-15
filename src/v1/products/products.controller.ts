@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -210,5 +211,22 @@ export class ProductController {
   })
   async getActiveProducts(@Query() query: any) {
     return this.productService.getSelectProducts(query);
+  }
+
+  @Get('export')
+  @Auth()
+  @ApiOperation({ summary: 'Exporter les données en Excel ou PDF' })
+  @ApiQuery({ name: 'format', required: true, enum: ['excel', 'pdf'], description: "Format d'export: excel ou pdf" })
+  @ApiResponse({ status: 200, description: 'URL du fichier généré' })
+  async exportAll(
+    @Query('format') format: 'excel' | 'pdf',
+    @Req() req: any,
+  ) {
+    if (!format || !['excel', 'pdf'].includes(format)) {
+      throw new BadRequestException('Format invalide. Utilisez "excel" ou "pdf".');
+    }
+    const userId = req.user?.userId || 'system';
+    const fileUrl = await this.productService.exportAll(format, userId);
+    return { status: 'success', file: fileUrl };
   }
 }

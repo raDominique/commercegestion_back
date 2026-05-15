@@ -4,6 +4,7 @@ import { SiteService } from './sites.service';
 import { Site } from './sites.schema';
 import { UsersService } from '../users/users.service';
 import { NotifyHelper } from '../../shared/helpers/notify.helper';
+import { ExportService } from '../../shared/export/export.service';
 
 describe('SitesService', () => {
   let service: SiteService;
@@ -41,6 +42,13 @@ describe('SitesService', () => {
           provide: NotifyHelper,
           useValue: {
             notify: jest.fn(),
+          },
+        },
+        {
+          provide: ExportService,
+          useValue: {
+            exportExcel: jest.fn(),
+            exportPDF: jest.fn(),
           },
         },
       ],

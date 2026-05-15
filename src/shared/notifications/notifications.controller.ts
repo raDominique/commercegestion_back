@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Req } from '@nestjs/common';
+import { Controller, Get, Query, Req, BadRequestException } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { Auth } from 'src/v1/auth';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -47,5 +47,22 @@ export class NotificationsController {
       req.user.userId,
       query,
     );
+  }
+
+  @Get('export')
+  @Auth()
+  @ApiOperation({ summary: 'Exporter les données en Excel ou PDF' })
+  @ApiQuery({ name: 'format', required: true, enum: ['excel', 'pdf'], description: "Format d'export: excel ou pdf" })
+  @ApiResponse({ status: 200, description: 'URL du fichier généré' })
+  async exportAll(
+    @Query('format') format: 'excel' | 'pdf',
+    @Req() req: any,
+  ) {
+    if (!format || !['excel', 'pdf'].includes(format)) {
+      throw new BadRequestException('Format invalide. Utilisez "excel" ou "pdf".');
+    }
+    const userId = req.user?.userId || 'system';
+    const fileUrl = await this.notificationsService.exportAll(format, userId);
+    return { status: 'success', file: fileUrl };
   }
 }

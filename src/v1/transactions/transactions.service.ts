@@ -31,6 +31,7 @@ import { UsersService } from '../users/users.service';
 import { SiteService } from '../sites/sites.service';
 import { LoggerService } from 'src/common/logger/logger.service';
 import { UploadService } from 'src/shared/upload/upload.service';
+import { ExportService } from '../../shared/export/export.service';
 const { Parser: Json2CsvParser } = require('json2csv');
 
 @Injectable()
@@ -48,6 +49,7 @@ export class TransactionsService {
     private readonly siteService: SiteService,
     private readonly loggers: LoggerService,
     private readonly uploadService: UploadService,
+    private readonly exportService: ExportService,
   ) {}
 
   /**
@@ -934,7 +936,7 @@ export class TransactionsService {
   /**
    * Exporte les transactions d'un utilisateur en CSV
    */
-  async exportUserTransactions(userId: string): Promise<string> {
+  async exportUserTransactions(userId: string, format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<string> {
     const transactions = await this.transactionModel
       .find({
         $or: [
@@ -958,6 +960,48 @@ export class TransactionsService {
       );
     }
 
+    const subfolder = 'transactions-export';
+    const columns = [
+      { header: 'N° Transaction', key: 'transactionNumber' },
+      { header: 'Type', key: 'type' },
+      { header: 'Statut', key: 'status' },
+      { header: 'Initiateur', key: 'initiatorId' },
+      { header: 'Destinataire', key: 'recipientId' },
+      { header: 'Produit', key: 'productId' },
+      { header: 'Quantité', key: 'quantite' },
+      { header: 'Prix Unitaire', key: 'prixUnitaire' },
+      { header: 'Date', key: 'createdAt' },
+    ];
+
+    if (format === 'excel') {
+      const records = transactions.map((t: any) => ({
+        transactionNumber: t.transactionNumber,
+        type: this.getTransactionTypeLabel(t.type),
+        status: t.status,
+        initiatorId: this.getName(t.initiatorId),
+        recipientId: this.getName(t.recipientId),
+        productId: t.productId?.productName || 'N/A',
+        quantite: t.quantite,
+        prixUnitaire: t.prixUnitaire ?? 'N/A',
+        createdAt: t.createdAt ? new Date(t.createdAt).toLocaleString() : 'N/A',
+      }));
+      return this.exportService.exportExcel(records, columns, 'Transactions', subfolder);
+    }
+    if (format === 'pdf') {
+      const rows = transactions.map((t: any) => [
+        t.transactionNumber,
+        this.getTransactionTypeLabel(t.type),
+        t.status,
+        this.getName(t.initiatorId),
+        this.getName(t.recipientId),
+        t.productId?.productName || 'N/A',
+        String(t.quantite ?? ''),
+        String(t.prixUnitaire ?? ''),
+        t.createdAt ? new Date(t.createdAt).toLocaleString() : 'N/A',
+      ]);
+      return this.exportService.exportPDF('Transactions', columns.map(c => c.header), rows, subfolder);
+    }
+
     return this.generateCsv(
       transactions,
       `export_transactions_user_${userId}_${Date.now()}.csv`,
@@ -967,7 +1011,7 @@ export class TransactionsService {
   /**
    * Exporte toutes les transactions du système en CSV
    */
-  async exportAllTransactions(): Promise<string> {
+  async exportAllTransactions(format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<string> {
     const transactions = await this.transactionModel
       .find()
       .sort({ createdAt: -1 })
@@ -982,6 +1026,48 @@ export class TransactionsService {
 
     if (transactions.length === 0) {
       throw new NotFoundException('Aucune transaction à exporter');
+    }
+
+    const subfolder = 'transactions-export';
+    const columns = [
+      { header: 'N° Transaction', key: 'transactionNumber' },
+      { header: 'Type', key: 'type' },
+      { header: 'Statut', key: 'status' },
+      { header: 'Initiateur', key: 'initiatorId' },
+      { header: 'Destinataire', key: 'recipientId' },
+      { header: 'Produit', key: 'productId' },
+      { header: 'Quantité', key: 'quantite' },
+      { header: 'Prix Unitaire', key: 'prixUnitaire' },
+      { header: 'Date', key: 'createdAt' },
+    ];
+
+    if (format === 'excel') {
+      const records = transactions.map((t: any) => ({
+        transactionNumber: t.transactionNumber,
+        type: this.getTransactionTypeLabel(t.type),
+        status: t.status,
+        initiatorId: this.getName(t.initiatorId),
+        recipientId: this.getName(t.recipientId),
+        productId: t.productId?.productName || 'N/A',
+        quantite: t.quantite,
+        prixUnitaire: t.prixUnitaire ?? 'N/A',
+        createdAt: t.createdAt ? new Date(t.createdAt).toLocaleString() : 'N/A',
+      }));
+      return this.exportService.exportExcel(records, columns, 'Transactions', subfolder);
+    }
+    if (format === 'pdf') {
+      const rows = transactions.map((t: any) => [
+        t.transactionNumber,
+        this.getTransactionTypeLabel(t.type),
+        t.status,
+        this.getName(t.initiatorId),
+        this.getName(t.recipientId),
+        t.productId?.productName || 'N/A',
+        String(t.quantite ?? ''),
+        String(t.prixUnitaire ?? ''),
+        t.createdAt ? new Date(t.createdAt).toLocaleString() : 'N/A',
+      ]);
+      return this.exportService.exportPDF('Transactions', columns.map(c => c.header), rows, subfolder);
     }
 
     return this.generateCsv(

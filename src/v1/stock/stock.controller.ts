@@ -1,5 +1,5 @@
-import { Controller, Post, Body, Req, Get, Query, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { Controller, Post, Body, Req, Get, Query, Param, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { Auth } from '../auth';
 import { CreateMovementDto } from './dto/create-movement.dto';
 import { MovementType } from './stock-movement.schema';
@@ -450,5 +450,22 @@ Erreurs possibles:
   })
   async validateMovement(@Param('movementId') movementId: string) {
     return this.stockService.validateMovementFlag(movementId);
+  }
+
+  @Get('export')
+  @Auth()
+  @ApiOperation({ summary: 'Exporter les données en Excel ou PDF' })
+  @ApiQuery({ name: 'format', required: true, enum: ['excel', 'pdf'], description: "Format d'export: excel ou pdf" })
+  @ApiResponse({ status: 200, description: 'URL du fichier généré' })
+  async exportAll(
+    @Query('format') format: 'excel' | 'pdf',
+    @Req() req: any,
+  ) {
+    if (!format || !['excel', 'pdf'].includes(format)) {
+      throw new BadRequestException('Format invalide. Utilisez "excel" ou "pdf".');
+    }
+    const userId = req.user?.userId || 'system';
+    const fileUrl = await this.stockService.exportAll(format, userId);
+    return { status: 'success', file: fileUrl };
   }
 }
