@@ -4,7 +4,7 @@ import { Model } from 'mongoose';
 import { User, UserDocument, UserType } from './users.schema';
 import { LoggerService } from 'src/common/logger/logger.service';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
-import { ExportService } from '../../shared/export/export.service';
+import { ExportService, ExportResult } from '../../shared/export/export.service';
 
 @Injectable()
 export class UsersService {
@@ -85,10 +85,9 @@ export class UsersService {
     }
   }
 
-  async exportAll(format: 'excel' | 'pdf'): Promise<string> {
+  async exportAll(format: 'excel' | 'pdf'): Promise<ExportResult> {
     const items = await this.userModel.find().sort({ createdAt: -1 }).lean().exec();
     if (!items.length) throw new NotFoundException('Aucun utilisateur à exporter');
-    const subfolder = 'users-export';
     const columns = [
       { header: 'Email', key: 'userEmail' },
       { header: 'Société', key: 'companyName' },
@@ -98,8 +97,8 @@ export class UsersService {
       { header: 'Date création', key: 'createdAt' },
     ];
     if (format === 'excel') {
-      return this.exportService.exportExcel(items, columns, 'Utilisateurs', subfolder);
+      return this.exportService.exportExcel(items, columns, 'Utilisateurs', `export_users_${Date.now()}.xlsx`);
     }
-    return this.exportService.exportPDF('Liste des utilisateurs', columns.map(c => c.header), items.map(item => columns.map(c => String(item[c.key] ?? ''))), subfolder);
+    return this.exportService.exportPDF('Liste des utilisateurs', columns.map(c => c.header), items.map(item => columns.map(c => String(item[c.key] ?? ''))), `export_users_${Date.now()}.pdf`);
   }
 }

@@ -5,7 +5,7 @@ import { Model } from 'mongoose';
 import { NotificationsGateway } from './notifications.gateway';
 import { Notification } from './notification.schema';
 import { PaginationResult } from '../interfaces/pagination.interface';
-import { ExportService } from '../export/export.service';
+import { ExportService, ExportResult } from '../export/export.service';
 
 @Injectable()
 export class NotificationsService {
@@ -82,14 +82,13 @@ export class NotificationsService {
     };
   }
 
-  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<string> {
+  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<ExportResult> {
     const items = await this.notificationModel.find().sort({ createdAt: -1 }).lean().exec();
 
     if (!items.length) {
       throw new NotFoundException('Aucune donnée à exporter');
     }
 
-    const subfolder = 'notification-export';
     const columns = [
       { header: 'ID', key: '_id' },
       { header: 'Utilisateur', key: 'userId' },
@@ -100,13 +99,13 @@ export class NotificationsService {
     ];
 
     if (format === 'excel') {
-      return this.exportService.exportExcel(items, columns, 'Notifications', subfolder);
+      return this.exportService.exportExcel(items, columns, 'Notifications', `export_notifications_${Date.now()}.xlsx`);
     }
     return this.exportService.exportPDF(
       'Liste des Notifications',
       columns.map(c => c.header),
       items.map(item => columns.map(c => String(item[c.key] ?? ''))),
-      subfolder,
+      `export_notifications_${Date.now()}.pdf`,
     );
   }
 }

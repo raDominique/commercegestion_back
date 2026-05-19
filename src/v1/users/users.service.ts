@@ -22,7 +22,7 @@ import { ConfigService } from '@nestjs/config';
 import { SiteService } from '../sites/sites.service';
 import { NotificationsService } from 'src/shared/notifications/notifications.service';
 import { LoggerService } from 'src/common/logger/logger.service';
-import { ExportService } from '../../shared/export/export.service';
+import { ExportService, ExportResult } from '../../shared/export/export.service';
 
 @Injectable()
 export class UsersService implements OnModuleInit {
@@ -762,14 +762,13 @@ export class UsersService implements OnModuleInit {
     return query;
   }
 
-  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<string> {
+  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<ExportResult> {
     const items = await this.userModel.find().sort({ createdAt: -1 }).lean().exec();
 
     if (!items.length) {
       throw new NotFoundException('Aucune donnée à exporter');
     }
 
-    const subfolder = 'users-export';
     const columns = [
       { header: 'ID', key: '_id' },
       { header: 'Email', key: 'userEmail' },
@@ -782,13 +781,13 @@ export class UsersService implements OnModuleInit {
     ];
 
     if (format === 'excel') {
-      return this.exportService.exportExcel(items, columns, 'Utilisateurs', subfolder);
+      return this.exportService.exportExcel(items, columns, 'Utilisateurs', `export_users_${Date.now()}.xlsx`);
     }
     return this.exportService.exportPDF(
       'Liste des Utilisateurs',
       columns.map(c => c.header),
       items.map(item => columns.map(c => item[c.key] ?? '')),
-      subfolder,
+      `export_users_${Date.now()}.pdf`,
     );
   }
 }

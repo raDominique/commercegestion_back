@@ -12,14 +12,13 @@ import { AuditService } from 'src/v1/audit/audit.service';
 import { LoggerService } from 'src/common/logger/logger.service';
 import { AuditAction, EntityType } from 'src/v1/audit/audit-log.schema';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
-import { UploadService } from 'src/shared/upload/upload.service';
-import { ExportService } from '../../shared/export/export.service';
+import { ExportService, ExportResult } from '../../shared/export/export.service';
 import * as path from 'node:path';
-import { Readable } from 'node:stream';
-import { BulkCreateCpcDto } from './dto/bulk-create-cpc.dto';
 import * as XLSX from 'xlsx';
+import { Readable } from 'node:stream';
 import csv from 'csv-parser';
-const { Parser: Json2CsvParser } = require('json2csv');
+import { BulkCreateCpcDto } from './dto/bulk-create-cpc.dto';
+import { UploadService } from '../../shared/upload/upload.service';
 
 @Injectable()
 export class CpcService {
@@ -28,8 +27,8 @@ export class CpcService {
     private readonly model: Model<CpcProduct>,
     private readonly auditService: AuditService,
     private readonly logger: LoggerService,
-    private readonly uploadService: UploadService,
     private readonly exportService: ExportService,
+    private readonly uploadService: UploadService,
   ) {}
 
   /**
@@ -311,11 +310,10 @@ export class CpcService {
   // EXPORT ET BULK
   // ==========================================
 
-  async exportCpc(format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<string> {
+  async exportCpc(format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<ExportResult> {
     const data = await this.model.find().sort({ code: 1 }).lean().exec();
     if (!data.length) throw new NotFoundException('Aucun CPC à exporter');
 
-    const subfolder = 'cpc-export';
     const columns = [
       { header: 'Code', key: 'code' },
       { header: 'Nom', key: 'nom' },
@@ -324,25 +322,15 @@ export class CpcService {
     ];
 
     if (format === 'excel') {
-      return this.exportService.exportExcel(data, columns, 'CPC', subfolder);
+      return this.exportService.exportExcel(data, columns, 'CPC', `export_cpc_${Date.now()}.xlsx`);
     }
     if (format === 'pdf') {
-      return this.exportService.exportPDF('Liste des CPC', columns.map(c => c.header), data.map(item => columns.map(c => String(item[c.key] ?? ''))), subfolder);
+      return this.exportService.exportPDF('Liste des CPC', columns.map(c => c.header), data.map(item => columns.map(c => String(item[c.key] ?? ''))), `export_cpc_${Date.now()}.pdf`);
     }
 
     const fields = ['code', 'nom', 'niveau', 'parentCode', 'correspondances'];
-    const json2csv = new Json2CsvParser({ fields });
-    const csvData = json2csv.parse(data);
 
-    const fileName = `export_cpc_${Date.now()}.csv`;
-    const buffer = Buffer.from(csvData, 'utf-8');
-
-    const fakeFile = {
-      buffer,
-      originalname: fileName,
-      mimetype: 'text/csv',
-    } as any;
-    return await this.uploadService.saveFile(fakeFile, subfolder);
+    return this.exportService.exportCSV(data, fields, `export_cpc_${Date.now()}.csv`);
   }
 
   async bulkCreate(

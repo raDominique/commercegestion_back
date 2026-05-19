@@ -10,6 +10,7 @@ import {
   HttpStatus,
   BadRequestException,
   Req,
+  StreamableFile,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -669,12 +670,15 @@ Erreurs possibles:
     status: 200,
     description: 'URL du fichier généré',
   })
-  async exportUserTransactions(@Param('userId') userId: string, @Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv') {
+  async exportUserTransactions(@Param('userId') userId: string, @Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<StreamableFile> {
     if (!userId || userId.length !== 24) {
       throw new BadRequestException('Un ID utilisateur valide est requis');
     }
-    const fileUrl = await this.transactionsService.exportUserTransactions(userId, format);
-    return { status: 'success', file: fileUrl };
+    const result = await this.transactionsService.exportUserTransactions(userId, format);
+    return new StreamableFile(result.buffer, {
+      type: result.mimeType,
+      disposition: `attachment; filename="${result.filename}"`,
+    });
   }
 
   /**
@@ -691,8 +695,11 @@ Erreurs possibles:
     status: 200,
     description: 'URL du fichier généré',
   })
-  async exportAllTransactions(@Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv') {
-    const fileUrl = await this.transactionsService.exportAllTransactions(format);
-    return { status: 'success', file: fileUrl };
+  async exportAllTransactions(@Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<StreamableFile> {
+    const result = await this.transactionsService.exportAllTransactions(format);
+    return new StreamableFile(result.buffer, {
+      type: result.mimeType,
+      disposition: `attachment; filename="${result.filename}"`,
+    });
   }
 }

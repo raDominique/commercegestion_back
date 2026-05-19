@@ -30,9 +30,7 @@ import { CreateMovementDto } from '../stock/dto/create-movement.dto';
 import { UsersService } from '../users/users.service';
 import { SiteService } from '../sites/sites.service';
 import { LoggerService } from 'src/common/logger/logger.service';
-import { UploadService } from 'src/shared/upload/upload.service';
-import { ExportService } from '../../shared/export/export.service';
-const { Parser: Json2CsvParser } = require('json2csv');
+import { ExportService, ExportResult } from '../../shared/export/export.service';
 
 @Injectable()
 export class TransactionsService {
@@ -48,7 +46,6 @@ export class TransactionsService {
     private readonly usersService: UsersService,
     private readonly siteService: SiteService,
     private readonly loggers: LoggerService,
-    private readonly uploadService: UploadService,
     private readonly exportService: ExportService,
   ) {}
 
@@ -957,7 +954,7 @@ export class TransactionsService {
   async exportUserTransactions(
     userId: string,
     format: 'csv' | 'excel' | 'pdf' = 'csv',
-  ): Promise<string> {
+  ): Promise<ExportResult> {
     const transactions = await this.transactionModel
       .find({
         $or: [
@@ -981,7 +978,6 @@ export class TransactionsService {
       );
     }
 
-    const subfolder = 'transactions-export';
     const columns = [
       { header: 'N° Transaction', key: 'transactionNumber' },
       { header: 'Type', key: 'type' },
@@ -1010,7 +1006,7 @@ export class TransactionsService {
         records,
         columns,
         'Transactions',
-        subfolder,
+        `export_transactions_user_${userId}_${Date.now()}.xlsx`,
       );
     }
     if (format === 'pdf') {
@@ -1029,7 +1025,7 @@ export class TransactionsService {
         'Transactions',
         columns.map((c) => c.header),
         rows,
-        subfolder,
+        `export_transactions_user_${userId}_${Date.now()}.pdf`,
       );
     }
 
@@ -1044,7 +1040,7 @@ export class TransactionsService {
    */
   async exportAllTransactions(
     format: 'csv' | 'excel' | 'pdf' = 'csv',
-  ): Promise<string> {
+  ): Promise<ExportResult> {
     const transactions = await this.transactionModel
       .find()
       .sort({ createdAt: -1 })
@@ -1061,7 +1057,6 @@ export class TransactionsService {
       throw new NotFoundException('Aucune transaction à exporter');
     }
 
-    const subfolder = 'transactions-export';
     const columns = [
       { header: 'N° Transaction', key: 'transactionNumber' },
       { header: 'Type', key: 'type' },
@@ -1090,7 +1085,7 @@ export class TransactionsService {
         records,
         columns,
         'Transactions',
-        subfolder,
+        `export_transactions_all_${Date.now()}.xlsx`,
       );
     }
     if (format === 'pdf') {
@@ -1109,7 +1104,7 @@ export class TransactionsService {
         'Transactions',
         columns.map((c) => c.header),
         rows,
-        subfolder,
+        `export_transactions_all_${Date.now()}.pdf`,
       );
     }
 
@@ -1125,59 +1120,26 @@ export class TransactionsService {
   private async generateCsv(
     transactions: any[],
     fileName: string,
-  ): Promise<string> {
-    const fields = [
-      {
-        label: 'Date',
-        value: (row: any) =>
-          row.createdAt ? new Date(row.createdAt).toLocaleString() : 'N/A',
-      },
-      { label: 'N° Transaction', value: 'transactionNumber' },
-      {
-        label: 'Type',
-        value: (row: any) => this.getTransactionTypeLabel(row.type),
-      },
-      { label: 'Statut', value: 'status' },
-      {
-        label: 'Produit',
-        value: (row: any) => row.productId?.productName || 'N/A',
-      },
-      { label: 'Quantité', value: 'quantite' },
-      { label: 'Prix Unitaire', value: 'prixUnitaire' },
-      {
-        label: 'Valeur Totale',
-        value: (row: any) => (row.quantite || 0) * (row.prixUnitaire || 0),
-      },
-      {
-        label: 'Initiateur',
-        value: (row: any) => this.getName(row.initiatorId),
-      },
-      {
-        label: 'Destinataire',
-        value: (row: any) => this.getName(row.recipientId),
-      },
-      {
-        label: 'Site Origine',
-        value: (row: any) => row.siteOrigineId?.siteName || 'N/A',
-      },
-      {
-        label: 'Site Destination',
-        value: (row: any) => row.siteDestinationId?.siteName || 'N/A',
-      },
-      { label: 'Observations', value: 'observations' },
-    ];
+  ): Promise<ExportResult> {
+    const fields = ['date', 'transactionNumber', 'type', 'status', 'product', 'quantite', 'prixUnitaire', 'valeurTotale', 'initiator', 'recipient', 'siteOrigine', 'siteDestination', 'observations'];
 
-    const json2csv = new Json2CsvParser({ fields });
-    const csvData = json2csv.parse(transactions);
+    const data = transactions.map(t => ({
+      date: t.createdAt ? new Date(t.createdAt).toLocaleString() : 'N/A',
+      transactionNumber: t.transactionNumber,
+      type: this.getTransactionTypeLabel(t.type),
+      status: t.status,
+      product: t.productId?.productName || 'N/A',
+      quantite: t.quantite,
+      prixUnitaire: t.prixUnitaire,
+      valeurTotale: (t.quantite || 0) * (t.prixUnitaire || 0),
+      initiator: this.getName(t.initiatorId),
+      recipient: this.getName(t.recipientId),
+      siteOrigine: t.siteOrigineId?.siteName || 'N/A',
+      siteDestination: t.siteDestinationId?.siteName || 'N/A',
+      observations: t.observations,
+    }));
 
-    const buffer = Buffer.from(csvData, 'utf-8');
-    const fakeFile = {
-      buffer,
-      originalname: fileName,
-      mimetype: 'text/csv',
-    } as any;
-
-    return await this.uploadService.saveFile(fakeFile, 'transactions-export');
+    return this.exportService.exportCSV(data, fields, fileName);
   }
 
   /**

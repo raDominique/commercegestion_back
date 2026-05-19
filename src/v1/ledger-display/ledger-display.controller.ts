@@ -4,6 +4,7 @@ import {
   Param,
   Query,
   BadRequestException,
+  StreamableFile,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -126,12 +127,15 @@ Erreurs possibles:
     status: 200,
     description: 'URL du fichier généré',
   })
-  async exportUserLedger(@Param('userId') userId: string, @Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv') {
+  async exportUserLedger(@Param('userId') userId: string, @Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<StreamableFile> {
     if (!userId || userId.length !== 24) {
       throw new BadRequestException('Un ID utilisateur valide est requis');
     }
-    const fileUrl = await this.ledgerDisplayService.exportUserLedger(userId, format);
-    return { status: 'success', file: fileUrl };
+    const result = await this.ledgerDisplayService.exportUserLedger(userId, format);
+    return new StreamableFile(result.buffer, {
+      type: result.mimeType,
+      disposition: `attachment; filename="${result.filename}"`,
+    });
   }
 
   /**
@@ -222,9 +226,12 @@ Erreurs possibles:
     status: 200,
     description: 'URL du fichier généré',
   })
-  async exportGlobalLedger(@Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv') {
-    const fileUrl = await this.ledgerDisplayService.exportGlobalLedger(format);
-    return { status: 'success', file: fileUrl };
+  async exportGlobalLedger(@Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<StreamableFile> {
+    const result = await this.ledgerDisplayService.exportGlobalLedger(format);
+    return new StreamableFile(result.buffer, {
+      type: result.mimeType,
+      disposition: `attachment; filename="${result.filename}"`,
+    });
   }
 
   /**

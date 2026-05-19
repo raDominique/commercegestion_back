@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Actif, ActifDocument } from './actifs.schema';
 import { ProductService } from '../products/products.service';
-import { ExportService } from '../../shared/export/export.service';
+import { ExportService, ExportResult } from '../../shared/export/export.service';
 
 @Injectable()
 export class ActifsService {
@@ -293,14 +293,13 @@ export class ActifsService {
       );
   }
 
-  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<string> {
+  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<ExportResult> {
     const items = await this.actifModel.find().sort({ createdAt: -1 }).lean().exec();
 
     if (!items.length) {
       throw new NotFoundException('Aucune donnée à exporter');
     }
 
-    const subfolder = 'actif-export';
     const columns = [
       { header: 'ID', key: '_id' },
       { header: 'Produit', key: 'productId' },
@@ -311,13 +310,13 @@ export class ActifsService {
     ];
 
     if (format === 'excel') {
-      return this.exportService.exportExcel(items, columns, 'Actifs', subfolder);
+      return this.exportService.exportExcel(items, columns, 'Actifs', `export_actifs_${Date.now()}.xlsx`);
     }
     return this.exportService.exportPDF(
       'Liste des Actifs',
       columns.map(c => c.header),
       items.map(item => columns.map(c => String(item[c.key] ?? ''))),
-      subfolder,
+      `export_actifs_${Date.now()}.pdf`,
     );
   }
 }

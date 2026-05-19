@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Req, Get, Query, Param, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, Req, Get, Query, Param, BadRequestException, StreamableFile } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { Auth } from '../auth';
 import { CreateMovementDto } from './dto/create-movement.dto';
@@ -460,12 +460,15 @@ Erreurs possibles:
   async exportAll(
     @Query('format') format: 'excel' | 'pdf',
     @Req() req: any,
-  ) {
+  ): Promise<StreamableFile> {
     if (!format || !['excel', 'pdf'].includes(format)) {
       throw new BadRequestException('Format invalide. Utilisez "excel" ou "pdf".');
     }
     const userId = req.user?.userId || 'system';
-    const fileUrl = await this.stockService.exportAll(format, userId);
-    return { status: 'success', file: fileUrl };
+    const result = await this.stockService.exportAll(format, userId);
+    return new StreamableFile(result.buffer, {
+      type: result.mimeType,
+      disposition: `attachment; filename="${result.filename}"`,
+    });
   }
 }

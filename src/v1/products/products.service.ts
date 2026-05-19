@@ -16,7 +16,7 @@ import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { NotificationsService } from 'src/shared/notifications/notifications.service';
 import { MailService } from 'src/shared/mail/mail.service';
 import { UsersService } from 'src/v1/users/users.service';
-import { ExportService } from '../../shared/export/export.service';
+import { ExportService, ExportResult } from '../../shared/export/export.service';
 
 @Injectable()
 export class ProductService {
@@ -617,14 +617,13 @@ export class ProductService {
     };
   }
 
-  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<string> {
+  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<ExportResult> {
     const items = await this.productModel.find().sort({ createdAt: -1 }).lean().exec();
 
     if (!items.length) {
       throw new NotFoundException('Aucune donnée à exporter');
     }
 
-    const subfolder = 'products-export';
     const columns = [
       { header: 'ID', key: '_id' },
       { header: 'Nom', key: 'productName' },
@@ -635,13 +634,13 @@ export class ProductService {
     ];
 
     if (format === 'excel') {
-      return this.exportService.exportExcel(items, columns, 'Produits', subfolder);
+      return this.exportService.exportExcel(items, columns, 'Produits', `export_products_${Date.now()}.xlsx`);
     }
     return this.exportService.exportPDF(
       'Liste des Produits',
       columns.map(c => c.header),
       items.map(item => columns.map(c => item[c.key] ?? '')),
-      subfolder,
+      `export_products_${Date.now()}.pdf`,
     );
   }
 }

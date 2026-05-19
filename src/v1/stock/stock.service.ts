@@ -14,7 +14,7 @@ import {
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { LoggerService } from 'src/common/logger/logger.service';
 import { MailService } from 'src/shared/mail/mail.service';
-import { ExportService } from '../../shared/export/export.service';
+import { ExportService, ExportResult } from '../../shared/export/export.service';
 
 @Injectable()
 export class StockService {
@@ -621,14 +621,13 @@ export class StockService {
     };
   }
 
-  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<string> {
+  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<ExportResult> {
     const items = await this.movementModel.find().sort({ createdAt: -1 }).lean().exec();
 
     if (!items.length) {
       throw new NotFoundException('Aucune donnée à exporter');
     }
 
-    const subfolder = 'stock-export';
     const columns = [
       { header: 'ID', key: '_id' },
       { header: 'Type', key: 'type' },
@@ -641,13 +640,13 @@ export class StockService {
     ];
 
     if (format === 'excel') {
-      return this.exportService.exportExcel(items, columns, 'Mouvements', subfolder);
+      return this.exportService.exportExcel(items, columns, 'Mouvements', `export_stock_${Date.now()}.xlsx`);
     }
     return this.exportService.exportPDF(
       'Liste des Mouvements de Stock',
       columns.map(c => c.header),
       items.map(item => columns.map(c => item[c.key] ?? '')),
-      subfolder,
+      `export_stock_${Date.now()}.pdf`,
     );
   }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Req, Query, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Req, Query, UnauthorizedException, BadRequestException, StreamableFile } from '@nestjs/common';
 import { AuditService } from './audit.service';
 import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { Auth } from '../auth/decorators/auth.decorator';
@@ -36,12 +36,15 @@ export class AuditController {
   async exportAll(
     @Query('format') format: 'excel' | 'pdf',
     @Req() req: any,
-  ) {
+  ): Promise<StreamableFile> {
     if (!format || !['excel', 'pdf'].includes(format)) {
       throw new BadRequestException('Format invalide. Utilisez "excel" ou "pdf".');
     }
     const userId = req.user?.userId || 'system';
-    const fileUrl = await this.auditService.exportAll(format, userId);
-    return { status: 'success', file: fileUrl };
+    const result = await this.auditService.exportAll(format, userId);
+    return new StreamableFile(result.buffer, {
+      type: result.mimeType,
+      disposition: `attachment; filename="${result.filename}"`,
+    });
   }
 }

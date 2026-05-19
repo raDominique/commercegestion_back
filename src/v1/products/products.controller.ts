@@ -1,4 +1,5 @@
 import {
+  StreamableFile,
   BadRequestException,
   Controller,
   Get,
@@ -221,12 +222,15 @@ export class ProductController {
   async exportAll(
     @Query('format') format: 'excel' | 'pdf',
     @Req() req: any,
-  ) {
+  ): Promise<StreamableFile> {
     if (!format || !['excel', 'pdf'].includes(format)) {
       throw new BadRequestException('Format invalide. Utilisez "excel" ou "pdf".');
     }
     const userId = req.user?.userId || 'system';
-    const fileUrl = await this.productService.exportAll(format, userId);
-    return { status: 'success', file: fileUrl };
+    const result = await this.productService.exportAll(format, userId);
+    return new StreamableFile(result.buffer, {
+      type: result.mimeType,
+      disposition: `attachment; filename="${result.filename}"`,
+    });
   }
 }
