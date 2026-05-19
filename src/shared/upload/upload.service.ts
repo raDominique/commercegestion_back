@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import sharp from 'sharp';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -9,13 +10,13 @@ export class UploadService {
   private readonly logger = new Logger('UploadService');
 
   private readonly publicPath = path.join(process.cwd(), 'upload');
+  private readonly baseUrl: string;
 
-  /**
-   * Sauvegarde un fichier (image compressée si image)
-   * @param file Express.Multer.File
-   * @param destFolder dossier de destination
-   * @returns URL publique du fichier sauvegardé
-   */
+  constructor(private configService: ConfigService) {
+    this.baseUrl =
+      this.configService.get<string>('APP_URL') || 'http://localhost:3000';
+  }
+
   async saveFile(
     file: Express.Multer.File,
     destFolder = 'uploads',
@@ -25,7 +26,6 @@ export class UploadService {
       if (!fs.existsSync(folderPath))
         fs.mkdirSync(folderPath, { recursive: true });
 
-      // Nom unique
       const fileExt = path.extname(file.originalname);
       let safeName: string;
       let filePath: string;
@@ -35,19 +35,24 @@ export class UploadService {
         filePath = path.join(folderPath, safeName);
       } while (fs.existsSync(filePath));
 
+      let buffer = file.buffer;
+      if (file.mimetype === 'text/csv') {
+        const bom = Buffer.from('\uFEFF', 'utf-8');
+        buffer = Buffer.concat([bom, buffer]);
+      }
+
       if (file.mimetype.startsWith('image/')) {
         await sharp(file.buffer)
           .resize({ width: 1024 })
           .jpeg({ quality: 80 })
           .toFile(filePath);
       } else {
-        fs.writeFileSync(filePath, file.buffer);
+        fs.writeFileSync(filePath, buffer);
       }
 
       this.logger.log(`File saved: ${filePath}`);
 
-      // Retourner l’URL publique
-      return `/upload/${destFolder}/${safeName}`;
+      return `${this.baseUrl}/upload/${destFolder}/${safeName}`;
     } catch (err) {
       this.logger.error('Failed to save file', err.stack);
       throw err;

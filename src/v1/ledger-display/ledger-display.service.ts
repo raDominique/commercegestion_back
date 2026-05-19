@@ -561,7 +561,7 @@ export class LedgerDisplayService {
   async exportUserLedger(userId: string, format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<string> {
     const ledger = await this.getUserLedger(userId);
     const movements = [...ledger.movements.actifs, ...ledger.movements.passifs].sort(
-      (a, b) => b.dateTime.getTime() - a.dateTime.getTime(),
+      (a, b) => new Date(b.dateTime || 0).getTime() - new Date(a.dateTime || 0).getTime(),
     );
 
     if (movements.length === 0) {

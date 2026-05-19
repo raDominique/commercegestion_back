@@ -83,7 +83,7 @@ async function bootstrap() {
    * GLOBAL PREFIX
    * ===============================
    */
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', { exclude: ['/upload'] });
 
   /**
    * ===============================
