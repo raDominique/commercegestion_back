@@ -101,7 +101,7 @@ Erreurs possibles:
           passifs: ledger.movements.passifs,
           // Optionnel: Liste consolidée pour un flux global
           all: [...ledger.movements.actifs, ...ledger.movements.passifs].sort(
-            (a, b) => b.dateTime.getTime() - a.dateTime.getTime(),
+            (a, b) => new Date(b.dateTime || 0).getTime() - new Date(a.dateTime || 0).getTime(),
           ),
         },
       },

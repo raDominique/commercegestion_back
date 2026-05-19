@@ -203,7 +203,7 @@ export class LedgerDisplayService {
     siteObj: any,
   ) {
     return {
-      dateTime: tx.approvedAt,
+      dateTime: tx.approvedAt || tx.createdAt || new Date(),
       transactionId: tx._id.toString(),
       transactionNumber: tx.transactionNumber,
       title,
