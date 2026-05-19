@@ -28,7 +28,7 @@ import {
   RejectTransactionDto,
 } from './dto/create-transaction.dto';
 import { Auth } from '../auth';
-import { TransactionStatus } from './transactions.schema';
+import { TransactionStatus, TransactionType } from './transactions.schema';
 import { Request } from 'express';
 
 @ApiTags('Transactions')
@@ -588,6 +588,12 @@ Erreurs possibles:
     type: String,
     description: 'Filtrer par statut: PENDING, APPROVED, REJECTED (optionnel)',
   })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    type: String,
+    description: "Filtrer par type: DÉPÔT, RETRAIT, INITIALISATION (optionnel)",
+  })
   @ApiResponse({
     status: 200,
     description: "Liste paginée de toutes les transactions de l'utilisateur",
@@ -634,12 +640,14 @@ Erreurs possibles:
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
     @Query('status') status?: TransactionStatus,
+    @Query('type') type?: TransactionType,
   ) {
     return this.transactionsService.getUserTransactions(
       userId,
       page,
       limit,
       status,
+      type,
     );
   }
 

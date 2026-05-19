@@ -285,9 +285,22 @@ export class TransactionsService {
     transaction.status = TransactionStatus.REJECTED;
     transaction.approuveurId = new Types.ObjectId(rejectDto.approuveurId);
     transaction.motifRejet = rejectDto.motifRejet;
-    transaction.isActive = false;
+    transaction.approvedAt = new Date();
 
     const updatedTransaction = await transaction.save();
+
+    // Restaurer la quantite dans l'actif du déposant si depot
+    if (transaction.type === TransactionType.DEPOT) {
+      await this.actifsService.addOrIncreaseActif(
+        transaction.ayant_droit.toString(),
+        transaction.siteOrigineId.toString(),
+        transaction.productId.toString(),
+        transaction.quantite,
+        transaction.prixUnitaire || 0,
+        transaction.detentaire.toString(),
+        transaction.ayant_droit.toString(),
+      );
+    }
 
     // Envoyer la notification de rejet (fire-and-forget)
     this.sendRejectionNotification(
@@ -526,9 +539,10 @@ export class TransactionsService {
     page: number = 1,
     limit: number = 10,
     status?: TransactionStatus,
+    type?: TransactionType,
   ): Promise<PaginationResult<TransactionDocument>> {
     const skip = (page - 1) * limit;
-    const query = {
+    const query: any = {
       $or: [
         { initiatorId: new Types.ObjectId(userId) },
         { recipientId: new Types.ObjectId(userId) },
@@ -536,7 +550,11 @@ export class TransactionsService {
     };
 
     if (status) {
-      query['status'] = status;
+      query.status = status;
+    }
+
+    if (type) {
+      query.type = type;
     }
 
     const data = await this.transactionModel
@@ -936,7 +954,10 @@ export class TransactionsService {
   /**
    * Exporte les transactions d'un utilisateur en CSV
    */
-  async exportUserTransactions(userId: string, format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<string> {
+  async exportUserTransactions(
+    userId: string,
+    format: 'csv' | 'excel' | 'pdf' = 'csv',
+  ): Promise<string> {
     const transactions = await this.transactionModel
       .find({
         $or: [
@@ -985,7 +1006,12 @@ export class TransactionsService {
         prixUnitaire: t.prixUnitaire ?? 'N/A',
         createdAt: t.createdAt ? new Date(t.createdAt).toLocaleString() : 'N/A',
       }));
-      return this.exportService.exportExcel(records, columns, 'Transactions', subfolder);
+      return this.exportService.exportExcel(
+        records,
+        columns,
+        'Transactions',
+        subfolder,
+      );
     }
     if (format === 'pdf') {
       const rows = transactions.map((t: any) => [
@@ -999,7 +1025,12 @@ export class TransactionsService {
         String(t.prixUnitaire ?? ''),
         t.createdAt ? new Date(t.createdAt).toLocaleString() : 'N/A',
       ]);
-      return this.exportService.exportPDF('Transactions', columns.map(c => c.header), rows, subfolder);
+      return this.exportService.exportPDF(
+        'Transactions',
+        columns.map((c) => c.header),
+        rows,
+        subfolder,
+      );
     }
 
     return this.generateCsv(
@@ -1011,7 +1042,9 @@ export class TransactionsService {
   /**
    * Exporte toutes les transactions du système en CSV
    */
-  async exportAllTransactions(format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<string> {
+  async exportAllTransactions(
+    format: 'csv' | 'excel' | 'pdf' = 'csv',
+  ): Promise<string> {
     const transactions = await this.transactionModel
       .find()
       .sort({ createdAt: -1 })
@@ -1053,7 +1086,12 @@ export class TransactionsService {
         prixUnitaire: t.prixUnitaire ?? 'N/A',
         createdAt: t.createdAt ? new Date(t.createdAt).toLocaleString() : 'N/A',
       }));
-      return this.exportService.exportExcel(records, columns, 'Transactions', subfolder);
+      return this.exportService.exportExcel(
+        records,
+        columns,
+        'Transactions',
+        subfolder,
+      );
     }
     if (format === 'pdf') {
       const rows = transactions.map((t: any) => [
@@ -1067,7 +1105,12 @@ export class TransactionsService {
         String(t.prixUnitaire ?? ''),
         t.createdAt ? new Date(t.createdAt).toLocaleString() : 'N/A',
       ]);
-      return this.exportService.exportPDF('Transactions', columns.map(c => c.header), rows, subfolder);
+      return this.exportService.exportPDF(
+        'Transactions',
+        columns.map((c) => c.header),
+        rows,
+        subfolder,
+      );
     }
 
     return this.generateCsv(
