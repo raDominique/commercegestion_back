@@ -72,8 +72,6 @@ export class ExportService {
 
       doc.on('error', reject);
 
-      const bom = Buffer.from('\uFEFF', 'utf-8');
-
       doc.fontSize(16).text(title, { align: 'center' });
       doc.moveDown(1.5);
 
