@@ -90,8 +90,12 @@ export class LedgerDisplayService {
     for (const tx of transactions) {
       // Transaction rejetée → entrée informative sans impact stock
       if (tx.status === TransactionStatus.REJECTED) {
-        activesMovements.push(this.mapMovement(tx, 'REJETÉ', 0, 'ACTIF', tx.siteOrigineId));
-        passivesMovements.push(this.mapMovement(tx, 'REJETÉ', 0, 'PASSIF', tx.siteOrigineId));
+        const rejectedActif = this.mapMovement(tx, 'REJETÉ', tx.quantite, 'ACTIF', tx.siteOrigineId);
+        const rejectedPassif = this.mapMovement(tx, 'REJETÉ', tx.quantite, 'PASSIF', tx.siteOrigineId);
+        rejectedActif.isRejected = true;
+        rejectedPassif.isRejected = true;
+        activesMovements.push(rejectedActif);
+        passivesMovements.push(rejectedPassif);
         continue;
       }
 
@@ -218,12 +222,18 @@ export class LedgerDisplayService {
       initialStock: 0,
       finalStock: 0,
       movementType: type,
+      isRejected: false,
     };
   }
 
   private calculateRunningStocks(movements: any[]) {
     const balances: Record<string, number> = {};
     movements.forEach((m) => {
+      if (m.isRejected) {
+        m.initialStock = 0;
+        m.finalStock = 0;
+        return;
+      }
       const key = m.product;
       m.initialStock = balances[key] || 0;
       m.finalStock = m.initialStock + m.quantity;
