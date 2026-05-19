@@ -61,10 +61,10 @@ export class LedgerDisplayService {
   async getUserLedger(userId: string): Promise<any> {
     const userIdObj = new Types.ObjectId(userId);
 
-    // 1. Récupérer les transactions approuvées
+    // 1. Récupérer les transactions approuvées et rejetées
     const transactions = await this.transactionModel
       .find({
-        status: 'APPROVED',
+        status: { $in: ['APPROVED', 'REJECTED'] },
         $or: [
           { initiatorId: userIdObj },
           { recipientId: userIdObj },
@@ -88,6 +88,13 @@ export class LedgerDisplayService {
 
     // 2. Transformer les transactions en mouvements comptables
     for (const tx of transactions) {
+      // Transaction rejetée → entrée informative sans impact stock
+      if (tx.status === TransactionStatus.REJECTED) {
+        activesMovements.push(this.mapMovement(tx, 'REJETÉ', 0, 'ACTIF', tx.siteOrigineId));
+        passivesMovements.push(this.mapMovement(tx, 'REJETÉ', 0, 'PASSIF', tx.siteOrigineId));
+        continue;
+      }
+
       const isInitiator = tx.initiatorId?._id?.equals(userIdObj);
       const isRecipient = tx.recipientId?._id?.equals(userIdObj);
 
