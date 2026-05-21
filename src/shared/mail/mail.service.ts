@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MailQueueService } from './mail-queue.service';
+import { TransactionType } from 'src/v1/transactions';
 
 /**
  * Service métier d'envoi d'emails.
@@ -324,7 +325,7 @@ export class MailService {
       to,
       subject: `Nouvelle transaction créée - ${this.appName}`,
       template:
-        transactionType === 'DEPOT'
+        transactionType === 'Dépôt'
           ? isDestinataire
             ? 'transaction-created-destinataire'
             : 'transaction-created'

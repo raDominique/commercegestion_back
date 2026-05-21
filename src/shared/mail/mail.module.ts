@@ -5,6 +5,7 @@ import { MailService } from './mail.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { join } from 'path';
 import { MailQueueService } from './mail-queue.service';
+import { MongooseModule } from '@nestjs/mongoose';
 @Global()
 @Module({
   imports: [
