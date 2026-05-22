@@ -4,7 +4,6 @@ import { UsersModule } from './users/users.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { DatabaseModule } from '../database/database.module';
 import { UploadModule } from '../shared/upload/upload.module';
-import { LedgerDisplayModule } from '../v1/ledger-display/ledger-display.module';
 
 @Module({
   imports: [
@@ -13,7 +12,6 @@ import { LedgerDisplayModule } from '../v1/ledger-display/ledger-display.module'
     UsersModule,
     LedgerModule,
     UploadModule,
-    LedgerDisplayModule,
   ],
 })
 export class AppModuleV2 {}
