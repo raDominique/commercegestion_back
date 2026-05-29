@@ -319,4 +319,18 @@ export class ActifsService {
       `export_actifs_${Date.now()}.pdf`,
     );
   }
+
+  async findActif(
+    userId: string,
+    productId: string,
+    depotId: string,
+  ): Promise<ActifDocument | null> {
+    return this.actifModel.findOne({
+      userId: new Types.ObjectId(userId),
+      productId: new Types.ObjectId(productId),
+      depotId: new Types.ObjectId(depotId),
+      isActive: true,
+      quantite: { $gt: 0 },
+    });
+  }
 }

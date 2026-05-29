@@ -191,7 +191,7 @@ export class LedgerDisplayService {
           : 'Utilisateur Inconnu',
       movements: {
         actifs: activesMovements.reverse(), // On inverse pour l'affichage (plus récent en premier)
-        passifs: passivesMovements.reverse(),
+        passifs: passivesMovements.reverse(), 
       },
     };
   }
@@ -693,11 +693,11 @@ export class LedgerDisplayService {
           },
           {
             path: 'detentaire',
-            select: 'userName userNickName userPhone',
+            select: '_id userName userNickName userPhone',
           },
           {
             path: 'ayant_droit',
-            select: 'userName userNickName userPhone',
+            select: '_id userName userNickName userPhone',
           },
         ])
         .lean()
@@ -721,9 +721,11 @@ export class LedgerDisplayService {
       detentaire: (actif.detentaire as any)
         ? `${(actif.detentaire as any).userNickName} ${(actif.detentaire as any).userName}`
         : 'N/A',
+      detentaireId: (actif.detentaire as any)?._id || null,
       ayantDroit: (actif.ayant_droit as any)
         ? `${(actif.ayant_droit as any).userNickName} ${(actif.ayant_droit as any).userName}`
         : 'N/A',
+      ayantDroitId: (actif.ayant_droit as any)?._id || null,
       dateCreation: (actif as any).createdAt,
       dateModification: (actif as any).updatedAt,
       isActive: actif.isActive,
@@ -829,6 +831,8 @@ export class LedgerDisplayService {
       ayantDroit: (passif.ayant_droit as any)
         ? `${(passif.ayant_droit as any).userNickName} ${(passif.ayant_droit as any).userName}`
         : 'N/A',
+      detentaireId: (passif.detentaire as any)?._id || null,
+      ayantDroitId: (passif.ayant_droit as any)?._id || null,
       dateCreation: (passif as any).createdAt,
       dateModification: (passif as any).updatedAt,
       isActive: passif.isActive,
