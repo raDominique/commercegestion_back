@@ -17,6 +17,7 @@ import {
   CreateDepositDto,
   CreateReturnDto,
   CreateInitializationDto,
+  CreateVenteDto,
   ApproveTransactionDto,
   RejectTransactionDto,
 } from './dto/create-transaction.dto';
@@ -211,6 +212,59 @@ export class TransactionsService {
   }
 
   /**
+   * Crée une transaction d'achat/vente (VENTE)
+   * L'acheteur initie l'achat, la quantite est réservée chez le vendeur
+   */
+  async createVente(
+    createVenteDto: CreateVenteDto,
+    acheteurId: string,
+  ): Promise<PaginationResult<TransactionDocument>> {
+    const transactionNumber = this.generateTransactionNumber();
+
+    const transaction = new this.transactionModel({
+      transactionNumber,
+      type: TransactionType.VENTE,
+      status: TransactionStatus.PENDING,
+      initiatorId: new Types.ObjectId(acheteurId),
+      recipientId: new Types.ObjectId(createVenteDto.vendeurId),
+      productId: new Types.ObjectId(createVenteDto.productId),
+      siteOrigineId: new Types.ObjectId(createVenteDto.siteOrigineId),
+      siteDestinationId: createVenteDto.siteDestinationId
+        ? new Types.ObjectId(createVenteDto.siteDestinationId)
+        : new Types.ObjectId(createVenteDto.siteOrigineId),
+      quantite: createVenteDto.quantite,
+      prixUnitaire: createVenteDto.prixUnitaire,
+      detentaire: new Types.ObjectId(createVenteDto.vendeurId),
+      ayant_droit: new Types.ObjectId(acheteurId),
+      observations: createVenteDto.observations || null,
+      isActive: true,
+    });
+
+    const savedTransaction = await transaction.save();
+
+    // Réserver la quantite chez le vendeur
+    await this.actifsService.decreaseActif(
+      createVenteDto.vendeurId,
+      createVenteDto.siteOrigineId,
+      createVenteDto.productId,
+      createVenteDto.quantite,
+    );
+
+    // Envoyer la notification de création (fire-and-forget)
+    this.sendCreationNotification(savedTransaction).catch((error) => {
+      console.error('Failed to send creation notification:', error);
+    });
+
+    return {
+      status: 'success',
+      message:
+        "Transaction d'achat/vente créée avec succès et en attente d'approbation",
+      data: [savedTransaction],
+      total: 1,
+    };
+  }
+
+  /**
    * Approuve une transaction
    * Cela génère les mouvements d'actifs et de passifs correspondants
    */
@@ -297,6 +351,17 @@ export class TransactionsService {
         transaction.detentaire.toString(),
         transaction.ayant_droit.toString(),
       );
+    } else if (transaction.type === TransactionType.VENTE) {
+      // Restaurer la quantite chez le vendeur si vente annulée
+      await this.actifsService.addOrIncreaseActif(
+        transaction.detentaire.toString(),
+        transaction.siteOrigineId.toString(),
+        transaction.productId.toString(),
+        transaction.quantite,
+        transaction.prixUnitaire || 0,
+        transaction.detentaire.toString(),
+        transaction.detentaire.toString(),
+      );
     }
 
     // Envoyer la notification de rejet (fire-and-forget)
@@ -332,6 +397,9 @@ export class TransactionsService {
         break;
       case TransactionType.INITIALISATION:
         await this.applyInitializationMovements(transaction);
+        break;
+      case TransactionType.VENTE:
+        await this.applyVenteMovements(transaction);
         break;
     }
   }
@@ -482,6 +550,44 @@ export class TransactionsService {
       );
     } catch (error) {
       console.error('Error applying initialization movements:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Applique les mouvements pour un achat/vente (VENTE)
+   * Transfère l'actif du vendeur vers l'acheteur
+   */
+  private async applyVenteMovements(
+    transaction: TransactionDocument,
+  ): Promise<void> {
+    try {
+      const vendeurId = transaction.detentaire.toString();
+      const acheteurId = transaction.ayant_droit.toString();
+      const productId = transaction.productId.toString();
+      const siteOrigineId = transaction.siteOrigineId.toString();
+      const siteDestinationId = transaction.siteDestinationId.toString();
+      const quantity = transaction.quantite;
+      const unitPrice = transaction.prixUnitaire || 0;
+
+      // 1. Créer un actif pour l'acheteur
+      await this.actifsService.addOrIncreaseActif(
+        acheteurId,
+        siteDestinationId,
+        productId,
+        quantity,
+        unitPrice,
+        acheteurId,
+        acheteurId,
+      );
+
+      console.log(
+        'Vente movements applied for transaction:',
+        transaction.transactionNumber,
+        `Vendeur: ${vendeurId}, Acheteur: ${acheteurId}, Produit: ${productId}, Quantité: ${quantity}`,
+      );
+    } catch (error) {
+      console.error('Error applying vente movements:', error);
       throw error;
     }
   }
@@ -697,8 +803,6 @@ export class TransactionsService {
         'sendApprovalNotification',
         `Sending approval notification for transaction: ${transaction.transactionNumber}`,
       );
-      const transactionType = this.getTransactionTypeLabel(transaction.type);
-
       const approverUser = await this.usersService.getById(approverId);
       const approverName = approverUser.userName;
 
@@ -707,11 +811,12 @@ export class TransactionsService {
         transaction.recipientId?.toString(),
       );
       const recipientEmail = recipientUser.userEmail;
+      const recipientType = this.getTransactionTypeLabel(transaction.type, false);
 
       await this.mailService.notificationTransactionApproved(
         recipientEmail,
         recipientUser.userName,
-        transactionType,
+        recipientType,
         transaction.productId.toString(),
         transaction.quantite,
         transaction.transactionNumber,
@@ -719,7 +824,7 @@ export class TransactionsService {
       );
 
       console.log(
-        `Approval notification sent for transaction: ${transaction.transactionNumber}`,
+        `Approval notification sent for transaction (destinataire): ${transaction.transactionNumber} type: ${recipientType}`,
       );
 
       // Envoyer aussi la notification au déposant/initiator que sa transaction a été approuvée
@@ -727,17 +832,18 @@ export class TransactionsService {
         transaction.initiatorId.toString(),
       );
       const initiatorEmail = initiatorUser.userEmail;
+      const initiatorType = this.getTransactionTypeLabel(transaction.type, true);
       await this.mailService.notificationTransactionApproved(
         initiatorEmail,
         initiatorUser.userName,
-        transactionType,
+        initiatorType,
         transaction.productId.toString(),
         transaction.quantite,
         transaction.transactionNumber,
         approverName,
       );
       console.log(
-        `Approval notification sent to initiator for transaction: ${transaction.transactionNumber}`,
+        `Approval notification sent to initiator for transaction: ${transaction.transactionNumber} type: ${initiatorType}`,
       );
     } catch (error) {
       console.error(
@@ -759,8 +865,6 @@ export class TransactionsService {
     approuverId: string,
   ): Promise<void> {
     try {
-      const transactionType = this.getTransactionTypeLabel(transaction.type);
-
       const approverUser = await this.usersService.getById(approuverId);
       const approverName = approverUser.userName;
 
@@ -769,11 +873,12 @@ export class TransactionsService {
         transaction.recipientId.toString(),
       );
       const recipientEmail = recipientUser.userEmail;
+      const recipientType = this.getTransactionTypeLabel(transaction.type, false);
 
       await this.mailService.notificationTransactionRejected(
         recipientEmail,
         recipientUser.userName,
-        transactionType,
+        recipientType,
         transaction.productId.toString(),
         transaction.quantite,
         transaction.transactionNumber,
@@ -782,7 +887,7 @@ export class TransactionsService {
       );
 
       console.log(
-        `Rejection notification sent for transaction: ${transaction.transactionNumber}`,
+        `Rejection notification sent for transaction: ${transaction.transactionNumber} type: ${recipientType}`,
       );
 
       // Envoyer aussi la notification au déposant/initiator que sa transaction a été rejetée
@@ -790,10 +895,11 @@ export class TransactionsService {
         transaction.initiatorId.toString(),
       );
       const initiatorEmail = initiatorUser.userEmail;
+      const initiatorType = this.getTransactionTypeLabel(transaction.type, true);
       await this.mailService.notificationTransactionRejected(
         initiatorEmail,
         initiatorUser.userName,
-        transactionType,
+        initiatorType,
         transaction.productId.toString(),
         transaction.quantite,
         transaction.transactionNumber,
@@ -841,8 +947,6 @@ export class TransactionsService {
         return;
       }
 
-      const transactionType = this.getTransactionTypeLabel(transaction.type);
-
       // Recuperer le nom du produit
       const product = await this.productService.findById(
         transaction.productId.toString(),
@@ -882,21 +986,22 @@ export class TransactionsService {
         return; // Fin du traitement pour l'initialisation
       }
 
-      // --- ÉTAPE 1 : Mail au DESTINATAIRE ---
+      // --- ÉTAPE 1 : Mail au DESTINATAIRE (vendeur pour VENTE) ---
       if (recipientUser && recipientUser.userEmail) {
         try {
+          const recipientType = this.getTransactionTypeLabel(transaction.type, false);
           await this.mailService.notificationTransactionCreated(
             recipientUser.userEmail,
             recipientUser.userName,
-            transactionType,
+            recipientType,
             productName,
             transaction.quantite,
             transaction.transactionNumber,
-            true, // isDestinataire: TRUE pour que le destinataire reçoive le bon template
+            true, // isDestinataire: TRUE
             initiatorUser.userName,
           );
           console.log(
-            `Mail envoyé au DESTINATAIRE (${recipientUser.userName})`,
+            `Mail envoyé au DESTINATAIRE (${recipientUser.userName}) type: ${recipientType}`,
           );
         } catch (error: unknown) {
           const errorMessage =
@@ -909,20 +1014,21 @@ export class TransactionsService {
         );
       }
 
-      // --- ÉTAPE 2 : Mail à l'INITIATEUR ---
+      // --- ÉTAPE 2 : Mail à l'INITIATEUR (acheteur pour VENTE) ---
       if (initiatorUser.userEmail) {
         try {
+          const initiatorType = this.getTransactionTypeLabel(transaction.type, true);
           await this.mailService.notificationTransactionCreated(
             initiatorUser.userEmail,
             initiatorUser.userName,
-            transactionType,
+            initiatorType,
             productName,
             transaction.quantite,
             transaction.transactionNumber,
-            false, // isDestinataire: FALSE pour l'initiateur
+            false, // isDestinataire: FALSE
             recipientUser?.userName || 'Inconnu',
           );
-          console.log(`Mail envoyé à l'INITIATEUR (${initiatorUser.userName})`);
+          console.log(`Mail envoyé à l'INITIATEUR (${initiatorUser.userName}) type: ${initiatorType}`);
         } catch (error: unknown) {
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';
@@ -939,7 +1045,10 @@ export class TransactionsService {
   /**
    * Retourne le label lisible du type de transaction
    */
-  private getTransactionTypeLabel(type: TransactionType): string {
+  private getTransactionTypeLabel(type: TransactionType, isInitiator = true): string {
+    if (type === TransactionType.VENTE) {
+      return isInitiator ? 'Achat' : 'Vente';
+    }
     const labels: Partial<Record<TransactionType, string>> = {
       [TransactionType.DEPOT]: 'Dépôt',
       [TransactionType.RETRAIT]: 'Retrait',

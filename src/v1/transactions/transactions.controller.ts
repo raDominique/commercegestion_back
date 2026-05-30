@@ -25,6 +25,7 @@ import {
   CreateDepositDto,
   CreateReturnDto,
   CreateInitializationDto,
+  CreateVenteDto,
   ApproveTransactionDto,
   RejectTransactionDto,
 } from './dto/create-transaction.dto';
@@ -239,6 +240,38 @@ Erreurs possibles:
   ) {
     return this.transactionsService.createInitialization(
       createInitDto,
+      req.user.userId,
+    );
+  }
+
+  /**
+   * Crée une transaction d'achat/vente
+   */
+  @Post('vente')
+  @Auth()
+  @ApiOperation({
+    summary: 'Acheter un actif (Créer une transaction VENTE)',
+    description: `Un membre achète un actif d'un autre membre.
+L'acheteur initie la transaction. La quantité est réservée chez le vendeur en attendant l'approbation.
+Une fois approuvée, l'actif est transféré du vendeur vers l'acheteur.
+
+Flux:
+1. Acheteur soumet la demande d'achat → statut PENDING, stock réservé chez le vendeur
+2. Vendeur approuve → actif transféré chez l'acheteur (addOrIncreaseActif)
+3. Vendeur rejette → stock restauré chez le vendeur`,
+  })
+  @ApiResponse({
+    status: 201,
+    description: "Transaction d'achat créée avec succès",
+  })
+  @ApiResponse({ status: 400, description: 'Stock insuffisant' })
+  @ApiBody({ type: CreateVenteDto })
+  async createVente(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() createVenteDto: CreateVenteDto,
+  ) {
+    return this.transactionsService.createVente(
+      createVenteDto,
       req.user.userId,
     );
   }

@@ -177,6 +177,57 @@ export class ApproveTransactionDto {
   observations?: string;
 }
 
+export class CreateVenteDto {
+  @ApiProperty({
+    description: 'ID du vendeur',
+    example: '69989c5cdff25ef7fe0a460f',
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  vendeurId!: string;
+
+  @ApiProperty({
+    description: 'ID du produit',
+    example: '69989c5cdff25ef7fe0a460f',
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  productId!: string;
+
+  @ApiProperty({
+    description: "ID du site d'origine (site du vendeur)",
+    example: '69989c5cdff25ef7fe0a4610',
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  siteOrigineId!: string;
+
+  @ApiProperty({
+    description: 'ID du site de destination (site de l\'acheteur)',
+    example: '69989c5cdff25ef7fe0a4612',
+  })
+  @IsMongoId()
+  @IsOptional()
+  siteDestinationId?: string;
+
+  @ApiProperty({ description: 'Quantité à acheter', example: 100 })
+  @IsNumber()
+  @IsPositive()
+  @IsNotEmpty()
+  quantite!: number;
+
+  @ApiProperty({ description: "Prix unitaire d'achat", example: 500 })
+  @IsNumber()
+  @IsPositive()
+  @Min(0.01)
+  prixUnitaire!: number;
+
+  @ApiProperty({ description: 'Observations', required: false })
+  @IsOptional()
+  @IsString()
+  observations?: string;
+}
+
 export class RejectTransactionDto {
   @ApiProperty({
     description: 'ID de celui qui rejette',
