@@ -21,6 +21,7 @@ import { LedgerDisplayModule } from './v1/ledger-display';
 import { TransactionsModule } from './v1/transactions/transactions.module';
 import { DashboardModule } from './v1/dashboard/dashboard.module';
 import { ShopAvailableModule } from './v1/shop-available/shop-available.module';
+import { TenderModule } from './v1/tenders/tender.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { ShopAvailableModule } from './v1/shop-available/shop-available.module';
           { path: 'ledger', module: LedgerDisplayModule },
           { path: 'dashboard', module: DashboardModule },
           { path: 'shop', module: ShopAvailableModule },
+          { path: 'tenders', module: TenderModule },
         ],
       },
       {
