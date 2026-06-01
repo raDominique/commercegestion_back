@@ -128,12 +128,12 @@ export class DashboardService {
       // actifsBySite
       this.actifModel.aggregate([
         { $match: { userId: userIdObj } },
-        { $group: { _id: '$siteId', total: { $sum: '$montant' } } },
+        { $group: { _id: '$depotId', total: { $sum: '$montant' } } },
       ]),
       // passifsBySite
       this.passifModel.aggregate([
         { $match: { userId: userIdObj } },
-        { $group: { _id: '$siteId', total: { $sum: '$montant' } } },
+        { $group: { _id: '$depotId', total: { $sum: '$montant' } } },
       ]),
 
       // actifsByProduct
