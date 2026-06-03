@@ -1,5 +1,5 @@
 // src/notifications/notifications.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { NotificationsGateway } from './notifications.gateway';
@@ -12,7 +12,7 @@ export class NotificationsService {
   constructor(
     @InjectModel(Notification.name)
     private readonly notificationModel: Model<Notification>,
-    private readonly gateway: NotificationsGateway,
+    @Optional() private readonly gateway: NotificationsGateway,
     private readonly exportService: ExportService,
   ) {}
 
@@ -30,7 +30,9 @@ export class NotificationsService {
     }).save();
 
     // 2. Envoi en temps réel via Socket
-    this.gateway.server.to(`user_${userId}`).emit('notification', savedNote);
+    if (this.gateway) {
+      this.gateway.server.to(`user_${userId}`).emit('notification', savedNote);
+    }
 
     return savedNote;
   }
@@ -49,7 +51,9 @@ export class NotificationsService {
     };
 
     // On émet sur un canal différent 'admin_event' pour le dashboard admin
-    this.gateway.server.to('admin_room').emit('admin_event', adminPayload);
+    if (this.gateway) {
+      this.gateway.server.to('admin_room').emit('admin_event', adminPayload);
+    }
 
     console.log(`📢 Alerte Admin envoyée : ${title}`);
   }

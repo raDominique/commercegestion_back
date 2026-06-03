@@ -14,7 +14,7 @@ import { UsersModule } from 'src/v2/users/users.module';
     forwardRef(() => UsersModule),
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsGateway, NotificationsService],
+  providers: [NotificationsService],
   exports: [NotificationsService],
 })
 export class NotificationsModule {}

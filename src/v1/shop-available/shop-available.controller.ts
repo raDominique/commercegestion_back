@@ -75,15 +75,23 @@ La quantité est vérifiée par rapport à l'actif détenu.`,
   @Auth()
   @ApiOperation({
     summary: 'Mes annonces de vente',
-    description: "Liste paginée de mes propres annonces (actives, vendues ou annulées).",
+    description: "Liste paginée de mes propres annonces. Par défaut, seules les annonces actives sont retournées. Utilisez `statut=ALL` pour toutes.",
   })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'sortBy', required: false, type: String, example: 'createdAt' })
+  @ApiQuery({ name: 'order', required: false, enum: ['asc', 'desc'], example: 'desc' })
+  @ApiQuery({ name: 'statut', required: false, type: String, example: 'ACTIVE', description: "Filtrer par statut (ACTIVE, SOLD, CANCELLED, ou ALL pour tout voir)" })
   @ApiResponse({ status: 200, description: 'Mes annonces' })
   async findMine(
     @Req() req: any,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy = 'createdAt',
+    @Query('order') order: 'asc' | 'desc' = 'desc',
+    @Query('statut') statut?: string,
   ) {
     const userId = req.user?.userId;
     if (!userId) throw new BadRequestException('Utilisateur non authentifié');
@@ -91,6 +99,10 @@ La quantité est vérifiée par rapport à l'actif détenu.`,
       userId,
       Math.max(1, Number(page) || 1),
       Math.min(100, Math.max(1, Number(limit) || 20)),
+      search,
+      sortBy,
+      order,
+      statut,
     );
   }
 

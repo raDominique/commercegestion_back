@@ -87,8 +87,23 @@ export class ShopAvailableService {
     userId: string,
     page = 1,
     limit = 20,
+    search?: string,
+    sortBy = 'createdAt',
+    order: 'asc' | 'desc' = 'desc',
+    statut?: string,
   ): Promise<PaginationResult<ShopAvailableDocument>> {
-    const filter = { vendeurId: new Types.ObjectId(userId) };
+    const filter: any = { vendeurId: new Types.ObjectId(userId) };
+
+    if (statut && statut !== 'ALL') {
+      filter.statut = statut;
+    } else if (!statut) {
+      filter.statut = ShopAvailableStatus.ACTIVE;
+    }
+
+    if (search) {
+      filter.description = { $regex: search, $options: 'i' };
+    }
+
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
@@ -97,7 +112,7 @@ export class ShopAvailableService {
         .populate('vendeurId', 'userNickName userName raisonSocial')
         .populate('productId', 'productName codeCPC productImage productDescription')
         .populate('siteId', 'siteName siteAddress')
-        .sort({ createdAt: -1 })
+        .sort({ [sortBy]: order === 'asc' ? 1 : -1 })
         .skip(skip)
         .limit(limit)
         .exec(),

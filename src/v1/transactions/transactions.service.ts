@@ -811,13 +811,19 @@ export class TransactionsService {
         transaction.recipientId?.toString(),
       );
       const recipientEmail = recipientUser.userEmail;
+      // Récupérer le nom du produit
+      const product = await this.productService.findById(
+        transaction.productId.toString(),
+      );
+      const productName = product?.data?.[0]?.productName || 'Produit';
+
       const recipientType = this.getTransactionTypeLabel(transaction.type, false);
 
       await this.mailService.notificationTransactionApproved(
         recipientEmail,
         recipientUser.userName,
         recipientType,
-        transaction.productId.toString(),
+        productName,
         transaction.quantite,
         transaction.transactionNumber,
         approverName,
@@ -837,7 +843,7 @@ export class TransactionsService {
         initiatorEmail,
         initiatorUser.userName,
         initiatorType,
-        transaction.productId.toString(),
+        productName,
         transaction.quantite,
         transaction.transactionNumber,
         approverName,
@@ -868,6 +874,12 @@ export class TransactionsService {
       const approverUser = await this.usersService.getById(approuverId);
       const approverName = approverUser.userName;
 
+      // Récupérer le nom du produit
+      const product = await this.productService.findById(
+        transaction.productId.toString(),
+      );
+      const productName = product?.data?.[0]?.productName || 'Produit';
+
       // Récupérer les infos du destinataire via la base de données
       const recipientUser = await this.usersService.getById(
         transaction.recipientId.toString(),
@@ -879,7 +891,7 @@ export class TransactionsService {
         recipientEmail,
         recipientUser.userName,
         recipientType,
-        transaction.productId.toString(),
+        productName,
         transaction.quantite,
         transaction.transactionNumber,
         rejectionReason,
@@ -900,7 +912,7 @@ export class TransactionsService {
         initiatorEmail,
         initiatorUser.userName,
         initiatorType,
-        transaction.productId.toString(),
+        productName,
         transaction.quantite,
         transaction.transactionNumber,
         rejectionReason,
@@ -999,6 +1011,7 @@ export class TransactionsService {
             transaction.transactionNumber,
             true, // isDestinataire: TRUE
             initiatorUser.userName,
+            transaction.type,
           );
           console.log(
             `Mail envoyé au DESTINATAIRE (${recipientUser.userName}) type: ${recipientType}`,
@@ -1027,6 +1040,7 @@ export class TransactionsService {
             transaction.transactionNumber,
             false, // isDestinataire: FALSE
             recipientUser?.userName || 'Inconnu',
+            transaction.type,
           );
           console.log(`Mail envoyé à l'INITIATEUR (${initiatorUser.userName}) type: ${initiatorType}`);
         } catch (error: unknown) {

@@ -320,18 +320,21 @@ export class MailService {
     transactionNumber: string,
     isDestinataire: boolean,
     envoyeurName?: string,
+    transactionTypeEnum?: TransactionType,
   ) {
+    let templateName: string;
+    if (transactionTypeEnum === TransactionType.DEPOT || transactionTypeEnum === TransactionType.INITIALISATION) {
+      templateName = isDestinataire ? 'transaction-created-destinataire' : 'transaction-created';
+    } else if (transactionTypeEnum === TransactionType.VENTE) {
+      templateName = isDestinataire ? 'transaction-retrait-created-destinataire' : 'transaction-created';
+    } else {
+      templateName = isDestinataire ? 'transaction-retrait-created-destinataire' : 'transaction-retrait-created';
+    }
+
     await this.mailQueue.enqueue({
       to,
       subject: `Nouvelle transaction créée - ${this.appName}`,
-      template:
-        transactionType === 'Dépôt'
-          ? isDestinataire
-            ? 'transaction-created-destinataire'
-            : 'transaction-created'
-          : isDestinataire
-            ? 'transaction-retrait-created-destinataire'
-            : 'transaction-retrait-created',
+      template: templateName,
       context: {
         envoyeurName: envoyeurName,
         recipientName,

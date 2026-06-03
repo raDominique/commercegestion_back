@@ -88,7 +88,7 @@ export class MailQueueService implements OnModuleDestroy {
 
     return new Promise<void>((resolve, reject) => {
       this.queue.push({ payload, resolve, reject, attempts: 0 });
-      this.logger.debug(
+      this.logger.log(
         `[MailQueue] Email enqueued pour ${payload.to} (${payload.template}) — taille queue: ${this.queue.length}`,
       );
       void this.processQueue();
