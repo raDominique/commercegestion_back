@@ -154,7 +154,7 @@ export class PassifsService {
     const passif = await this.passifModel
       .findById(passifId)
       .populate('productId', 'productName codeCPC productImage prixUnitaire') // Détails du produit
-      .populate('creancierId', 'userNickName userName userPhone userEmail') // Détails de l'ayant-droit
+      .populate('userId', 'userNickName userName userPhone userEmail') // Détails de l'ayant-droit
       .populate('depotId', 'siteName siteAddress siteLat siteLng') // Détails du site/hangar
       .exec();
 

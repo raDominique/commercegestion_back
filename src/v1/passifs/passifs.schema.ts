@@ -33,6 +33,9 @@ export class Passif {
 
   @Prop({ type: Types.ObjectId, ref: 'User', default: null })
   ayant_droit: Types.ObjectId; // Propriété légale (À qui appartient-il ?)
+
+  @Prop({ type: String, default: 'DETTE_MARCHANDISE_EN_DEPOT' })
+  typePassif: string;
 }
 
 export const PassifSchema = SchemaFactory.createForClass(Passif);
