@@ -206,7 +206,7 @@ export class StockService {
 
     // 1. Sortie de l'actif (diminuer du site origine)
     await this.actifsService.decreaseActif(
-      userId,
+      dto.ayant_droit || userId,
       dto.siteOrigineId,
       dto.productId,
       dto.quantite,
