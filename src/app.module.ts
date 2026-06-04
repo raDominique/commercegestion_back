@@ -48,7 +48,7 @@ import { TenderModule } from './v1/tenders/tender.module';
           from: `"${configService.get('SMTP_FROM_NAME')}" <${configService.get('SMTP_FROM')}>`,
         },
         template: {
-          dir: join(__dirname, 'templates'),
+          dir: join(__dirname, 'shared/mail/templates'),
           adapter: new HandlebarsAdapter(),
           options: { strict: true },
         },
