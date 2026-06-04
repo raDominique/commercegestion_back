@@ -39,7 +39,7 @@ export class User {
   @Prop({ required: true, select: false })
   userPassword: string;
 
-  @Prop({ required: true, unique: true, lowercase: true, index: true })
+  @Prop({ required: true, unique: true, lowercase: true })
   userEmail: string;
 
   @Prop()
@@ -71,7 +71,7 @@ export class User {
   userMainLng?: number;
 
   // ==================== PROFILE & PARRAINAGE ====================
-  @Prop({ unique: true, sparse: true, index: true })
+  @Prop({ unique: true, sparse: true })
   userId: string; // ID de 8 caractères pour le parrainage
 
   @Prop()

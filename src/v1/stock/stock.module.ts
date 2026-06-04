@@ -15,11 +15,11 @@ import { MailModule } from 'src/shared/mail/mail.module';
     MongooseModule.forFeature([
       { name: StockMovement.name, schema: StockMovementSchema },
     ]),
+    MailModule,
     ProductsModule,
     SiteModule,
     ActifsModule,
     PassifsModule,
-    MailModule,
   ],
   controllers: [StockController],
   providers: [StockService, LoggerService],

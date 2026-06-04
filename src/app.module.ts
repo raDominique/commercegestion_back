@@ -1,5 +1,9 @@
 import { Module } from '@nestjs/common';
 import { RouterModule } from '@nestjs/core';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { join } from 'path';
 import { AppModuleV1 } from './v1/app.module';
 import { AppModuleV2 } from './v2/app.module';
 import { UsersModule } from './v1/users/users.module';
@@ -8,7 +12,6 @@ import { LedgerModule } from './v2/ledger/ledger.module';
 import { AuthModule } from './v1/auth/auth.module';
 import { AuditModule } from './v1/audit/audit.module';
 import { MailModule } from './shared/mail/mail.module';
-import { SharedModule } from './shared/shared.module';
 import { ExportModule } from './shared/export/export.module';
 import { ProductsModule } from './v1/products/products.module';
 import { CpcModule } from './v1/cpc/cpc.module';
@@ -25,6 +28,32 @@ import { TenderModule } from './v1/tenders/tender.module';
 
 @Module({
   imports: [
+    MailModule,
+    ExportModule,
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        transport: {
+          host: configService.get<string>('SMTP_HOST'),
+          port: configService.get<number>('SMTP_PORT') || 587,
+          secure: configService.get<string>('SMTP_SECURE') === 'true',
+          auth: {
+            user: configService.get<string>('SMTP_USER'),
+            pass: configService.get<string>('SMTP_PASS'),
+          },
+          pool: true,
+        },
+        defaults: {
+          from: `"${configService.get('SMTP_FROM_NAME')}" <${configService.get('SMTP_FROM')}>`,
+        },
+        template: {
+          dir: join(__dirname, 'templates'),
+          adapter: new HandlebarsAdapter(),
+          options: { strict: true },
+        },
+      }),
+    }),
     AppModuleV1,
     AppModuleV2,
     RouterModule.register([
@@ -64,9 +93,6 @@ import { TenderModule } from './v1/tenders/tender.module';
         ],
       },
     ]),
-    MailModule,
-    SharedModule,
-    ExportModule,
   ],
 })
 export class AppModule {}

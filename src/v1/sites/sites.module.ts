@@ -6,14 +6,14 @@ import { SiteController } from './sites.controller';
 import { UsersModule } from '../users/users.module';
 import { LoggerService } from 'src/common/logger/logger.service';
 import { AuditModule } from '../audit/audit.module';
-import { SharedModule } from 'src/shared/shared.module';
+import { NotifyModule } from 'src/shared/notify/notify.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Site.name, schema: SiteSchema }]),
     AuditModule,
     forwardRef(() => UsersModule),
-    forwardRef(() => SharedModule),
+    NotifyModule,
   ],
   controllers: [SiteController],
   providers: [SiteService, LoggerService],

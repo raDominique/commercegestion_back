@@ -27,7 +27,6 @@ export class ProductService {
     private readonly auditService: AuditService,
     private readonly socketNotifications: NotificationsService,
     private readonly mailService: MailService,
-    @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
     private readonly exportService: ExportService,
   ) {}

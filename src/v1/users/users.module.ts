@@ -11,10 +11,9 @@ import {
 } from './user-verification.schema';
 import { SiteModule } from '../sites/sites.module';
 import { AuditModule } from '../audit/audit.module';
-import { NotifyHelper } from 'src/shared/helpers/notify.helper';
-import { SharedModule } from 'src/shared/shared.module';
 import { NotificationsService } from 'src/shared/notifications/notifications.service';
 import { NotificationsModule } from 'src/shared/notifications/notifications.module';
+import { MailModule } from 'src/shared/mail/mail.module';
 
 @Module({
   imports: [
@@ -22,7 +21,7 @@ import { NotificationsModule } from 'src/shared/notifications/notifications.modu
       { name: User.name, schema: UserSchema },
       { name: UserVerificationToken.name, schema: UserVerificationTokenSchema },
     ]),
-    forwardRef(() => SharedModule),
+    MailModule,
     forwardRef(() => NotificationsModule),
     forwardRef(() => SiteModule),
     AuditModule,

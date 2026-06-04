@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MailQueueService } from './mail-queue.service';
-import { TransactionType } from 'src/v1/transactions';
+import { TransactionType } from 'src/v1/transactions/transactions.schema';
 
 /**
  * Service métier d'envoi d'emails.

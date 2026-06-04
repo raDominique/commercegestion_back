@@ -14,7 +14,7 @@ export enum UserType {
 
 @Schema({ timestamps: true })
 export class User {
-  @Prop({ required: true, unique: true, lowercase: true, index: true })
+  @Prop({ required: true, unique: true, lowercase: true })
   email: string;
 
   @Prop({ required: true, select: false })
