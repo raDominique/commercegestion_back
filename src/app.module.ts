@@ -1,3 +1,4 @@
+import { MailModule } from 'src/shared/mail/mail.module';
 import { Module } from '@nestjs/common';
 import { RouterModule } from '@nestjs/core';
 import { MailerModule } from '@nestjs-modules/mailer';
@@ -11,7 +12,6 @@ import { UsersModule as UsersModuleV2 } from './v2/users/users.module';
 import { LedgerModule } from './v2/ledger/ledger.module';
 import { AuthModule } from './v1/auth/auth.module';
 import { AuditModule } from './v1/audit/audit.module';
-import { MailModule } from './shared/mail/mail.module';
 import { ExportModule } from './shared/export/export.module';
 import { ProductsModule } from './v1/products/products.module';
 import { CpcModule } from './v1/cpc/cpc.module';
@@ -76,6 +76,7 @@ import { TenderModule } from './v1/tenders/tender.module';
           { path: 'dashboard', module: DashboardModule },
           { path: 'shop', module: ShopAvailableModule },
           { path: 'tenders', module: TenderModule },
+          {path: '', module: MailModule}
         ],
       },
       {

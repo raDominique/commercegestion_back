@@ -40,7 +40,6 @@ export class CreateTenderDto {
     minimum: 0.01,
   })
   @IsNumber()
-  @IsPositive()
   quantite: number;
 
   @ApiProperty({

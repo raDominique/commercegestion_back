@@ -28,6 +28,19 @@ export class MailService {
       this.configService.get<string>('FRONT_URL') ?? 'http://localhost:3000';
   }
 
+  async sendTestEmail(to: string) {
+    await this.mailQueue.enqueue({
+      to,
+      subject: `Test SMTP – ${this.appName}`,
+      template: 'email-verification',
+      context: {
+        name: 'Testeur',
+        link: this.appUrl,
+        appName: this.appName,
+      },
+    });
+  }
+
   /* =========================================================================
    * AUTH / USER
    * ========================================================================= */
