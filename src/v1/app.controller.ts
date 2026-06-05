@@ -40,16 +40,4 @@ export class AppController {
   ): Promise<{ avatarUrl: string }> {
     return this.appService.updateAvatar(file);
   }
-
-    @Post('test')
-    @ApiOperation({ summary: 'Envoyer un email de test SMTP' })
-    async sendTestEmail(@Body() dto: SendTestMailDto) {
-      await this.mailService.sendTestEmail(dto.to);
-      return {
-        success: true,
-        message:
-          'Email de test mis en file d’attente. Vérifiez la boîte de réception et les logs SMTP.',
-        to: dto.to,
-      };
-    }
 }

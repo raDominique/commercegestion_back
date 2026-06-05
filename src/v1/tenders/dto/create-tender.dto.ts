@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsMongoId,
@@ -39,7 +40,9 @@ export class CreateTenderDto {
     description: 'Quantité totale recherchée',
     minimum: 0.01,
   })
+  @Type(() => Number)
   @IsNumber()
+  @IsPositive()
   quantite: number;
 
   @ApiProperty({
