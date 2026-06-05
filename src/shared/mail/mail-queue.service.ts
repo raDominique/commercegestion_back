@@ -151,11 +151,12 @@ export class MailQueueService implements OnModuleDestroy {
       } catch (err: unknown) {
         job.attempts++;
         const isLastAttempt = job.attempts > this.maxRetries;
+        const errMsg = err instanceof Error ? err.message : String(err);
 
         if (isLastAttempt) {
           this.logger.error(
-            `[MailQueue] ✗ Échec définitif [${payload.template}] → ${payload.to} après ${this.maxRetries + 1} tentatives`,
-            err instanceof Error ? err.stack : String(err),
+            `[MailQueue] ✗ Échec définitif [${payload.template}] → ${payload.to} après ${this.maxRetries + 1} tentatives : ${errMsg}`,
+            err instanceof Error ? err.stack : undefined,
           );
           // On resolve (et non reject) pour ne pas crasher l'appelant
           job.resolve();
@@ -165,7 +166,7 @@ export class MailQueueService implements OnModuleDestroy {
         // Backoff exponentiel : 1s, 2s, 4s, …
         const delay = 1000 * Math.pow(2, job.attempts - 1);
         this.logger.warn(
-          `[MailQueue] Tentative ${job.attempts}/${this.maxRetries} échouée pour ${payload.to}. Retry dans ${delay}ms…`,
+          `[MailQueue] Tentative ${job.attempts}/${this.maxRetries} échouée pour ${payload.to} (${payload.template}) : ${errMsg}. Retry dans ${delay}ms…`,
         );
         await this.sleep(delay);
       }

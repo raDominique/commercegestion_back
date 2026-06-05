@@ -36,13 +36,17 @@ import { TenderModule } from './v1/tenders/tender.module';
       useFactory: (configService: ConfigService) => ({
         transport: {
           host: configService.get<string>('SMTP_HOST'),
-          port: configService.get<number>('SMTP_PORT') || 587,
+          port: Number(configService.get<string>('SMTP_PORT')) || 587,
           secure: configService.get<string>('SMTP_SECURE') === 'true',
           auth: {
             user: configService.get<string>('SMTP_USER'),
             pass: configService.get<string>('SMTP_PASS'),
           },
           pool: true,
+          maxConnections: 3,
+          maxMessages: 50,
+          socketTimeout: 10000,
+          connectionTimeout: 8000,
         },
         defaults: {
           from: `"${configService.get('SMTP_FROM_NAME')}" <${configService.get('SMTP_FROM')}>`,
@@ -50,7 +54,7 @@ import { TenderModule } from './v1/tenders/tender.module';
         template: {
           dir: join(__dirname, 'shared/mail/templates'),
           adapter: new HandlebarsAdapter(),
-          options: { strict: true },
+          options: { strict: false },
         },
       }),
     }),
