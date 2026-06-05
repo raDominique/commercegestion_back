@@ -28,7 +28,7 @@ pipeline {
         MAIL_MAX_RETRIES = '3'
 
         APP_NAME = 'CommerceGestion'
-        APP_URL = 'https://api-e-takalo.tsirylab.com'
+        APP_URL = 'https://api-etokisana.tsirylab.com'
 
         ADMIN_EMAIL = credentials('ADMIN_EMAIL_E_TAKALO')
 
