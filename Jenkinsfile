@@ -23,11 +23,11 @@ pipeline {
         SMTP_FROM = credentials('SMTP_USER_E_TAKALO')
 
         SMTP_SECURE = 'true'
-        SMTP_FROM_NAME = 'CommerceGestion'
+        SMTP_FROM_NAME = 'Etokisana'
         MAIL_SEND_DELAY_MS = '300'
         MAIL_MAX_RETRIES = '3'
 
-        APP_NAME = 'CommerceGestion'
+        APP_NAME = 'Etokisana'
         APP_URL = 'https://api-etokisana.tsirylab.com'
 
         ADMIN_EMAIL = credentials('ADMIN_EMAIL_E_TAKALO')
