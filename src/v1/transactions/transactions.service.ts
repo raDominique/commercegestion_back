@@ -99,13 +99,24 @@ export class TransactionsService {
       console.error('Failed to send creation notification:', error);
     });
 
-    // reduire la quantité du produit dans le stock du déposant (site d'origine) en attendant l'approbation
-    await this.actifsService.decreaseActif(
-      createDepositDto.ayant_droit, // userId: Qui dépose (détenteur)
-      createDepositDto.siteOrigineId, // siteId: Site d'origine
-      createDepositDto.productId, // productId: Le produit
-      createDepositDto.quantite, // quantite: Diminuer la quantité du stock du déposant
-    );
+    // Réserver la quantité dans l'actif du déposant (site d'origine) si un actif existe
+    // Si aucun actif n'existe, le stock est considéré comme externe (hors système)
+    try {
+      await this.actifsService.decreaseActif(
+        createDepositDto.ayant_droit,
+        createDepositDto.siteOrigineId,
+        createDepositDto.productId,
+        createDepositDto.quantite,
+      );
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        console.warn(
+          `Aucun actif existant pour le dépôt (ayant_droit=${createDepositDto.ayant_droit}, site=${createDepositDto.siteOrigineId}, product=${createDepositDto.productId}). Le stock est considéré comme externe.`,
+        );
+      } else {
+        throw error;
+      }
+    }
     return {
       status: 'success',
       message:
