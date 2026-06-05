@@ -1,48 +1,44 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang='fr'>
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Transaction Rejetée - {{appName}}</title>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>Transaction rejetee - {{appName}}</title>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
 
       body {
-        font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-        background-color: #f5f7fa;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        background-color: #f8fafc;
         padding: 20px;
       }
 
       .email-container {
-        max-width: 650px;
+        max-width: 600px;
         margin: 0 auto;
         background-color: #ffffff;
-        border-radius: 8px;
+        border-radius: 12px;
         overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
       }
 
       .header {
-        background: linear-gradient(135deg, #c53030 0%, #e53e3e 100%);
-        padding: 45px 40px;
+        background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
+        padding: 40px;
         text-align: center;
       }
 
       .header h1 {
         color: #ffffff;
-        font-size: 32px;
+        font-size: 28px;
         font-weight: 700;
         margin-bottom: 8px;
+        line-height: 1.3;
       }
 
       .header p {
-        color: rgba(255, 255, 255, 0.95);
-        font-size: 15px;
-        font-weight: 400;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 14px;
       }
 
       .content {
@@ -50,110 +46,119 @@
       }
 
       .greeting {
-        font-size: 17px;
-        color: #1a202c;
-        margin-bottom: 24px;
+        font-size: 16px;
+        color: #1e293b;
+        margin-bottom: 20px;
         line-height: 1.6;
         font-weight: 500;
       }
 
       .intro-text {
         font-size: 15px;
-        color: #404854;
-        line-height: 1.8;
+        color: #475569;
+        line-height: 1.7;
         margin-bottom: 32px;
       }
 
       .section-title {
-        font-size: 14px;
-        font-weight: 700;
-        color: #c53030;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748b;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-top: 28px;
-        margin-bottom: 16px;
+        letter-spacing: 0.8px;
+        margin-top: 32px;
+        margin-bottom: 12px;
       }
 
-      .transaction-details {
-        background-color: #fafbfc;
-        border: 1px solid #e8ecf1;
-        padding: 20px;
-        margin: 20px 0;
-        border-radius: 6px;
+      .details-card {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        padding: 4px 20px;
+        border-radius: 8px;
       }
 
       .detail-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 0;
+        padding: 14px 0;
         font-size: 14px;
-        color: #404854;
-        border-bottom: 1px solid #e8ecf1;
+        color: #475569;
+        border-bottom: 1px solid #e2e8f0;
       }
 
       .detail-row:last-child {
         border-bottom: none;
-        padding-bottom: 0;
       }
 
-      .detail-label {
+      .label {
         font-weight: 600;
-        color: #2d3748;
+        color: #1e293b;
       }
 
-      .detail-value {
-        color: #c53030;
+      .value {
+        color: #b91c1c;
         font-weight: 500;
         text-align: right;
       }
 
-      .rejection-box {
+      .rejected-box {
         background-color: #fef2f2;
-        border: 1px solid #fecaca;
         border-left: 4px solid #dc2626;
-        padding: 16px;
+        padding: 16px 20px;
         margin: 24px 0;
-        border-radius: 4px;
+        border-radius: 8px;
         font-size: 14px;
         color: #991b1b;
         line-height: 1.6;
       }
 
-      .reason-box {
-        background-color: #fafbfc;
-        border: 1px solid #e8ecf1;
-        padding: 16px;
-        margin: 20px 0;
-        border-radius: 6px;
-        font-size: 13px;
-        color: #5a6c7d;
+      .rejected-box strong {
+        display: block;
+        margin-bottom: 4px;
       }
 
-      .reason-box strong {
-        color: #2d3748;
+      .reason-card {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        padding: 16px 20px;
+        margin: 24px 0;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #475569;
+        line-height: 1.8;
+      }
+
+      .reason-card .reason-label {
+        font-weight: 600;
+        color: #1e293b;
         display: block;
         margin-bottom: 8px;
       }
 
-      .reason-content {
+      .reason-card .reason-text {
         background-color: #ffffff;
-        border-left: 2px solid #c53030;
-        padding: 12px;
+        border-left: 3px solid #b91c1c;
+        padding: 12px 16px;
         margin-top: 8px;
-        border-radius: 3px;
-        color: #404854;
+        border-radius: 6px;
+        color: #1e293b;
       }
 
       .info-box {
-        background-color: #fef3c7;
+        background-color: #fffbeb;
         border-left: 4px solid #f59e0b;
-        padding: 16px;
+        padding: 16px 20px;
         margin: 24px 0;
-        border-radius: 4px;
+        border-radius: 8px;
         font-size: 14px;
-        color: #7c2d12;
+        color: #78350f;
         line-height: 1.6;
+      }
+
+      .info-box strong {
+        display: block;
+        margin-bottom: 4px;
       }
 
       .button-container {
@@ -163,31 +168,28 @@
 
       .button {
         display: inline-block;
-        background: linear-gradient(135deg, #c53030 0%, #e53e3e 100%);
+        background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
         color: #ffffff;
-        padding: 14px 45px;
+        padding: 14px 40px;
         text-decoration: none;
-        border-radius: 6px;
+        border-radius: 8px;
         font-weight: 600;
         font-size: 15px;
-        transition: all 0.3s ease;
-        border: none;
-        cursor: pointer;
+        transition: all 0.2s ease;
       }
 
       .button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(197, 48, 48, 0.25);
+        box-shadow: 0 4px 14px rgba(185, 28, 28, 0.3);
       }
 
       .next-steps {
-        background-color: #f9f9f9;
-        border: 1px solid #e8ecf1;
-        padding: 20px;
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        padding: 20px 24px;
         margin: 24px 0;
-        border-radius: 6px;
+        border-radius: 8px;
         font-size: 14px;
-        color: #404854;
+        color: #475569;
         line-height: 1.8;
       }
 
@@ -196,167 +198,135 @@
       }
 
       .next-steps li {
-        margin-bottom: 10px;
+        margin-bottom: 8px;
+        padding-left: 4px;
       }
 
-      .support-section {
-        background-color: #f5f7fa;
-        border: 1px solid #e8ecf1;
-        padding: 20px;
-        margin: 24px 0;
-        border-radius: 6px;
-        font-size: 13px;
-        color: #5a6c7d;
+      .next-steps li:last-child {
+        margin-bottom: 0;
+      }
+
+      .support {
         text-align: center;
+        font-size: 13px;
+        color: #64748b;
+        line-height: 1.8;
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 1px solid #e2e8f0;
       }
 
-      .support-section a {
-        color: #c53030;
+      .support a {
+        color: #b91c1c;
         text-decoration: none;
         font-weight: 600;
       }
 
-      .support-section a:hover {
+      .support a:hover {
         text-decoration: underline;
       }
 
       .footer {
-        border-top: 1px solid #e8ecf1;
-        margin-top: 40px;
-        padding-top: 24px;
+        padding: 24px 40px;
         font-size: 12px;
-        color: #6b7280;
+        color: #94a3b8;
         text-align: center;
         line-height: 1.8;
+        background-color: #f8fafc;
       }
 
-      .footer-link {
-        color: #c53030;
+      .footer a {
+        color: #64748b;
         text-decoration: none;
       }
 
-      .footer-link:hover {
+      .footer a:hover {
         text-decoration: underline;
       }
 
-      .app-name {
-        font-weight: 700;
-        color: #c53030;
-      }
-
-      .approver-info {
-        background-color: #fafbfc;
-        border: 1px solid #e8ecf1;
-        padding: 16px;
-        margin: 20px 0;
-        border-radius: 6px;
-        font-size: 13px;
-        color: #5a6c7d;
+      @media (max-width: 600px) {
+        .header { padding: 28px 20px; }
+        .header h1 { font-size: 24px; }
+        .content { padding: 28px 20px; }
+        .footer { padding: 20px; }
       }
     </style>
   </head>
-
   <body>
-    <div class="email-container">
-      <!-- Header -->
-      <div class="header">
-        <h1>✗ Transaction Rejetée</h1>
-        <p>Numéro de suivi: <strong>#{{transactionNumber}}</strong></p>
+    <div class='email-container'>
+      <div class='header'>
+        <h1>Transaction rejetee</h1>
+        <p>Transaction #{{transactionNumber}}</p>
       </div>
+      <div class='content'>
+        <p class='greeting'>Bonjour {{recipientName}},</p>
+        <p class='intro-text'>
+          Malheureusement, votre demande de transaction a ete rejetee lors de l'examen.
+        </p>
 
-      <!-- Content -->
-      <div class="content">
-        <div class="greeting">
-          Bonjour {{recipientName}},
+        <div class='rejected-box'>
+          <strong>Transaction rejetee</strong>
+          Votre transaction #{{transactionNumber}} a ete rejetee.
         </div>
 
-        <div class="intro-text">
-          Malheureusement, votre demande de transaction a été <strong>rejetée</strong> lors de l'examen par notre équipe de validation.
-          Les informations détaillées concernant ce rejet sont disponibles ci-dessous.
-        </div>
-
-        <!-- Rejection Banner -->
-        <div class="rejection-box">
-          <strong>❌ Transaction Rejetée</strong><br>
-          Votre transaction n'a pas pu être approuvée. Veuillez consulter la raison du rejet ci-dessous et contactez-nous si vous avez des questions.
-        </div>
-
-        <!-- Détails de la Transaction -->
-        <div class="section-title">📋 Détails de la Transaction</div>
-        <div class="transaction-details">
-          <div class="detail-row">
-            <span class="detail-label">Numéro de Transaction</span>
-            <span class="detail-value">#{{transactionNumber}}</span>
+        <h2 class='section-title'>Details de la transaction</h2>
+        <div class='details-card'>
+          <div class='detail-row'>
+            <span class='label'>Numero de transaction</span>
+            <span class='value'>#{{transactionNumber}}</span>
           </div>
-          <div class="detail-row">
-            <span class="detail-label">Type de Transaction</span>
-            <span class="detail-value">{{transactionType}}</span>
+          <div class='detail-row'>
+            <span class='label'>Type de transaction</span>
+            <span class='value'>{{transactionType}}</span>
           </div>
-          <div class="detail-row">
-            <span class="detail-label">Produit</span>
-            <span class="detail-value">{{productName}}</span>
+          <div class='detail-row'>
+            <span class='label'>Produit</span>
+            <span class='value'>{{productName}}</span>
           </div>
-          <div class="detail-row">
-            <span class="detail-label">Quantité</span>
-            <span class="detail-value">{{quantity}}</span>
+          <div class='detail-row'>
+            <span class='label'>Quantite</span>
+            <span class='value'>{{quantity}}</span>
           </div>
-          <div class="detail-row">
-            <span class="detail-label">Date du Rejet</span>
-            <span class="detail-value">{{currentDate}}</span>
+          <div class='detail-row'>
+            <span class='label'>Date du rejet</span>
+            <span class='value'>{{currentDate}}</span>
           </div>
         </div>
 
-        <!-- Rejet Info -->
-        <div class="section-title">⚠️ Raison du Rejet</div>
-        <div class="reason-box">
-          <strong>Motif:</strong>
-          <div class="reason-content">
-            {{rejectionReason}}
-          </div>
-          <br>
-          <strong>Traité par:</strong> {{approverName}}
+        <h2 class='section-title'>Raison du rejet</h2>
+        <div class='reason-card'>
+          <span class='reason-label'>Motif</span>
+          <div class='reason-text'>{{rejectionReason}}</div>
+          <div style='margin-top:12px;'><strong>Traite par :</strong> {{approverName}}</div>
         </div>
 
-        <!-- Important Notice -->
-        <div class="info-box">
-          <strong>📌 Important:</strong> Cette transaction n'a pas été appliquée au système. Vous pouvez la corriger et la soumettre à nouveau, ou nous contacter pour obtenir des éclaircissements.
+        <div class='info-box'>
+          <strong>Prochaine action</strong>
+          Cette transaction n'a pas ete appliquee au systeme. Vous pouvez la corriger et la soumettre a nouveau, ou nous contacter pour des eclaircissements.
         </div>
 
-        <!-- Prochaines Étapes -->
-        <div class="section-title">🔄 Prochaines Étapes</div>
-        <div class="next-steps">
+        <h2 class='section-title'>Prochaines etapes</h2>
+        <div class='next-steps'>
           <ol>
-            <li>Consultez attentivement la <strong>raison du rejet</strong> indiquée ci-dessus</li>
+            <li>Consultez attentivement la <strong>raison du rejet</strong> indiquee ci-dessus</li>
             <li>Corrigez les informations ou les valeurs selon les indications fournies</li>
-            <li>Soumettez une nouvelle demande avec les informations corrigées</li>
-            <li>Si vous avez des doutes, consultez notre assistance avant de resoumetre</li>
+            <li>Soumettez une nouvelle demande avec les informations corrigees</li>
+            <li>Si vous avez des doutes, consultez notre assistance avant de resoumettre</li>
           </ol>
         </div>
 
-        <!-- Button -->
-        <div class="button-container">
-          <a href="{{dashboardLink}}" class="button">Revenir au Tableau de Bord</a>
+        <div class='button-container'>
+          <a href='{{dashboardLink}}' class='button'>Revenir au tableau de bord</a>
         </div>
 
-        <!-- Section Support -->
-        <div class="support-section">
-          <strong>Besoin d'aide ?</strong><br>
-          Si vous ne comprenez pas cette décision ou souhaitez en discuter, notre équipe support est là pour vous aider. <a href="{{supportLink}}">Contacter le support</a>
+        <div class='support'>
+          <strong>Besoin d'aide ?</strong><br />
+          <a href='{{supportLink}}'>Assistance</a>
         </div>
       </div>
-
-      <!-- Footer -->
-      <div class="footer">
-        <p style="margin-bottom: 12px;">
-          <strong>{{appName}} — Gestion Intelligente de Vos Transactions</strong>
-        </p>
-        <p style="font-size: 11px; color: #9ca3af; margin: 8px 0;">
-          © 2026 {{appName}}. Tous droits réservés.
-        </p>
-        <p style="font-size: 11px; color: #9ca3af; margin: 8px 0; line-height: 1.5;">
-          <a href="{{dashboardLink}}" class="footer-link">Consulter votre compte</a> | 
-          <a href="{{supportLink}}" class="footer-link">Assistance</a>
-        </p>
+      <div class='footer'>
+        <p>&copy; 2026 {{appName}}. Tous droits reserves.</p>
+        <p><a href='{{dashboardLink}}'>Tableau de bord</a> &middot; <a href='{{supportLink}}'>Assistance</a></p>
       </div>
     </div>
   </body>

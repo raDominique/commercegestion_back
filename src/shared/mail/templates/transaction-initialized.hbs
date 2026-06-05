@@ -1,72 +1,239 @@
+<!DOCTYPE html>
 <html lang='fr'>
   <head>
     <meta charset='UTF-8' />
     <meta name='viewport' content='width=device-width, initial-scale=1.0' />
-    <title>Stock Initialisé - {{appName}}</title>
+    <title>Stock initialise - {{appName}}</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f7fa; padding: 20px; }
-      .email-container { max-width: 650px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); }
-      .header { background: linear-gradient(135deg, #2b6cb0 0%, #4299e1 100%); padding: 45px 40px; text-align: center; }
-      .header h1 { color: #ffffff; font-size: 32px; font-weight: 700; margin-bottom: 8px; }
-      .header p { color: rgba(255, 255, 255, 0.95); font-size: 15px; font-weight: 400; }
-      .content { padding: 40px; }
-      .greeting { font-size: 17px; color: #1a202c; margin-bottom: 24px; line-height: 1.6; font-weight: 500; }
-      .intro-text { font-size: 15px; color: #404854; line-height: 1.8; margin-bottom: 32px; }
-      .section-title { font-size: 14px; font-weight: 700; color: #2b6cb0; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 28px; margin-bottom: 16px; }
-      .transaction-details { background-color: #fafbfc; border: 1px solid #e8ecf1; padding: 20px; margin: 20px 0; border-radius: 6px; }
-      .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; font-size: 14px; color: #404854; border-bottom: 1px solid #e8ecf1; }
-      .detail-row:last-child { border-bottom: none; padding-bottom: 0; }
-      .detail-label { font-weight: 600; color: #2d3748; }
-      .detail-value { color: #2b6cb0; font-weight: 500; text-align: right; }
-      .info-box { background-color: #ebf8ff; border-left: 4px solid #3182ce; padding: 16px; margin: 24px 0; border-radius: 4px; font-size: 14px; color: #2a4365; line-height: 1.6; }
-      .button-container { text-align: center; margin: 36px 0; }
-      .button { display: inline-block; background: linear-gradient(135deg, #2b6cb0 0%, #4299e1 100%); color: #ffffff; padding: 14px 45px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; transition: all 0.3s ease; border: none; cursor: pointer; }
-      .footer { border-top: 1px solid #e8ecf1; margin-top: 40px; padding-top: 24px; font-size: 12px; color: #6b7280; text-align: center; line-height: 1.8; }
-      .footer-link { color: #2b6cb0; text-decoration: none; }
+
+      body {
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        background-color: #f8fafc;
+        padding: 20px;
+      }
+
+      .email-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      }
+
+      .header {
+        background: linear-gradient(135deg, #1e5631 0%, #2d7c4a 100%);
+        padding: 40px;
+        text-align: center;
+      }
+
+      .header h1 {
+        color: #ffffff;
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 8px;
+        line-height: 1.3;
+      }
+
+      .header p {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 14px;
+      }
+
+      .content {
+        padding: 40px;
+      }
+
+      .greeting {
+        font-size: 16px;
+        color: #1e293b;
+        margin-bottom: 20px;
+        line-height: 1.6;
+        font-weight: 500;
+      }
+
+      .intro-text {
+        font-size: 15px;
+        color: #475569;
+        line-height: 1.7;
+        margin-bottom: 32px;
+      }
+
+      .section-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-top: 32px;
+        margin-bottom: 12px;
+      }
+
+      .details-card {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        padding: 4px 20px;
+        border-radius: 8px;
+      }
+
+      .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 0;
+        font-size: 14px;
+        color: #475569;
+        border-bottom: 1px solid #e2e8f0;
+      }
+
+      .detail-row:last-child {
+        border-bottom: none;
+      }
+
+      .label {
+        font-weight: 600;
+        color: #1e293b;
+      }
+
+      .value {
+        color: #1e5631;
+        font-weight: 500;
+        text-align: right;
+      }
+
+      .success-box {
+        background-color: #f0fdf4;
+        border-left: 4px solid #16a34a;
+        padding: 16px 20px;
+        margin: 24px 0;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #166534;
+        line-height: 1.6;
+      }
+
+      .success-box strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .button-container {
+        text-align: center;
+        margin: 36px 0;
+      }
+
+      .button {
+        display: inline-block;
+        background: linear-gradient(135deg, #1e5631 0%, #2d7c4a 100%);
+        color: #ffffff;
+        padding: 14px 40px;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 15px;
+        transition: all 0.2s ease;
+      }
+
+      .button:hover {
+        box-shadow: 0 4px 14px rgba(30, 86, 49, 0.3);
+      }
+
+      .support {
+        text-align: center;
+        font-size: 13px;
+        color: #64748b;
+        line-height: 1.8;
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 1px solid #e2e8f0;
+      }
+
+      .support a {
+        color: #1e5631;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      .support a:hover {
+        text-decoration: underline;
+      }
+
+      .footer {
+        padding: 24px 40px;
+        font-size: 12px;
+        color: #94a3b8;
+        text-align: center;
+        line-height: 1.8;
+        background-color: #f8fafc;
+      }
+
+      .footer a {
+        color: #64748b;
+        text-decoration: none;
+      }
+
+      .footer a:hover {
+        text-decoration: underline;
+      }
+
+      @media (max-width: 600px) {
+        .header { padding: 28px 20px; }
+        .header h1 { font-size: 24px; }
+        .content { padding: 28px 20px; }
+        .footer { padding: 20px; }
+      }
     </style>
   </head>
   <body>
     <div class='email-container'>
       <div class='header'>
-        <h1>Stock Initialisé avec Succès</h1>
+        <h1>Stock initialise</h1>
         <p>Transaction #{{transactionNumber}}</p>
       </div>
       <div class='content'>
-        <div class='greeting'>Bonjour {{recipientName}},</div>
-        <div class='intro-text'>
-          Nous vous informons que vous avez réinitialisé le stock pour le produit <strong>{{productName}}</strong> sur le site <strong>{{siteName}}</strong>.
-          Cette transaction a été automatiquement approuvée et votre stock a été mis à jour.
+        <p class='greeting'>Bonjour {{recipientName}},</p>
+        <p class='intro-text'>
+          Vous avez initialise le stock pour <strong>{{productName}}</strong> sur <strong>{{siteName}}</strong>. Le stock a ete mis a jour.
+        </p>
+
+        <h2 class='section-title'>Details de l'initialisation</h2>
+        <div class='details-card'>
+          <div class='detail-row'>
+            <span class='label'>Produit</span>
+            <span class='value'>{{productName}}</span>
+          </div>
+          <div class='detail-row'>
+            <span class='label'>Quantite ajoutee</span>
+            <span class='value'>{{quantity}}</span>
+          </div>
+          <div class='detail-row'>
+            <span class='label'>Site</span>
+            <span class='value'>{{siteName}}</span>
+          </div>
+          <div class='detail-row'>
+            <span class='label'>Date</span>
+            <span class='value'>{{currentDate}}</span>
+          </div>
         </div>
-        <div class='section-title'>📋 Détails de l'Initialisation</div>
-        <div class='transaction-details'>
-          <div class='detail-row'>
-            <span class='detail-label'>Produit :&nbsp;</span>
-            <span class='detail-value'>{{productName}}</span>
-          </div>
-          <div class='detail-row'>
-            <span class='detail-label'>Quantité Ajoutée :&nbsp;</span>
-            <span class='detail-value'>{{quantity}}</span>
-          </div>
-          <div class='detail-row'>
-            <span class='detail-label'>Site :&nbsp;</span>
-            <span class='detail-value'>{{siteName}}</span>
-          </div>
-          <div class='detail-row'>
-            <span class='detail-label'>Date :&nbsp;</span>
-            <span class='detail-value'>{{currentDate}}</span>
-          </div>
+
+        <div class='success-box'>
+          <strong>Action terminee</strong>
+          Le stock est desormais disponible.
         </div>
-        <div class='info-box'>
-          <strong>&nbsp;✅ Action terminée:</strong> Le stock est désormais disponible et prêt à être utilisé pour vos prochaines transactions.
-        </div>
+
         <div class='button-container'>
-          <a href='{{dashboardLink}}' class='button'>Voir mon Stock</a>
+          <a href='{{dashboardLink}}' class='button'>Voir mon stock</a>
+        </div>
+
+        <div class='support'>
+          <strong>Besoin d'aide ?</strong><br />
+          <a href='{{supportLink}}'>Assistance</a>
         </div>
       </div>
       <div class='footer'>
-        <p>© 2026 {{appName}}. Tous droits réservés.</p>
-        <p><a href='{{dashboardLink}}' class='footer-link'>Tableau de Bord</a> | <a href='{{supportLink}}' class='footer-link'>Assistance</a></p>
+        <p>&copy; 2026 {{appName}}. Tous droits reserves.</p>
+        <p><a href='{{dashboardLink}}'>Tableau de bord</a> &middot; <a href='{{supportLink}}'>Assistance</a></p>
       </div>
     </div>
   </body>
