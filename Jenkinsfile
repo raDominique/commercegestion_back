@@ -72,8 +72,13 @@ pipeline {
                     """
 
                     sh """
+                    docker volume create ${DOCKER_CONTAINER_NAME}_upload 2>/dev/null || true
+                    """
+
+                    sh """
                     docker run -d \
                         --name ${DOCKER_CONTAINER_NAME} \
+                        --restart unless-stopped \
                         -p ${PORT}:${PORT} \
                         -e PORT=${PORT} \
                         -e MONGO_URI="${MONGO_URI}" \
@@ -99,6 +104,7 @@ pipeline {
                         -e FRONT_URL="${FRONT_URL}" \
                         -e SUPERADMIN_EMAIL="${SUPERADMIN_EMAIL}" \
                         -e SUPERADMIN_PASSWORD="${SUPERADMIN_PASSWORD}" \
+                        -v ${DOCKER_CONTAINER_NAME}_upload:/app/upload \
                         ${DOCKER_IMAGE}:${DOCKER_TAG}
                     """
 

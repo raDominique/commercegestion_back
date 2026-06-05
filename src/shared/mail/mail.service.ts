@@ -336,10 +336,12 @@ export class MailService {
     transactionTypeEnum?: TransactionType,
   ) {
     let templateName: string;
-    if (transactionTypeEnum === TransactionType.DEPOT || transactionTypeEnum === TransactionType.INITIALISATION) {
-      templateName = isDestinataire ? 'transaction-created-destinataire' : 'transaction-created';
+    if (transactionTypeEnum === TransactionType.DEPOT) {
+      templateName = isDestinataire ? 'transaction-depot-created-destinataire' : 'transaction-depot-created';
+    } else if (transactionTypeEnum === TransactionType.INITIALISATION) {
+      templateName = isDestinataire ? 'transaction-initialized-destinataire' : 'transaction-initialized';
     } else if (transactionTypeEnum === TransactionType.VENTE) {
-      templateName = isDestinataire ? 'transaction-retrait-created-destinataire' : 'transaction-created';
+      templateName = isDestinataire ? 'transaction-vente-created-destinataire' : 'transaction-vente-created';
     } else {
       templateName = isDestinataire ? 'transaction-retrait-created-destinataire' : 'transaction-retrait-created';
     }
