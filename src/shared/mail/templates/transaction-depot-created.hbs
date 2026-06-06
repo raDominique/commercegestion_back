@@ -214,7 +214,7 @@
     <div class='email-container'>
       <div class='header'>
         <h1>Demande de depot</h1>
-        <p>Transaction #{{transactionNumber}}</p>
+        <p>Vers {{envoyeurName}} &middot; Transaction #{{transactionNumber}}</p>
       </div>
       <div class='content'>
         <p class='greeting'>Bonjour {{recipientName}},</p>
@@ -225,23 +225,23 @@
         <h2 class='section-title'>Details de la transaction</h2>
         <div class='details-card'>
           <div class='detail-row'>
-            <span class='label'>Numero de transaction</span>
+            <span class='label'>Numero de transaction &nbsp;</span>
             <span class='value'>#{{transactionNumber}}</span>
           </div>
           <div class='detail-row'>
-            <span class='label'>Type de transaction</span>
+            <span class='label'>Type de transaction &nbsp;</span>
             <span class='value'>{{transactionType}}</span>
           </div>
           <div class='detail-row'>
-            <span class='label'>Produit</span>
+            <span class='label'>Produit &nbsp;</span>
             <span class='value'>{{productName}}</span>
           </div>
           <div class='detail-row'>
-            <span class='label'>Quantite</span>
+            <span class='label'>Quantite &nbsp;</span>
             <span class='value'>{{quantity}}</span>
           </div>
           <div class='detail-row'>
-            <span class='label'>Date de creation</span>
+            <span class='label'>Date de creation &nbsp;</span>
             <span class='value'>{{currentDate}}</span>
           </div>
         </div>

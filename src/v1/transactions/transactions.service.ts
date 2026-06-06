@@ -1010,6 +1010,16 @@ export class TransactionsService {
       }
 
       // --- ÉTAPE 1 : Mail au DESTINATAIRE (vendeur pour VENTE) ---
+      if (recipientUser) {
+        console.log(
+          `[Mail Debug] Destinataire trouvé: ${recipientUser.userName}, email: ${recipientUser.userEmail || 'NON DEFINI'}`,
+        );
+      } else {
+        console.warn(
+          `[Mail Debug] Destinataire INTROUVABLE avec ID: ${recipientId}`,
+        );
+      }
+
       if (recipientUser && recipientUser.userEmail) {
         try {
           const recipientType = this.getTransactionTypeLabel(transaction.type, false);
@@ -1025,16 +1035,16 @@ export class TransactionsService {
             transaction.type,
           );
           console.log(
-            `Mail envoyé au DESTINATAIRE (${recipientUser.userName}) type: ${recipientType}`,
+            `[Mail OK] Destinataire (${recipientUser.userName} → ${recipientUser.userEmail}) type: ${recipientType}`,
           );
         } catch (error: unknown) {
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';
-          console.error(`Échec envoi mail au destinataire: ${errorMessage}`);
+          console.error(`[Mail FAIL] Destinataire: ${errorMessage}`);
         }
       } else if (recipientId) {
         console.warn(
-          `[Notification Warning] Destinataire introuvable ou sans email: ${recipientId}`,
+          `[Mail SKIP] Destinataire introuvable ou sans email: ${recipientId}`,
         );
       }
 
@@ -1053,11 +1063,13 @@ export class TransactionsService {
             recipientUser?.userName || 'Inconnu',
             transaction.type,
           );
-          console.log(`Mail envoyé à l'INITIATEUR (${initiatorUser.userName}) type: ${initiatorType}`);
+          console.log(
+            `[Mail OK] Initiateur (${initiatorUser.userName} → ${initiatorUser.userEmail}) type: ${initiatorType}`,
+          );
         } catch (error: unknown) {
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';
-          console.error(`Échec envoi mail à l'initiateur: ${errorMessage}`);
+          console.error(`[Mail FAIL] Initiateur: ${errorMessage}`);
         }
       }
     } catch (globalError: unknown) {
