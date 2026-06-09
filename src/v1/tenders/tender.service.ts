@@ -1,3 +1,4 @@
+import { ProductService } from './../products/products.service';
 import {
   Injectable,
   NotFoundException,
@@ -84,7 +85,7 @@ export class TenderService {
       this.tenderModel
         .find(filter)
         .populate('lanceurId', 'userNickName userName raisonSocial')
-        .populate('productId', 'productName codeCPC')
+        .populate('productId', 'productName codeCPC productImage')
         .populate('siteLivraison', 'siteName siteAddress')
         .sort({ [sortBy]: sortOrder })
         .skip(skip)
@@ -115,7 +116,7 @@ export class TenderService {
       this.tenderModel
         .find(filter)
         .populate('lanceurId', 'userNickName userName raisonSocial')
-        .populate('productId', 'productName codeCPC')
+        .populate('productId', 'productName codeCPC productImage')
         .populate('siteLivraison', 'siteName siteAddress')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -138,7 +139,7 @@ export class TenderService {
     const tender = await this.tenderModel
       .findById(id)
       .populate('lanceurId', 'userNickName userName raisonSocial userEmail userPhone')
-      .populate('productId', 'productName codeCPC productDescription')
+      .populate('productId', 'productName codeCPC productImage')
       .populate('siteLivraison', 'siteName siteAddress')
       .populate('soumissionRetenue')
       .exec();
@@ -220,6 +221,7 @@ export class TenderService {
     const bids = await this.bidModel
       .find({ appelOffreId: new Types.ObjectId(tenderId) })
       .populate('soumissionnaireId', 'userNickName userName raisonSocial userEmail userPhone')
+      .populate('productId', 'productName codeCPC productImage')
       .sort({ prixTotal: 1 })
       .exec();
 
