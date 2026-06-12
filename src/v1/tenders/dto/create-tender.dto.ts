@@ -13,23 +13,23 @@ import {
 export class CreateTenderDto {
   @ApiProperty({
     example: '64b8f0c2e1d3f2a5c6b7d8e9',
-    description: 'ID du produit concerné',
+    description: 'ID technique du produit faisant l\'objet de l\'appel d\'offres',
   })
   @IsMongoId()
   @IsNotEmpty()
   productId: string;
 
   @ApiProperty({
-    example: "Appel d'offres pour la livraison de produits",
-    description: "Titre de l'appel d'offres",
+    example: "Fourniture de 100 tonnes de Maïs jaune",
+    description: "Titre clair et précis de votre besoin",
   })
   @IsString()
   @IsNotEmpty()
   titre: string;
 
   @ApiProperty({
-    example: 'Description détaillée du besoin (incluant les TDR)',
-    description: 'Description détaillée du besoin (incluant les TDR)',
+    example: 'Description détaillée incluant les spécifications techniques, la qualité attendue, etc.',
+    description: 'Cahier des charges ou description complète du besoin',
   })
   @IsString()
   @IsNotEmpty()
@@ -46,8 +46,8 @@ export class CreateTenderDto {
   quantite: number;
 
   @ApiProperty({
-    example: 'kg',
-    description: 'Unité de mesure (kg, tonne, pièce...)',
+    example: 'tonnes',
+    description: 'Unité de mesure (kg, tonnes, pièces, etc.)',
     required: false,
   })
   @IsString()
@@ -56,7 +56,7 @@ export class CreateTenderDto {
 
   @ApiProperty({
     example: '2023-12-31T23:59:59Z',
-    description: 'Date limite de soumission (ISO 8601)',
+    description: 'Date et heure limite de réception des offres (ISO 8601)',
   })
   @IsDateString()
   @IsNotEmpty()
@@ -64,7 +64,7 @@ export class CreateTenderDto {
 
   @ApiProperty({
     example: '64b8f0c2e1d3f2a5c6b7d8e9',
-    description: 'ID du site de livraison',
+    description: 'ID du site géographique où la livraison doit être effectuée',
     required: false,
   })
   @IsMongoId()
@@ -72,8 +72,8 @@ export class CreateTenderDto {
   siteLivraison?: string;
 
   @ApiProperty({
-    example: 'Conditions de paiement',
-    description: 'Conditions de paiement',
+    example: 'Paiement à 30 jours après réception',
+    description: 'Vos conditions de paiement souhaitées',
     required: false,
   })
   @IsString()
@@ -81,8 +81,8 @@ export class CreateTenderDto {
   conditionsPaiement?: string;
 
   @ApiProperty({
-    example: 'Délai de livraison souhaité',
-    description: 'Délai de livraison souhaité',
+    example: 'Livraison souhaitée avant le 15 du mois suivant',
+    description: 'Délai de livraison idéal attendu',
     required: false,
   })
   @IsString()

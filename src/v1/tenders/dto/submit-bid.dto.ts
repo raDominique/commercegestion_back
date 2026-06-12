@@ -12,7 +12,7 @@ import {
 export class SubmitBidDto {
   @ApiProperty({
     example: '64b8f0c2e1d3f2a5c6b7d8e9',
-    description: "ID de l'appel d'offres",
+    description: "Identifiant unique de l'appel d'offres auquel vous répondez",
   })
   @IsMongoId()
   @IsNotEmpty()
@@ -20,7 +20,7 @@ export class SubmitBidDto {
 
   @ApiProperty({
     example: 99.99,
-    description: 'Prix unitaire proposé',
+    description: 'Prix unitaire proposé pour le produit (Hors Taxes ou TTC selon l\'appel)',
     minimum: 0.01,
   })
   @IsNumber()
@@ -28,15 +28,15 @@ export class SubmitBidDto {
   @Min(0.01)
   prixUnitaire: number;
 
-  @ApiProperty({ example: 100, description: 'Quantité offerte', minimum: 0.01 })
+  @ApiProperty({ example: 100, description: 'Quantité totale que vous êtes capable de fournir', minimum: 0.01 })
   @IsNumber()
   @IsPositive()
   @Min(0.01)
   quantite: number;
 
   @ApiProperty({
-    example: 'Délai de livraison proposé',
-    description: 'Délai de livraison proposé',
+    example: 'Livraison sous 10 jours ouvrés',
+    description: 'Votre délai de livraison estimé',
     required: false,
   })
   @IsString()
@@ -44,8 +44,8 @@ export class SubmitBidDto {
   delaiLivraison?: string;
 
   @ApiProperty({
-    example: 'Observations / commentaires',
-    description: 'Observations / commentaires',
+    example: 'Produit certifié BIO, origine locale.',
+    description: 'Toute information complémentaire pertinente pour votre offre',
     required: false,
   })
   @IsString()
