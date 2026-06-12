@@ -544,6 +544,62 @@ export class ProductService {
     };
   }
   /**
+   * Valider tous les produits non validés
+   */
+  async validateAll(): Promise<{
+    status: string;
+    message: string;
+    validatedCount: number;
+  }> {
+    const unvalidated = await this.productModel
+      .find({ productValidation: false })
+      .populate('productOwnerId')
+      .exec();
+
+    if (!unvalidated.length) {
+      return {
+        status: 'success',
+        message: 'Tous les produits sont déjà validés.',
+        validatedCount: 0,
+      };
+    }
+
+    for (const product of unvalidated) {
+      product.productValidation = true;
+      await product.save();
+
+      const owner = product.productOwnerId as any;
+      if (owner?._id) {
+        await this.socketNotifications.notifyUser(
+          owner._id.toString(),
+          'Produit Validé !',
+          `Votre produit "${product.productName}" a été validé par l'administration.`,
+        );
+      }
+      if (owner?.userEmail) {
+        try {
+          await this.mailService.notificationProductValidated(
+            owner.userEmail,
+            owner.userName,
+            product.productName,
+          );
+        } catch (error) {
+          console.error(
+            "Erreur lors de l'envoi du mail de validation:",
+            error,
+          );
+        }
+      }
+    }
+
+    return {
+      status: 'success',
+      message: `${unvalidated.length} produit(s) validé(s) avec succès.`,
+      validatedCount: unvalidated.length,
+    };
+  }
+
+  /**
    * Inverser le statut de stockage
    */
   async toggleStock(

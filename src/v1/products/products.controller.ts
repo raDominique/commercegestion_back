@@ -145,6 +145,18 @@ export class ProductController {
     return this.productService.toggleProductValidation(id);
   }
 
+  @Patch('validate-all')
+  @AuthRole(UserAccess.ADMIN)
+  @ApiOperation({
+    summary: 'Valider tous les produits non validés (ADMIN)',
+    description:
+      "Valide en masse tous les produits en attente de validation. Notifie chaque propriétaire.",
+  })
+  @ApiResponse({ status: 200, description: 'Produits validés.' })
+  async validateAll() {
+    return this.productService.validateAll();
+  }
+
   // ==========================================
   // SECTION : RÉCUPÉRATION DES DONNÉES
   // ==========================================
