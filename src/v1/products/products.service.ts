@@ -564,31 +564,26 @@ export class ProductService {
       };
     }
 
+    const seenOwners = new Set<string>();
+
     for (const product of unvalidated) {
       product.productValidation = true;
       await product.save();
 
       const owner = product.productOwnerId as any;
-      if (owner?._id) {
+      const ownerId = owner?._id?.toString();
+
+      if (ownerId && !seenOwners.has(ownerId)) {
+        seenOwners.add(ownerId);
+        const count = unvalidated.filter(
+          (p) => (p.productOwnerId as any)?._id?.toString() === ownerId,
+        ).length;
+
         await this.socketNotifications.notifyUser(
-          owner._id.toString(),
-          'Produit Validé !',
-          `Votre produit "${product.productName}" a été validé par l'administration.`,
+          ownerId,
+          'Produits Validés !',
+          `${count} de vos produits ont été validés par l'administration.`,
         );
-      }
-      if (owner?.userEmail) {
-        try {
-          await this.mailService.notificationProductValidated(
-            owner.userEmail,
-            owner.userName,
-            product.productName,
-          );
-        } catch (error) {
-          console.error(
-            "Erreur lors de l'envoi du mail de validation:",
-            error,
-          );
-        }
       }
     }
 
