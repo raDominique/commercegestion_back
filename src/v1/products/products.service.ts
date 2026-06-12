@@ -17,12 +17,20 @@ import { NotificationsService } from 'src/shared/notifications/notifications.ser
 import { MailService } from 'src/shared/mail/mail.service';
 import { UsersService } from 'src/v1/users/users.service';
 import { ExportService, ExportResult } from '../../shared/export/export.service';
+import { CpcProduct } from '../cpc/cpc.schema';
+import { BulkCreateProductDto } from './dto/bulk-create-product.dto';
+import { BulkFakeProductDto } from './dto/bulk-fake-product.dto';
+import { faker } from '@faker-js/faker';
+import { Readable } from 'node:stream';
+import * as path from 'node:path';
 
 @Injectable()
 export class ProductService {
   constructor(
     @InjectModel(Product.name)
     private readonly productModel: Model<ProductDocument>,
+    @InjectModel(CpcProduct.name)
+    private readonly cpcModel: Model<CpcProduct>,
     private readonly uploadService: UploadService,
     private readonly auditService: AuditService,
     private readonly socketNotifications: NotificationsService,
@@ -30,6 +38,83 @@ export class ProductService {
     private readonly usersService: UsersService,
     private readonly exportService: ExportService,
   ) {}
+
+  async bulkCreateFake(
+    dto: BulkFakeProductDto,
+    authUserId?: string,
+  ): Promise<PaginationResult<Product>> {
+    const { count } = dto;
+    const ownerId = dto.ownerId || authUserId;
+
+    if (!ownerId) {
+      throw new BadRequestException(
+        'Aucun propriétaire spécifié. Connectez-vous ou fournissez un ownerId.',
+      );
+    }
+
+    const cpcList = await this.cpcModel.find().exec();
+    if (!cpcList.length) {
+      throw new BadRequestException('Aucune catégorie CPC trouvée dans la base.');
+    }
+
+    const created: Product[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const cpc = cpcList[Math.floor(Math.random() * cpcList.length)];
+
+      const productName = `${cpc.nom} - ${faker.commerce.productName()}`;
+      const productDescription = faker.commerce.productDescription();
+
+      let imagePath = '';
+      try {
+        const response = await fetch(
+          `https://picsum.photos/seed/${Date.now()}_${i}/1024/1024`,
+        );
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const mockFile: Express.Multer.File = {
+          buffer,
+          originalname: `product_${i}.jpg`,
+          mimetype: 'image/jpeg',
+          fieldname: 'image',
+          encoding: '7bit',
+          size: buffer.length,
+          stream: null as any,
+          destination: '',
+          filename: '',
+          path: '',
+        };
+        imagePath = await this.uploadService.saveFile(mockFile, 'products');
+      } catch {
+        // Silent — proceed without image
+      }
+
+      const product = new this.productModel({
+        codeCPC: cpc.code,
+        productName,
+        productDescription,
+        categoryId: cpc._id,
+        productCategory: cpc.nom,
+        productImage: imagePath,
+        productOwnerId: new Types.ObjectId(ownerId),
+        productVolume: `${faker.number.int({ min: 10, max: 10000 })} L`,
+        productHauteur: `${faker.number.int({ min: 10, max: 200 })} cm`,
+        productLargeur: `${faker.number.int({ min: 10, max: 200 })} cm`,
+        productLongueur: `${faker.number.int({ min: 10, max: 200 })} cm`,
+        productPoids: `${faker.number.int({ min: 1, max: 5000 })} kg`,
+        productValidation: false,
+        isStocker: false,
+      });
+
+      const saved = await product.save();
+      created.push(saved);
+    }
+
+    return {
+      status: 'success',
+      message: `${created.length} produits factices créés avec succès.`,
+      data: created,
+    };
+  }
 
   /**
    * CRÉER UN PRODUIT
@@ -116,6 +201,98 @@ export class ProductService {
       message: 'Produit créé avec succès.',
       data: [saved],
     };
+  }
+
+  /**
+   * CRÉATION EN MASSE (BULK)
+   * Endpoint dédié au remplissage de fausses données.
+   * - Valide que chaque codeCPC correspond à un CPC existant
+   * - Télécharge l'image depuis une URL en ligne
+   * - Ignore la logique métier (doublons, audit, notifications, emails)
+   */
+  async bulkCreate(
+    dto: BulkCreateProductDto,
+    userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('Utilisateur non identifié.');
+
+    const created: Product[] = [];
+    const errors: { index: number; reason: string }[] = [];
+
+    for (let i = 0; i < dto.items.length; i++) {
+      const item = dto.items[i];
+      try {
+        const cpc = await this.cpcModel.findOne({ code: item.codeCPC });
+        if (!cpc) {
+          errors.push({ index: i, reason: `Code CPC "${item.codeCPC}" introuvable` });
+          continue;
+        }
+
+        let imagePath = '';
+        if (item.imageUrl) {
+          imagePath = await this.downloadAndSaveImage(item.imageUrl);
+        }
+
+        const newProduct = new this.productModel({
+          codeCPC: item.codeCPC,
+          productName: item.productName,
+          productDescription: item.productDescription,
+          categoryId: cpc._id,
+          productCategory: item.productCategory || cpc.nom,
+          productImage: imagePath,
+          productOwnerId: new Types.ObjectId(userId),
+          productVolume: item.productVolume,
+          productHauteur: item.productHauteur,
+          productLargeur: item.productLargeur,
+          productLongueur: item.productLongueur,
+          productPoids: item.productPoids,
+          isStocker: false,
+          productValidation: false,
+        });
+
+        const saved = await newProduct.save();
+        created.push(saved);
+      } catch (error) {
+        errors.push({ index: i, reason: error.message });
+      }
+    }
+
+    return {
+      status: errors.length === 0 ? 'success' : 'partial_success',
+      message: `${created.length} produit(s) créé(s), ${errors.length} erreur(s)`,
+      data: created,
+      ...(errors.length > 0 && { errors }),
+    };
+  }
+
+  private async downloadAndSaveImage(imageUrl: string): Promise<string> {
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(
+        `Téléchargement échoué (${response.status}): ${response.statusText}`,
+      );
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const urlPath = new URL(imageUrl).pathname;
+    const originalName = path.basename(urlPath) || 'image.jpg';
+    const mimeType = response.headers.get('content-type') || 'image/jpeg';
+
+    const fakeFile: Express.Multer.File = {
+      buffer,
+      originalname: originalName,
+      mimetype: mimeType,
+      size: buffer.length,
+      fieldname: 'image',
+      encoding: '7bit',
+      stream: null as any,
+      destination: '',
+      filename: originalName,
+      path: '',
+    };
+
+    return this.uploadService.saveFile(fakeFile, 'products');
   }
 
   /**

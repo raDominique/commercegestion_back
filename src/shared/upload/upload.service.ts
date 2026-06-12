@@ -58,4 +58,48 @@ export class UploadService {
       throw err;
     }
   }
+
+  async saveFileFromUrl(
+    imageUrl: string,
+    destFolder = 'products',
+  ): Promise<string> {
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(
+        `Échec du téléchargement: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const contentType = response.headers.get('content-type') || '';
+
+    const folderPath = path.join(this.publicPath, destFolder);
+    if (!fs.existsSync(folderPath))
+      fs.mkdirSync(folderPath, { recursive: true });
+
+    let ext = '.jpg';
+    if (contentType.includes('png')) ext = '.png';
+    else if (contentType.includes('gif')) ext = '.gif';
+    else if (contentType.includes('webp')) ext = '.webp';
+
+    let safeName: string;
+    let filePath: string;
+    do {
+      const hash = crypto.randomBytes(16).toString('hex');
+      safeName = `${hash}${ext}`;
+      filePath = path.join(folderPath, safeName);
+    } while (fs.existsSync(filePath));
+
+    if (contentType.startsWith('image/')) {
+      await sharp(buffer)
+        .resize({ width: 1024 })
+        .jpeg({ quality: 80 })
+        .toFile(filePath);
+    } else {
+      fs.writeFileSync(filePath, buffer);
+    }
+
+    this.logger.log(`File saved from URL: ${filePath}`);
+    return `${this.baseUrl}/upload/${destFolder}/${safeName}`;
+  }
 }

@@ -26,6 +26,8 @@ import {
 import { ProductService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { BulkCreateProductDto } from './dto/bulk-create-product.dto';
+import { BulkFakeProductDto } from './dto/bulk-fake-product.dto';
 import { Auth, AuthRole } from '../auth';
 import { UserAccess } from '../users/users.schema';
 
@@ -61,6 +63,35 @@ export class ProductController {
     @Req() req: any,
   ) {
     return this.productService.create(dto, req.user.userId, file);
+  }
+
+  @Post('bulk-fake')
+  @Auth()
+  @ApiOperation({
+    summary: 'Générer des produits factices en masse',
+    description:
+      'Crée N produits avec des données aléatoires liés aux CPC existants. Les images sont téléchargées depuis picsum.photos.',
+  })
+  @ApiResponse({ status: 201, description: 'Produits factices créés.' })
+  async bulkFake(@Body() dto: BulkFakeProductDto, @Req() req: any) {
+    return this.productService.bulkCreateFake(dto, req.user?.userId);
+  }
+
+  @Post('bulk-create')
+  @Auth()
+  @ApiOperation({
+    summary: 'Créer des produits en masse avec correspondance CPC',
+    description:
+      'Crée plusieurs produits en une requête. Les codes CPC sont résolus automatiquement. Les images sont téléchargées depuis des URLs en ligne. Ignore la logique métier (doublons, audit, notifications).',
+  })
+  @ApiResponse({ status: 201, description: 'Produits créés.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Données invalides ou erreurs de traitement.',
+  })
+  @ApiBody({ type: BulkCreateProductDto })
+  async bulkCreate(@Body() dto: BulkCreateProductDto, @Req() req: any) {
+    return this.productService.bulkCreate(dto, req.user.userId);
   }
 
   @Patch('update/:id')
