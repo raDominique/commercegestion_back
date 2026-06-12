@@ -21,11 +21,6 @@ async function bootstrap() {
   const port = configService.get<number>('PORT') ?? 5000;
   const appUrl = configService.get<string>('APP_URL');
 
-  logger.log('Bootstrap', `SMTP_HOST=${configService.get<string>('SMTP_HOST')}`);
-  logger.log('Bootstrap', `SMTP_PORT=${configService.get<string>('SMTP_PORT')}`);
-  logger.log('Bootstrap', `SMTP_USER=${configService.get<string>('SMTP_USER')}`);
-  logger.log('Bootstrap', `Template dir: ${join(__dirname, 'shared/mail/templates')}`);
-
   /**
    * ===============================
    * GLOBAL PIPES & FILTERS

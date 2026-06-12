@@ -626,7 +626,7 @@ Erreurs possibles:
     name: 'type',
     required: false,
     type: String,
-    description: "Filtrer par type: DÉPÔT, RETRAIT, INITIALISATION (optionnel)",
+    description: 'Filtrer par type: DÉPÔT, RETRAIT, INITIALISATION (optionnel)',
   })
   @ApiResponse({
     status: 200,
@@ -691,23 +691,36 @@ Erreurs possibles:
   @Get('user/:userId/export')
   @Auth()
   @ApiOperation({
-    summary: "Exporter l'historique des transactions d'un utilisateur en CSV, Excel ou PDF",
-    description: "Génère un fichier contenant toutes les transactions d'un utilisateur spécifique.",
+    summary:
+      "Exporter l'historique des transactions d'un utilisateur en CSV, Excel ou PDF",
+    description:
+      "Génère un fichier contenant toutes les transactions d'un utilisateur spécifique.",
   })
   @ApiParam({
     name: 'userId',
     description: "ID unique de l'utilisateur",
   })
-  @ApiQuery({ name: 'format', required: false, enum: ['csv', 'excel', 'pdf'], description: "Format d'export (défaut: csv)" })
+  @ApiQuery({
+    name: 'format',
+    required: false,
+    enum: ['csv', 'excel', 'pdf'],
+    description: "Format d'export (défaut: csv)",
+  })
   @ApiResponse({
     status: 200,
     description: 'URL du fichier généré',
   })
-  async exportUserTransactions(@Param('userId') userId: string, @Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<StreamableFile> {
+  async exportUserTransactions(
+    @Param('userId') userId: string,
+    @Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv',
+  ): Promise<StreamableFile> {
     if (!userId || userId.length !== 24) {
       throw new BadRequestException('Un ID utilisateur valide est requis');
     }
-    const result = await this.transactionsService.exportUserTransactions(userId, format);
+    const result = await this.transactionsService.exportUserTransactions(
+      userId,
+      format,
+    );
     return new StreamableFile(result.buffer, {
       type: result.mimeType,
       disposition: `attachment; filename="${result.filename}"`,
@@ -721,14 +734,22 @@ Erreurs possibles:
   @Auth()
   @ApiOperation({
     summary: 'Exporter toutes les transactions du système en CSV, Excel ou PDF',
-    description: 'Génère un fichier contenant toutes les transactions enregistrées dans le système.',
+    description:
+      'Génère un fichier contenant toutes les transactions enregistrées dans le système.',
   })
-  @ApiQuery({ name: 'format', required: false, enum: ['csv', 'excel', 'pdf'], description: "Format d'export (défaut: csv)" })
+  @ApiQuery({
+    name: 'format',
+    required: false,
+    enum: ['csv', 'excel', 'pdf'],
+    description: "Format d'export (défaut: csv)",
+  })
   @ApiResponse({
     status: 200,
     description: 'URL du fichier généré',
   })
-  async exportAllTransactions(@Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<StreamableFile> {
+  async exportAllTransactions(
+    @Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv',
+  ): Promise<StreamableFile> {
     const result = await this.transactionsService.exportAllTransactions(format);
     return new StreamableFile(result.buffer, {
       type: result.mimeType,
