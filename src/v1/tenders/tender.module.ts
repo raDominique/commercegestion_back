@@ -5,6 +5,8 @@ import { TenderService } from './tender.service';
 import { TenderController } from './tender.controller';
 import { UploadModule } from '../../shared/upload/upload.module';
 
+import { MailModule } from './../../shared/mail/mail.module';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -12,6 +14,7 @@ import { UploadModule } from '../../shared/upload/upload.module';
       { name: Bid.name, schema: BidSchema },
     ]),
     UploadModule,
+    MailModule,
   ],
   controllers: [TenderController],
   providers: [TenderService],

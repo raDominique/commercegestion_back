@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; }
+        .header { background-color: #28a745; color: #fff; padding: 10px; text-align: center; }
+        .content { padding: 20px; }
+        .footer { font-size: 12px; text-align: center; color: #777; margin-top: 20px; }
+        .btn { display: inline-block; padding: 10px 20px; background-color: #28a745; color: #fff; text-decoration: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Félicitations ! Votre offre a été retenue</h2>
+        </div>
+        <div class="content">
+            <p>Bonjour {{bidderName}},</p>
+            <p>Nous avons le plaisir de vous informer que votre offre pour l'appel d'offres : <strong>{{tenderTitle}}</strong> a été retenue par le lanceur.</p>
+            <p><strong>Détails du marché :</strong></p>
+            <ul>
+                <li><strong>Quantité :</strong> {{quantite}} {{unite}}</li>
+                <li><strong>Prix Unitaire :</strong> {{prixUnitaire}}</li>
+                <li><strong>Prix Total :</strong> {{prixTotal}}</li>
+            </ul>
+            <p>Le lanceur prendra contact avec vous prochainement pour finaliser la commande.</p>
+            <p><a href="{{link}}" class="btn">Voir ma soumission</a></p>
+        </div>
+        <div class="footer">
+            <p>&copy; {{appName}}</p>
+        </div>
+    </div>
+</body>
+</html>

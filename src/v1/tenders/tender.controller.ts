@@ -26,6 +26,8 @@ import { TenderService } from './tender.service';
 import { CreateTenderDto } from './dto/create-tender.dto';
 import { SubmitBidDto } from './dto/submit-bid.dto';
 import { AwardTenderDto } from './dto/award-tender.dto';
+import { UpdateTenderDto } from './dto/update-tender.dto';
+import { UpdateBidDto } from './dto/update-bid.dto';
 import { TenderStatus } from './tender.schema';
 import { Auth } from '../auth';
 
@@ -77,6 +79,29 @@ L'appel d'offres sera visible par tous les membres de la plateforme qui pourront
     if (!userId) throw new BadRequestException('Utilisateur non authentifié');
     const tender = await this.tenderService.create(userId, dto, file);
     return { status: 'success', message: 'Appel d\'offres créé avec succès', data: [tender] };
+  }
+
+  @Patch('tenders/:id')
+  @Auth()
+  @UseInterceptors(FileInterceptor('documentPieces'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Modifier un appel d\'offres',
+    description: 'Permet au lanceur de modifier son appel d\'offres tant qu\'il est encore ouvert.',
+  })
+  @ApiParam({ name: 'id', description: 'ID de l\'appel d\'offres' })
+  @ApiBody({ type: UpdateTenderDto })
+  @ApiResponse({ status: 200, description: 'Appel d\'offres mis à jour' })
+  async update(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateTenderDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    const userId = req.user?.userId;
+    if (!userId) throw new BadRequestException('Utilisateur non authentifié');
+    const tender = await this.tenderService.update(userId, id, dto, file);
+    return { status: 'success', message: 'Appel d\'offres mis à jour', data: [tender] };
   }
 
   @Get('tenders')
@@ -168,24 +193,84 @@ L'appel d'offres sera visible par tous les membres de la plateforme qui pourront
 
   @Post('tenders/:tenderId/bids')
   @Auth()
+  @UseInterceptors(FileInterceptor('documentPieces'))
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: 'Soumettre une offre (Bid)',
     description: `Permet à un membre de soumissionner à un appel d'offres. 
 Note : Un lanceur ne peut pas soumissionner à son propre appel d'offres. L'offre doit être soumise avant la date limite.`,
   })
   @ApiParam({ name: 'tenderId', description: 'ID de l\'appel d\'offres concerné' })
-  @ApiBody({ type: SubmitBidDto })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['prixUnitaire', 'quantite'],
+      properties: {
+        prixUnitaire: { type: 'number', example: 99.99 },
+        quantite: { type: 'number', example: 100 },
+        delaiLivraison: { type: 'string', example: '10 jours' },
+        observations: { type: 'string', example: 'Produit certifié' },
+        documentPieces: { type: 'string', format: 'binary' },
+      },
+    },
+  })
   @ApiResponse({ status: 201, description: 'Votre offre a été soumise avec succès' })
   async submitBid(
     @Req() req: any,
     @Param('tenderId') tenderId: string,
     @Body() dto: SubmitBidDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
     const userId = req.user?.userId;
     if (!userId) throw new BadRequestException('Utilisateur non authentifié');
     dto.appelOffreId = tenderId;
-    const bid = await this.tenderService.submitBid(userId, dto);
+    const bid = await this.tenderService.submitBid(userId, dto, file);
     return { status: 'success', message: 'Soumission envoyée avec succès', data: [bid] };
+  }
+
+  @Patch('tenders/:tenderId/bids/:bidId')
+  @Auth()
+  @UseInterceptors(FileInterceptor('documentPieces'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Modifier ma soumission',
+    description: 'Permet de modifier son offre tant que l\'appel d\'offres est encore ouvert.',
+  })
+  @ApiParam({ name: 'tenderId', description: 'ID de l\'appel d\'offres' })
+  @ApiParam({ name: 'bidId', description: 'ID de la soumission' })
+  @ApiBody({ type: UpdateBidDto })
+  @ApiResponse({ status: 200, description: 'Soumission mise à jour' })
+  async updateBid(
+    @Req() req: any,
+    @Param('tenderId') tenderId: string,
+    @Param('bidId') bidId: string,
+    @Body() dto: UpdateBidDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    const userId = req.user?.userId;
+    if (!userId) throw new BadRequestException('Utilisateur non authentifié');
+    const bid = await this.tenderService.updateBid(userId, bidId, dto, file);
+    return { status: 'success', message: 'Soumission mise à jour', data: [bid] };
+  }
+
+  @Delete('tenders/:tenderId/bids/:bidId')
+  @Auth()
+  @ApiOperation({
+    summary: 'Retirer ma soumission',
+    description: 'Permet de retirer son offre tant que l\'appel d\'offres est encore ouvert.',
+  })
+  @ApiParam({ name: 'tenderId', description: 'ID de l\'appel d\'offres' })
+  @ApiParam({ name: 'bidId', description: 'ID de la soumission' })
+  @ApiResponse({ status: 200, description: 'Soumission retirée' })
+  async withdrawBid(
+    @Req() req: any,
+    @Param('tenderId') tenderId: string,
+    @Param('bidId') bidId: string,
+  ) {
+    const userId = req.user?.userId;
+    if (!userId) throw new BadRequestException('Utilisateur non authentifié');
+    await this.tenderService.withdrawBid(userId, bidId);
+    return { status: 'success', message: 'Soumission retirée avec succès' };
   }
 
   @Get('tenders/:tenderId/bids')
@@ -212,11 +297,13 @@ Note : Un lanceur ne peut pas soumissionner à son propre appel d'offres. L'offr
   })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Rechercher par titre de l\'appel d\'offres ou vos observations' })
   @ApiResponse({ status: 200, description: 'Liste de vos soumissions' })
   async getMyBids(
     @Req() req: any,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
+    @Query('search') search?: string,
   ) {
     const userId = req.user?.userId;
     if (!userId) throw new BadRequestException('Utilisateur non authentifié');
@@ -224,6 +311,7 @@ Note : Un lanceur ne peut pas soumissionner à son propre appel d'offres. L'offr
       userId,
       Math.max(1, Number(page) || 1),
       Math.min(100, Math.max(1, Number(limit) || 20)),
+      search,
     );
   }
 

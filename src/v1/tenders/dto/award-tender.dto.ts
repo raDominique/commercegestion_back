@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsMongoId, IsNotEmpty } from 'class-validator';
+import { IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class AwardTenderDto {
   @ApiProperty({
@@ -8,5 +8,14 @@ export class AwardTenderDto {
   })
   @IsMongoId()
   @IsNotEmpty()
-  soumissionId: string;
+  soumissionId: string | undefined;
+
+  @ApiProperty({
+    example: 'Meilleur rapport qualité/prix et délai respecté.',
+    description: 'Commentaire ou motif de l\'attribution (facultatif)',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  commentaire?: string;
 }

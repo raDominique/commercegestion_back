@@ -1,3 +1,4 @@
+import { MailService } from './../../shared/mail/mail.service';
 import { ProductService } from './../products/products.service';
 import {
   Injectable,
@@ -17,6 +18,8 @@ import {
 import { CreateTenderDto } from './dto/create-tender.dto';
 import { SubmitBidDto } from './dto/submit-bid.dto';
 import { AwardTenderDto } from './dto/award-tender.dto';
+import { UpdateTenderDto } from './dto/update-tender.dto';
+import { UpdateBidDto } from './dto/update-bid.dto';
 import { UploadService } from '../../shared/upload/upload.service';
 import { PaginationResult } from '../../shared/interfaces/pagination.interface';
 
@@ -28,6 +31,7 @@ export class TenderService {
     @InjectModel(Bid.name)
     private readonly bidModel: Model<BidDocument>,
     private readonly uploadService: UploadService,
+    private readonly mailService: MailService,
   ) {}
 
   // ===================== TENDERS =====================
@@ -56,6 +60,34 @@ export class TenderService {
       documentPieces,
       statut: TenderStatus.OUVERT,
     });
+  }
+
+  async update(
+    userId: string,
+    id: string,
+    dto: UpdateTenderDto,
+    file?: Express.Multer.File,
+  ): Promise<TenderDocument> {
+    const tender = await this.tenderModel.findById(id);
+    if (!tender) throw new NotFoundException('Appel d\'offres introuvable');
+    if (tender.lanceurId.toString() !== userId) {
+      throw new BadRequestException('Seul le lanceur peut modifier cet appel d\'offres');
+    }
+    if (tender.statut !== TenderStatus.OUVERT) {
+      throw new BadRequestException('Seuls les appels d\'offres ouverts peuvent être modifiés');
+    }
+
+    const updateData: any = { ...dto };
+    if (file) {
+      updateData.documentPieces = await this.uploadService.saveFile(file, 'tenders');
+    }
+    if (dto.productId) updateData.productId = new Types.ObjectId(dto.productId);
+    if (dto.siteLivraison) updateData.siteLivraison = new Types.ObjectId(dto.siteLivraison);
+    if (dto.dateLimite) updateData.dateLimite = new Date(dto.dateLimite);
+
+    const updatedTender = await this.tenderModel.findByIdAndUpdate(id, updateData, { new: true }).exec();
+    if (!updatedTender) throw new NotFoundException('Appel d\'offres introuvable');
+    return updatedTender;
   }
 
   async findAll(
@@ -174,6 +206,7 @@ export class TenderService {
   async submitBid(
     userId: string,
     dto: SubmitBidDto,
+    file?: Express.Multer.File,
   ): Promise<BidDocument> {
     const tender = await this.tenderModel.findById(dto.appelOffreId);
     if (!tender) {
@@ -195,9 +228,22 @@ export class TenderService {
       );
     }
 
+    const existingBid = await this.bidModel.findOne({
+      appelOffreId: new Types.ObjectId(dto.appelOffreId),
+      soumissionnaireId: new Types.ObjectId(userId),
+    });
+    if (existingBid) {
+      throw new BadRequestException('Vous avez déjà soumis une offre pour cet appel d\'offres');
+    }
+
+    let documentPieces = '';
+    if (file) {
+      documentPieces = await this.uploadService.saveFile(file, 'bids');
+    }
+
     const prixTotal = dto.quantite * dto.prixUnitaire;
 
-    return this.bidModel.create({
+    const bid = await this.bidModel.create({
       appelOffreId: new Types.ObjectId(dto.appelOffreId),
       soumissionnaireId: new Types.ObjectId(userId),
       prixUnitaire: dto.prixUnitaire,
@@ -205,8 +251,86 @@ export class TenderService {
       quantite: dto.quantite,
       delaiLivraison: dto.delaiLivraison || '',
       observations: dto.observations || '',
+      documentPieces,
       statut: BidStatus.EN_ATTENTE,
     });
+
+    // Notification au lanceur
+    const fullTender = await this.tenderModel
+      .findById(dto.appelOffreId)
+      .populate('lanceurId', 'userEmail userNickName')
+      .exec();
+
+    const bidder = await (bid as any)
+      .populate('soumissionnaireId', 'userNickName')
+      .execPopulate?.() || await this.bidModel.findById(bid._id).populate('soumissionnaireId', 'userNickName');
+
+    if (fullTender && fullTender.lanceurId && bidder) {
+      const lanceur: any = fullTender.lanceurId;
+      const bidderInfo: any = bidder.soumissionnaireId;
+      
+      this.mailService.sendTenderBidNotification(
+        lanceur.userEmail,
+        fullTender.titre,
+        bidderInfo.userNickName || 'Un membre',
+        prixTotal,
+        `${process.env.FRONT_URL}/tenders/${fullTender._id}`,
+      ).catch(err => console.error('Erreur envoi mail soumission:', err));
+    }
+
+    return bid;
+  }
+
+  async updateBid(
+    userId: string,
+    bidId: string,
+    dto: UpdateBidDto,
+    file?: Express.Multer.File,
+  ): Promise<BidDocument> {
+    const bid = await this.bidModel.findById(bidId);
+    if (!bid) throw new NotFoundException('Soumission introuvable');
+    if (bid.soumissionnaireId.toString() !== userId) {
+      throw new BadRequestException('Seul le soumissionnaire peut modifier cette offre');
+    }
+
+    const tender = await this.tenderModel.findById(bid.appelOffreId);
+    if (!tender) throw new NotFoundException('Appel d\'offres introuvable');
+    if (tender.statut !== TenderStatus.OUVERT) {
+      throw new BadRequestException('L\'appel d\'offres n\'est plus ouvert aux modifications');
+    }
+    if (new Date() > new Date(tender.dateLimite)) {
+      throw new BadRequestException('La date limite est dépassée');
+    }
+
+    const updateData: any = { ...dto };
+    if (file) {
+      updateData.documentPieces = await this.uploadService.saveFile(file, 'bids');
+    }
+    if (dto.prixUnitaire || dto.quantite) {
+      const pu = dto.prixUnitaire || bid.prixUnitaire;
+      const q = dto.quantite || bid.quantite;
+      updateData.prixTotal = pu * q;
+    }
+
+    const updatedBid = await this.bidModel.findByIdAndUpdate(bidId, updateData, { new: true }).exec();
+    if (!updatedBid) throw new NotFoundException('Soumission introuvable');
+    return updatedBid;
+  }
+
+  async withdrawBid(userId: string, bidId: string): Promise<void> {
+    const bid = await this.bidModel.findById(bidId);
+    if (!bid) throw new NotFoundException('Soumission introuvable');
+    if (bid.soumissionnaireId.toString() !== userId) {
+      throw new BadRequestException('Seul le soumissionnaire peut retirer cette offre');
+    }
+
+    const tender = await this.tenderModel.findById(bid.appelOffreId);
+    if (!tender) throw new NotFoundException('Appel d\'offres introuvable');
+    if (tender.statut !== TenderStatus.OUVERT) {
+      throw new BadRequestException('L\'appel d\'offres n\'est plus ouvert');
+    }
+
+    await this.bidModel.findByIdAndDelete(bidId);
   }
 
   async getBidsForTender(
@@ -232,9 +356,30 @@ export class TenderService {
     userId: string,
     page = 1,
     limit = 20,
+    search?: string,
   ): Promise<PaginationResult<BidDocument>> {
-    const filter = { soumissionnaireId: new Types.ObjectId(userId) };
+    const filter: any = { soumissionnaireId: new Types.ObjectId(userId) };
     const skip = (page - 1) * limit;
+
+    if (search) {
+      // Rechercher les appels d'offres correspondants pour filtrer par titre/description
+      const matchingTenders = await this.tenderModel
+        .find({
+          $or: [
+            { titre: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } },
+          ],
+        })
+        .select('_id')
+        .exec();
+
+      const tenderIds = matchingTenders.map((t) => t._id);
+
+      filter.$or = [
+        { observations: { $regex: search, $options: 'i' } },
+        { appelOffreId: { $in: tenderIds } },
+      ];
+    }
 
     const [data, total] = await Promise.all([
       this.bidModel
@@ -334,7 +479,54 @@ export class TenderService {
     );
 
     tender.soumissionRetenue = bid._id;
+    tender.commentaireAttribution = dto.commentaire || '';
     tender.statut = TenderStatus.ATTRIBUE;
-    return tender.save();
+    const savedTender = await tender.save();
+
+    // Notifications
+    try {
+      // 1. Notifier le gagnant
+      const winner = await (bid as any)
+        .populate('soumissionnaireId', 'userEmail userNickName')
+        .execPopulate?.() || await this.bidModel.findById(bid._id).populate('soumissionnaireId', 'userEmail userNickName');
+      
+      const winnerInfo: any = winner.soumissionnaireId;
+      if (winnerInfo?.userEmail) {
+        this.mailService.sendTenderAwardNotification(
+          winnerInfo.userEmail,
+          winnerInfo.userNickName,
+          tender.titre,
+          bid.quantite,
+          tender.unite,
+          bid.prixUnitaire,
+          bid.prixTotal,
+          `${process.env.FRONT_URL}/my-bids`,
+        ).catch(e => console.error('Mail winner error:', e));
+      }
+
+      // 2. Notifier les perdants
+      const losers = await this.bidModel
+        .find({
+          appelOffreId: new Types.ObjectId(tenderId),
+          _id: { $ne: bid._id },
+        })
+        .populate('soumissionnaireId', 'userEmail userNickName')
+        .exec();
+
+      for (const loser of losers) {
+        const loserInfo: any = loser.soumissionnaireId;
+        if (loserInfo?.userEmail) {
+          this.mailService.sendTenderRejectionNotification(
+            loserInfo.userEmail,
+            loserInfo.userNickName,
+            tender.titre,
+          ).catch(e => console.error('Mail loser error:', e));
+        }
+      }
+    } catch (error) {
+      console.error('Erreur notifications attribution:', error);
+    }
+
+    return savedTender;
   }
 }

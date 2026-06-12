@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; }
+        .header { background-color: #f8f9fa; padding: 10px; text-align: center; border-bottom: 2px solid #dc3545; }
+        .content { padding: 20px; }
+        .footer { font-size: 12px; text-align: center; color: #777; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Mise à jour de l'appel d'offres</h2>
+        </div>
+        <div class="content">
+            <p>Bonjour {{bidderName}},</p>
+            <p>Nous vous informons que le marché pour l'appel d'offres : <strong>{{tenderTitle}}</strong> a été attribué.</p>
+            <p>Malheureusement, votre offre n'a pas été retenue pour cette fois.</p>
+            <p>Nous vous remercions de votre participation et vous encourageons à soumissionner à d'autres opportunités sur notre plateforme.</p>
+        </div>
+        <div class="footer">
+            <p>&copy; {{appName}}</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -114,6 +114,76 @@ export class MailService {
     });
   }
 
+  /* =========================================================================
+   * TENDERS / APPELS D'OFFRES
+   * ========================================================================= */
+
+  async sendTenderBidNotification(
+    to: string,
+    tenderTitle: string,
+    bidderName: string,
+    prixTotal: number,
+    link: string,
+  ) {
+    await this.mailQueue.enqueue({
+      to,
+      subject: `Nouvelle offre pour : ${tenderTitle} - ${this.appName}`,
+      template: 'tender-new-bid',
+      context: {
+        tenderTitle,
+        bidderName,
+        prixTotal,
+        currency: 'Ar',
+        link,
+        appName: this.appName,
+      },
+    });
+  }
+
+  async sendTenderAwardNotification(
+    to: string,
+    bidderName: string,
+    tenderTitle: string,
+    quantite: number,
+    unite: string,
+    prixUnitaire: number,
+    prixTotal: number,
+    link: string,
+  ) {
+    await this.mailQueue.enqueue({
+      to,
+      subject: `Félicitations ! Offre retenue pour : ${tenderTitle} - ${this.appName}`,
+      template: 'tender-awarded',
+      context: {
+        bidderName,
+        tenderTitle,
+        quantite,
+        unite,
+        prixUnitaire,
+        prixTotal,
+        link,
+        appName: this.appName,
+      },
+    });
+  }
+
+  async sendTenderRejectionNotification(
+    to: string,
+    bidderName: string,
+    tenderTitle: string,
+  ) {
+    await this.mailQueue.enqueue({
+      to,
+      subject: `Mise à jour de l'appel d'offres : ${tenderTitle} - ${this.appName}`,
+      template: 'tender-rejected',
+      context: {
+        bidderName,
+        tenderTitle,
+        appName: this.appName,
+      },
+    });
+  }
+
   async notificationAccountDeactivated(
     to: string,
     name: string,

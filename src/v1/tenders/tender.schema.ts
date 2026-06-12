@@ -63,6 +63,9 @@ export class Tender {
 
   @Prop({ type: Types.ObjectId, ref: 'Bid', default: null })
   soumissionRetenue: Types.ObjectId;
+
+  @Prop({ default: '' })
+  commentaireAttribution: string;
 }
 
 @Schema({ timestamps: true })
@@ -89,6 +92,9 @@ export class Bid {
 
   @Prop({ default: '' })
   observations: string;
+
+  @Prop({ default: '' })
+  documentPieces: string;
 
   @Prop({ type: String, enum: Object.values(BidStatus), default: BidStatus.EN_ATTENTE, index: true })
   statut: BidStatus;
