@@ -177,7 +177,14 @@ export class ProductService {
       { productId: saved._id, ownerId: userId },
     );
 
-    // Envoyer mail au utilisateur pour le notifier que le produit a été créé et est en attente de validation
+    // Notification temps réel au créateur
+    await this.socketNotifications.notifyUser(
+      userId,
+      'Produit créé',
+      `Votre produit "${saved.productName}" a été créé et est en attente de validation.`,
+    );
+
+    // Email de confirmation
     try {
       const userResult = await this.usersService.findOne(userId);
       if (userResult?.data?.[0]) {
@@ -189,7 +196,6 @@ export class ProductService {
         );
       }
     } catch (error) {
-      // Si l'envoi du mail échoue, on continue quand même sans lever d'erreur
       console.error(
         "Erreur lors de l'envoi du mail de notification produit:",
         error,
@@ -363,7 +369,14 @@ export class ProductService {
       newState: updated.toObject(),
     });
 
-    // 6. Envoyer email de notification au propriétaire
+    // Notification temps réel au propriétaire
+    await this.socketNotifications.notifyUser(
+      userId,
+      'Produit mis à jour',
+      `Votre produit "${updated.productName}" a été modifié avec succès.`,
+    );
+
+    // Email de confirmation
     try {
       const userResult = await this.usersService.findOne(userId);
       if (userResult?.data?.[0]) {
@@ -510,14 +523,12 @@ export class ProductService {
 
     // Notifier l'utilisateur que son produit est validé
     if (product.productValidation) {
-      // Notification socket
       await this.socketNotifications.notifyUser(
         product.productOwnerId._id.toString(),
         'Produit Validé !',
         `Votre produit "${product.productName}" a été validé par l'administration.`,
       );
 
-      // Envoi du mail de validation au propriétaire du produit
       try {
         const owner = product.productOwnerId as any;
         if (owner?.userEmail) {
@@ -647,7 +658,14 @@ export class ProductService {
       userId,
     });
 
-    // 4. Envoyer email de notification au propriétaire
+    // Notification temps réel au propriétaire
+    await this.socketNotifications.notifyUser(
+      userId,
+      'Produit supprimé',
+      `Votre produit "${product.productName}" a été supprimé.`,
+    );
+
+    // Email de confirmation
     try {
       const userResult = await this.usersService.findOne(userId);
       if (userResult?.data?.[0]) {

@@ -25,6 +25,7 @@ import { TransactionsModule } from './v1/transactions/transactions.module';
 import { DashboardModule } from './v1/dashboard/dashboard.module';
 import { ShopAvailableModule } from './v1/shop-available/shop-available.module';
 import { TenderModule } from './v1/tenders/tender.module';
+import { CartModule } from './v1/cart/cart.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { TenderModule } from './v1/tenders/tender.module';
           { path: 'dashboard', module: DashboardModule },
           { path: 'shop', module: ShopAvailableModule },
           { path: 'tenders', module: TenderModule },
+          { path: 'cart', module: CartModule },
           {path: '', module: MailModule}
         ],
       },
