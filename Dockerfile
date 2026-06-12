@@ -1,7 +1,5 @@
-FROM node:24-alpine AS builder
-
-WORKDIR /app
-
+# Stage 1: Base with build dependencies
+FROM node:24-alpine AS base
 RUN apk add --no-cache \
   gcc \
   g++ \
@@ -13,17 +11,23 @@ RUN apk add --no-cache \
   giflib-dev \
   librsvg-dev
 
+# Stage 2: Install ALL dependencies and build the app
+FROM base AS builder
+WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
-
-COPY tsconfig.json tsconfig.build.json nest-cli.json ./
-COPY src/ src/
-
+COPY . .
 RUN npm run build
-RUN npm prune --production
 
+# Stage 3: Install only PRODUCTION dependencies
+# This stage is cached unless package.json or package-lock.json changes
+FROM base AS prod-deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+# Stage 4: Final production image
 FROM node:24-alpine
-
 RUN apk add --no-cache \
   cairo \
   pango \
@@ -36,7 +40,8 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
 
-COPY --from=builder /app/node_modules ./node_modules
+# Copy only the necessary files from previous stages
+COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./
 
