@@ -19,8 +19,8 @@ import { LedgerDisplayModule } from './ledger-display/ledger-display.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ShopAvailableModule } from './shop-available';
 import { TenderModule } from './tenders';
-import { MailService } from 'src/shared/mail/mail.service';
 import { MailModule } from 'src/shared/mail/mail.module';
+import { CartModule } from './cart/cart.module';
 
 @Module({
   imports: [
@@ -42,6 +42,7 @@ import { MailModule } from 'src/shared/mail/mail.module';
     ShopAvailableModule,
     TenderModule,
     MailModule,
+    CartModule,
   ],
   controllers: [AppController],
   providers: [AppService, UploadService],

@@ -207,12 +207,18 @@ export class CartService {
     };
   }
 
-  async getOrders(userId: string) {
-    const orders = await this.orderModel
-      .find({ userId: new Types.ObjectId(userId) })
-      .sort({ createdAt: -1 })
-      .exec();
-    return { status: 'success', data: orders };
+  async getOrders(userId: string, page = 1, limit = 10) {
+    const filter = { userId: new Types.ObjectId(userId) };
+    const [orders, total] = await Promise.all([
+      this.orderModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec(),
+      this.orderModel.countDocuments(filter),
+    ]);
+    return { status: 'success', data: orders, page, limit, total };
   }
 
   async getOrderById(userId: string, orderId: string) {
