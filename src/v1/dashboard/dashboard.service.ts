@@ -84,15 +84,18 @@ export class DashboardService {
         type: TransactionType.DEPOT,
       }),
       // stocksProduits
-      this.productModel.countDocuments({ userId: userIdObj }),
+      this.productModel.countDocuments({ productOwnerId: userIdObj }),
       // actifs
       this.actifModel.countDocuments({ userId: userIdObj }),
       // passifs
       this.passifModel.countDocuments({ userId: userIdObj }),
       // nombreDeSite
-      this.siteModel.countDocuments({ userId: userIdObj }),
+      this.siteModel.countDocuments({ siteUserID: userIdObj }),
       // produitsUtilisables
-      this.productModel.countDocuments({ userId: userIdObj, usable: true }),
+      this.productModel.countDocuments({
+        productOwnerId: userIdObj,
+        productValidation: true,
+      }),
 
       // admin stats
       this.siteModel.countDocuments(),
@@ -108,7 +111,11 @@ export class DashboardService {
         {
           $group: {
             _id: null,
-            total: { $sum: '$montant' },
+            total: {
+              $sum: {
+                $multiply: ['$quantite', { $ifNull: ['$prixUnitaire', 0] }],
+              },
+            },
             quantite: { $sum: '$quantite' },
           },
         },
@@ -119,7 +126,11 @@ export class DashboardService {
         {
           $group: {
             _id: null,
-            total: { $sum: '$montant' },
+            total: {
+              $sum: {
+                $multiply: ['$quantite', { $ifNull: ['$prixUnitaire', 0] }],
+              },
+            },
             quantite: { $sum: '$quantite' },
           },
         },
@@ -128,23 +139,59 @@ export class DashboardService {
       // actifsBySite
       this.actifModel.aggregate([
         { $match: { userId: userIdObj } },
-        { $group: { _id: '$depotId', total: { $sum: '$montant' } } },
+        {
+          $group: {
+            _id: '$depotId',
+            total: {
+              $sum: {
+                $multiply: ['$quantite', { $ifNull: ['$prixUnitaire', 0] }],
+              },
+            },
+          },
+        },
       ]),
       // passifsBySite
       this.passifModel.aggregate([
         { $match: { userId: userIdObj } },
-        { $group: { _id: '$depotId', total: { $sum: '$montant' } } },
+        {
+          $group: {
+            _id: '$depotId',
+            total: {
+              $sum: {
+                $multiply: ['$quantite', { $ifNull: ['$prixUnitaire', 0] }],
+              },
+            },
+          },
+        },
       ]),
 
       // actifsByProduct
       this.actifModel.aggregate([
         { $match: { userId: userIdObj } },
-        { $group: { _id: '$productId', total: { $sum: '$montant' } } },
+        {
+          $group: {
+            _id: '$productId',
+            total: {
+              $sum: {
+                $multiply: ['$quantite', { $ifNull: ['$prixUnitaire', 0] }],
+              },
+            },
+          },
+        },
       ]),
       // passifsByProduct
       this.passifModel.aggregate([
         { $match: { userId: userIdObj } },
-        { $group: { _id: '$productId', total: { $sum: '$montant' } } },
+        {
+          $group: {
+            _id: '$productId',
+            total: {
+              $sum: {
+                $multiply: ['$quantite', { $ifNull: ['$prixUnitaire', 0] }],
+              },
+            },
+          },
+        },
       ]),
 
       /**
