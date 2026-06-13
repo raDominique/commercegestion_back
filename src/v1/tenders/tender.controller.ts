@@ -108,7 +108,7 @@ L'appel d'offres sera visible par tous les membres de la plateforme qui pourront
   @Auth()
   @ApiOperation({
     summary: 'Consulter la liste des appels d\'offres',
-    description: 'Récupère la liste de tous les appels d\'offres publics. Possibilité de filtrer par statut (OUVERT, ATTRIBUE, etc.) et de rechercher par mots-clés.',
+    description: 'Récupère la liste de tous les appels d\'offres publics. Possibilité de filtrer par statut (OUVERT, ATTRIBUE, etc.) et de rechercher par mots-clés. Chaque appel d\'offres est enrichi d\'un champ "hasBid" indiquant si vous avez déjà soumis une offre.',
   })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1, description: 'Numéro de la page' })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20, description: 'Nombre d\'éléments par page' })
@@ -118,6 +118,7 @@ L'appel d'offres sera visible par tous les membres de la plateforme qui pourront
   @ApiQuery({ name: 'order', required: false, enum: ['asc', 'desc'], example: 'desc', description: 'Sens du tri' })
   @ApiResponse({ status: 200, description: 'Liste des appels d\'offres récupérée avec succès' })
   async findAll(
+    @Req() req: any,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
     @Query('search') search?: string,
@@ -125,6 +126,7 @@ L'appel d'offres sera visible par tous les membres de la plateforme qui pourront
     @Query('sortBy') sortBy = 'createdAt',
     @Query('order') order: 'asc' | 'desc' = 'desc',
   ) {
+    const userId = req.user?.userId;
     return this.tenderService.findAll(
       Math.max(1, Number(page) || 1),
       Math.min(100, Math.max(1, Number(limit) || 20)),
@@ -132,6 +134,7 @@ L'appel d'offres sera visible par tous les membres de la plateforme qui pourront
       statut,
       sortBy,
       order,
+      userId,
     );
   }
 
@@ -162,14 +165,15 @@ L'appel d'offres sera visible par tous les membres de la plateforme qui pourront
   @Auth()
   @ApiOperation({
     summary: 'Obtenir les détails d\'un appel d\'offres',
-    description: 'Récupère toutes les informations détaillées d\'un appel d\'offres spécifique via son ID.',
+    description: 'Récupère toutes les informations détaillées d\'un appel d\'offres spécifique via son ID. Inclut un champ "hasBid" indiquant si vous avez déjà soumis une offre.',
   })
   @ApiParam({ name: 'id', description: 'Identifiant unique de l\'appel d\'offres' })
   @ApiResponse({ status: 200, description: 'Informations détaillées de l\'appel d\'offres' })
   @ApiResponse({ status: 404, description: 'Appel d\'offres introuvable' })
-  async findById(@Param('id') id: string) {
+  async findById(@Req() req: any, @Param('id') id: string) {
     if (!id) throw new BadRequestException('ID requis');
-    const tender = await this.tenderService.findById(id);
+    const userId = req.user?.userId;
+    const tender = await this.tenderService.findById(id, userId);
     return { status: 'success', data: [tender] };
   }
 

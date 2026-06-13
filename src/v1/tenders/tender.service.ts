@@ -97,7 +97,8 @@ export class TenderService {
     statut?: TenderStatus,
     sortBy = 'createdAt',
     order: 'asc' | 'desc' = 'desc',
-  ): Promise<PaginationResult<TenderDocument>> {
+    userId?: string,
+  ): Promise<PaginationResult<any>> {
     const filter: any = {};
 
     if (statut) {
@@ -126,10 +127,12 @@ export class TenderService {
       this.tenderModel.countDocuments(filter),
     ]);
 
+    const enriched = await this.enrichWithHasBid(data, userId);
+
     return {
       status: 'success',
       message: 'Appels d\'offres récupérés',
-      data: data as any,
+      data: enriched,
       total,
       page,
       limit,
@@ -167,7 +170,7 @@ export class TenderService {
     };
   }
 
-  async findById(id: string): Promise<TenderDocument> {
+  async findById(id: string, userId?: string): Promise<any> {
     const tender = await this.tenderModel
       .findById(id)
       .populate('lanceurId', 'userNickName userName raisonSocial userEmail userPhone')
@@ -178,7 +181,44 @@ export class TenderService {
     if (!tender) {
       throw new NotFoundException('Appel d\'offres introuvable');
     }
-    return tender;
+
+    let hasBid = false;
+    if (userId) {
+      const bid = await this.bidModel
+        .findOne({
+          appelOffreId: new Types.ObjectId(id),
+          soumissionnaireId: new Types.ObjectId(userId),
+        })
+        .exec();
+      hasBid = !!bid;
+    }
+
+    return { ...tender.toObject(), hasBid };
+  }
+
+  private async enrichWithHasBid(
+    tenders: TenderDocument[],
+    userId?: string,
+  ): Promise<any[]> {
+    if (!userId || !tenders.length) {
+      return tenders.map(t => ({ ...t.toObject(), hasBid: false }));
+    }
+
+    const tenderIds = tenders.map(t => t._id);
+    const userBids = await this.bidModel
+      .find({
+        soumissionnaireId: new Types.ObjectId(userId),
+        appelOffreId: { $in: tenderIds },
+      })
+      .select('appelOffreId')
+      .exec();
+
+    const bidTenderIds = new Set(userBids.map(b => b.appelOffreId.toString()));
+
+    return tenders.map(t => ({
+      ...t.toObject(),
+      hasBid: bidTenderIds.has(t._id.toString()),
+    }));
   }
 
   async cancel(userId: string, id: string): Promise<TenderDocument> {
