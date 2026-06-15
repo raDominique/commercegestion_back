@@ -2,7 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Passif, PassifDocument } from './passifs.schema';
-import { ExportService, ExportResult } from '../../shared/export/export.service';
+import {
+  ExportService,
+  ExportResult,
+} from '../../shared/export/export.service';
 
 @Injectable()
 export class PassifsService {
@@ -188,8 +191,15 @@ export class PassifsService {
       );
   }
 
-  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<ExportResult> {
-    const items = await this.passifModel.find().sort({ createdAt: -1 }).lean().exec();
+  async exportAll(
+    format: 'excel' | 'pdf',
+    userId?: string,
+  ): Promise<ExportResult> {
+    const items = await this.passifModel
+      .find()
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
 
     if (!items.length) {
       throw new NotFoundException('Aucune donnée à exporter');
@@ -205,12 +215,17 @@ export class PassifsService {
     ];
 
     if (format === 'excel') {
-      return this.exportService.exportExcel(items, columns, 'Passifs', `export_passifs_${Date.now()}.xlsx`);
+      return this.exportService.exportExcel(
+        items,
+        columns,
+        'Passifs',
+        `export_passifs_${Date.now()}.xlsx`,
+      );
     }
     return this.exportService.exportPDF(
       'Liste des Passifs',
-      columns.map(c => c.header),
-      items.map(item => columns.map(c => String(item[c.key] ?? ''))),
+      columns.map((c) => c.header),
+      items.map((item) => columns.map((c) => String(item[c.key] ?? ''))),
       `export_passifs_${Date.now()}.pdf`,
     );
   }

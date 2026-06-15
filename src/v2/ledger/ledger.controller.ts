@@ -6,7 +6,13 @@ import {
   BadRequestException,
   StreamableFile,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { LedgerDisplayService } from '../../v1/ledger-display/ledger-display.service';
 
 @ApiTags('Livre (V2)')
@@ -27,16 +33,26 @@ Exemple d'échange d'actifs entre deux membres :
 - Il y a aussi des mouvements des passifs du côté des banques B1 et B2`,
   })
   @ApiParam({ name: 'userId', description: "ID unique de l'utilisateur" })
-  @ApiQuery({ name: 'format', required: false, enum: ['csv', 'excel', 'pdf'], description: "Format d'export (défaut: csv)" })
+  @ApiQuery({
+    name: 'format',
+    required: false,
+    enum: ['csv', 'excel', 'pdf'],
+    description: "Format d'export (défaut: csv)",
+  })
   @ApiResponse({ status: 200, description: 'Fichier téléchargé directement' })
   async exportUserLedger(
     @Param('userId') userId: string,
     @Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv',
   ): Promise<StreamableFile> {
     if (!userId || userId.length !== 24) {
-      throw new BadRequestException('Un ID utilisateur valide (24 caractères) est requis');
+      throw new BadRequestException(
+        'Un ID utilisateur valide (24 caractères) est requis',
+      );
     }
-    const result = await this.ledgerDisplayService.exportUserLedger(userId, format);
+    const result = await this.ledgerDisplayService.exportUserLedger(
+      userId,
+      format,
+    );
     return new StreamableFile(result.buffer, {
       type: result.mimeType,
       disposition: `attachment; filename="${result.filename}"`,
@@ -46,9 +62,15 @@ Exemple d'échange d'actifs entre deux membres :
   @Get('global/export')
   @ApiOperation({
     summary: 'Exporter le grand livre global',
-    description: 'Génère un fichier CSV, Excel ou PDF contenant tous les mouvements du système.',
+    description:
+      'Génère un fichier CSV, Excel ou PDF contenant tous les mouvements du système.',
   })
-  @ApiQuery({ name: 'format', required: false, enum: ['csv', 'excel', 'pdf'], description: "Format d'export (défaut: csv)" })
+  @ApiQuery({
+    name: 'format',
+    required: false,
+    enum: ['csv', 'excel', 'pdf'],
+    description: "Format d'export (défaut: csv)",
+  })
   @ApiResponse({ status: 200, description: 'Fichier téléchargé directement' })
   async exportGlobalLedger(
     @Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv',

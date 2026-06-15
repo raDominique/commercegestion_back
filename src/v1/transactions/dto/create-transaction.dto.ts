@@ -203,7 +203,7 @@ export class CreateVenteDto {
   siteOrigineId!: string;
 
   @ApiProperty({
-    description: 'ID du site de destination (site de l\'acheteur)',
+    description: "ID du site de destination (site de l'acheteur)",
     example: '69989c5cdff25ef7fe0a4612',
   })
   @IsMongoId()

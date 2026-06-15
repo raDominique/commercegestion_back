@@ -43,7 +43,6 @@ export class StockMovement {
   @Prop({ type: Types.ObjectId, ref: 'Site' })
   siteDestinationId: Types.ObjectId;
 
-
   // Validation du mouvement
   @Prop({ type: Boolean, default: false })
   isValide: boolean;

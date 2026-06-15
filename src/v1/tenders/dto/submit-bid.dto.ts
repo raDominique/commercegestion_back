@@ -20,7 +20,8 @@ export class SubmitBidDto {
 
   @ApiProperty({
     example: 99.99,
-    description: 'Prix unitaire proposé pour le produit (Hors Taxes ou TTC selon l\'appel)',
+    description:
+      "Prix unitaire proposé pour le produit (Hors Taxes ou TTC selon l'appel)",
     minimum: 0.01,
   })
   @IsNumber()
@@ -28,7 +29,11 @@ export class SubmitBidDto {
   @Min(0.01)
   prixUnitaire: number;
 
-  @ApiProperty({ example: 100, description: 'Quantité totale que vous êtes capable de fournir', minimum: 0.01 })
+  @ApiProperty({
+    example: 100,
+    description: 'Quantité totale que vous êtes capable de fournir',
+    minimum: 0.01,
+  })
   @IsNumber()
   @IsPositive()
   @Min(0.01)

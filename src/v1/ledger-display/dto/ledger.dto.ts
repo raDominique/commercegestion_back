@@ -91,7 +91,7 @@ export class StockCardDto {
 
 export class UserMovementsDto {
   @ApiProperty({
-    description: 'Mouvements d\'actifs',
+    description: "Mouvements d'actifs",
     type: [LedgerMovementDto],
   })
   actifs: LedgerMovementDto[];
@@ -105,13 +105,13 @@ export class UserMovementsDto {
 
 export class UserLedgerDto {
   @ApiProperty({
-    description: 'ID de l\'utilisateur',
+    description: "ID de l'utilisateur",
     example: '69989c5cdff25ef7fe0a460f',
   })
   userId: string;
 
   @ApiProperty({
-    description: 'Nom de l\'utilisateur',
+    description: "Nom de l'utilisateur",
     example: 'RAKOTO',
   })
   userName: string;

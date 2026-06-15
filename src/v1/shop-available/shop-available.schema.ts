@@ -34,7 +34,12 @@ export class ShopAvailable {
   @Prop({ required: true, min: 0 })
   prixUnitaire: number;
 
-  @Prop({ type: String, enum: Object.values(ShopAvailableStatus), default: ShopAvailableStatus.ACTIVE, index: true })
+  @Prop({
+    type: String,
+    enum: Object.values(ShopAvailableStatus),
+    default: ShopAvailableStatus.ACTIVE,
+    index: true,
+  })
   statut: ShopAvailableStatus;
 
   @Prop({ default: '' })

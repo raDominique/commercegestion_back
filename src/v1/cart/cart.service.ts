@@ -55,7 +55,7 @@ export class CartService {
       throw new NotFoundException('Annonce introuvable.');
     }
     if (shopItem.statut !== 'ACTIVE') {
-      throw new BadRequestException('Cette annonce n\'est plus active.');
+      throw new BadRequestException("Cette annonce n'est plus active.");
     }
     if (dto.quantite > shopItem.quantite) {
       throw new BadRequestException(
@@ -94,18 +94,20 @@ export class CartService {
     return this.getCart(userId);
   }
 
-  async updateItemQuantity(userId: string, shopItemId: string, dto: UpdateCartItemDto) {
+  async updateItemQuantity(
+    userId: string,
+    shopItemId: string,
+    dto: UpdateCartItemDto,
+  ) {
     const cart = await this.findOrCreateCart(userId);
-    const item = cart.items.find(
-      (i) => i.shopItemId.toString() === shopItemId,
-    );
+    const item = cart.items.find((i) => i.shopItemId.toString() === shopItemId);
     if (!item) {
       throw new NotFoundException('Article introuvable dans le panier.');
     }
 
     const shopItem = await this.shopAvailableService.findById(shopItemId);
     if (!shopItem || shopItem.statut !== 'ACTIVE') {
-      throw new BadRequestException('Cette annonce n\'est plus disponible.');
+      throw new BadRequestException("Cette annonce n'est plus disponible.");
     }
     if (dto.quantite > shopItem.quantite) {
       throw new BadRequestException(
@@ -162,7 +164,8 @@ export class CartService {
             siteDestinationId: dto?.siteDestinationId || undefined,
             quantite: item.quantite,
             prixUnitaire: item.prixUnitaire,
-            observations: dto?.observations || `Commande groupée depuis le panier`,
+            observations:
+              dto?.observations || `Commande groupée depuis le panier`,
           },
           userId,
         );

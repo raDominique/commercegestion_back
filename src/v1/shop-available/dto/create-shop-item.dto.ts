@@ -1,5 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, Min } from 'class-validator';
+import {
+  IsMongoId,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsString,
+  Min,
+} from 'class-validator';
 
 export class CreateShopItemDto {
   @IsMongoId()
@@ -21,7 +29,8 @@ export class CreateShopItemDto {
   @IsMongoId()
   @IsOptional()
   @ApiProperty({
-    description: "ID de l'actif à vendre (optionnel, mais recommandé pour vérifier la quantité)",
+    description:
+      "ID de l'actif à vendre (optionnel, mais recommandé pour vérifier la quantité)",
     example: '64b8f0c2e1d3f2a5c6b7d8e9',
   })
   actifId?: string;
@@ -47,7 +56,7 @@ export class CreateShopItemDto {
   @IsString()
   @IsOptional()
   @ApiProperty({
-    description: 'Description optionnelle de l\'annonce',
+    description: "Description optionnelle de l'annonce",
     example: 'Vente de 10 unités du produit X en excellent état.',
   })
   description?: string;

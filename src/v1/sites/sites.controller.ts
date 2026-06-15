@@ -159,15 +159,15 @@ export class SiteController {
 
   /* ===================== FIND ALL BY USER ID ===================== */
   @Get('by-user/:userId')
-  @ApiOperation({ summary: 'Récupérer tous les sites d\'un utilisateur' })
-  @ApiParam({ name: 'userId', description: 'ID de l\'utilisateur' })
+  @ApiOperation({ summary: "Récupérer tous les sites d'un utilisateur" })
+  @ApiParam({ name: 'userId', description: "ID de l'utilisateur" })
   @ApiResponse({
     status: 200,
-    description: 'Liste des sites de l\'utilisateur',
+    description: "Liste des sites de l'utilisateur",
     schema: {
       example: {
         status: 'success',
-        message: 'Sites de l\'utilisateur récupérés',
+        message: "Sites de l'utilisateur récupérés",
         data: [
           {
             _id: '507f1f77bcf86cd799439100',
@@ -192,14 +192,21 @@ export class SiteController {
   @Get('export')
   @Auth()
   @ApiOperation({ summary: 'Exporter les données en Excel ou PDF' })
-  @ApiQuery({ name: 'format', required: true, enum: ['excel', 'pdf'], description: "Format d'export: excel ou pdf" })
+  @ApiQuery({
+    name: 'format',
+    required: true,
+    enum: ['excel', 'pdf'],
+    description: "Format d'export: excel ou pdf",
+  })
   @ApiResponse({ status: 200, description: 'URL du fichier généré' })
   async exportAll(
     @Query('format') format: 'excel' | 'pdf',
     @Req() req: any,
   ): Promise<StreamableFile> {
     if (!format || !['excel', 'pdf'].includes(format)) {
-      throw new BadRequestException('Format invalide. Utilisez "excel" ou "pdf".');
+      throw new BadRequestException(
+        'Format invalide. Utilisez "excel" ou "pdf".',
+      );
     }
     const userId = req.user?.userId || 'system';
     const result = await this.siteService.exportAll(format, userId);

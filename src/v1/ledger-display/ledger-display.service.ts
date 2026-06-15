@@ -9,7 +9,10 @@ import {
 } from '../transactions/transactions.schema';
 import { Actif, ActifDocument } from '../actifs/actifs.schema';
 import { Passif, PassifDocument } from '../passifs/passifs.schema';
-import { ExportService, ExportResult } from '../../shared/export/export.service';
+import {
+  ExportService,
+  ExportResult,
+} from '../../shared/export/export.service';
 
 /**
  * Structure d'un mouvement dans le grand livre
@@ -87,8 +90,20 @@ export class LedgerDisplayService {
     for (const tx of transactions) {
       // Transaction rejetée → entrée informative sans impact stock
       if (tx.status === TransactionStatus.REJECTED) {
-        const rejectedActif = this.mapMovement(tx, 'REJETÉ', tx.quantite, 'ACTIF', tx.siteOrigineId);
-        const rejectedPassif = this.mapMovement(tx, 'REJETÉ', tx.quantite, 'PASSIF', tx.siteOrigineId);
+        const rejectedActif = this.mapMovement(
+          tx,
+          'REJETÉ',
+          tx.quantite,
+          'ACTIF',
+          tx.siteOrigineId,
+        );
+        const rejectedPassif = this.mapMovement(
+          tx,
+          'REJETÉ',
+          tx.quantite,
+          'PASSIF',
+          tx.siteOrigineId,
+        );
         rejectedActif.isRejected = true;
         rejectedPassif.isRejected = true;
         activesMovements.push(rejectedActif);
@@ -191,7 +206,7 @@ export class LedgerDisplayService {
           : 'Utilisateur Inconnu',
       movements: {
         actifs: activesMovements.reverse(), // On inverse pour l'affichage (plus récent en premier)
-        passifs: passivesMovements.reverse(), 
+        passifs: passivesMovements.reverse(),
       },
     };
   }
@@ -555,14 +570,24 @@ export class LedgerDisplayService {
   /**
    * Exporte le grand livre d'un utilisateur en CSV
    */
-  async exportUserLedger(userId: string, format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<ExportResult> {
+  async exportUserLedger(
+    userId: string,
+    format: 'csv' | 'excel' | 'pdf' = 'csv',
+  ): Promise<ExportResult> {
     const ledger = await this.getUserLedger(userId);
-    const movements = [...ledger.movements.actifs, ...ledger.movements.passifs].sort(
-      (a, b) => new Date(b.dateTime || 0).getTime() - new Date(a.dateTime || 0).getTime(),
+    const movements = [
+      ...ledger.movements.actifs,
+      ...ledger.movements.passifs,
+    ].sort(
+      (a, b) =>
+        new Date(b.dateTime || 0).getTime() -
+        new Date(a.dateTime || 0).getTime(),
     );
 
     if (movements.length === 0) {
-      throw new NotFoundException('Aucun mouvement à exporter pour cet utilisateur');
+      throw new NotFoundException(
+        'Aucun mouvement à exporter pour cet utilisateur',
+      );
     }
 
     const columns = [
@@ -575,21 +600,49 @@ export class LedgerDisplayService {
     ];
 
     if (format === 'excel') {
-      return this.exportService.exportExcel(movements, columns, 'Grand livre', `export_ledger_user_${userId}_${Date.now()}.xlsx`);
+      return this.exportService.exportExcel(
+        movements,
+        columns,
+        'Grand livre',
+        `export_ledger_user_${userId}_${Date.now()}.xlsx`,
+      );
     }
     if (format === 'pdf') {
-      return this.exportService.exportPDF('Grand livre', columns.map(c => c.header), movements.map(item => columns.map(c => String(item[c.key] ?? ''))), `export_ledger_user_${userId}_${Date.now()}.pdf`);
+      return this.exportService.exportPDF(
+        'Grand livre',
+        columns.map((c) => c.header),
+        movements.map((item) => columns.map((c) => String(item[c.key] ?? ''))),
+        `export_ledger_user_${userId}_${Date.now()}.pdf`,
+      );
     }
 
-    const fields = ['dateTime', 'transactionNumber', 'title', 'product', 'productCode', 'detentaire', 'site', 'quantity', 'initialStock', 'finalStock', 'movementType'];
+    const fields = [
+      'dateTime',
+      'transactionNumber',
+      'title',
+      'product',
+      'productCode',
+      'detentaire',
+      'site',
+      'quantity',
+      'initialStock',
+      'finalStock',
+      'movementType',
+    ];
 
-    return this.exportService.exportCSV(movements, fields, `export_ledger_user_${userId}_${Date.now()}.csv`);
+    return this.exportService.exportCSV(
+      movements,
+      fields,
+      `export_ledger_user_${userId}_${Date.now()}.csv`,
+    );
   }
 
   /**
    * Exporte le grand livre global en CSV
    */
-  async exportGlobalLedger(format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<ExportResult> {
+  async exportGlobalLedger(
+    format: 'csv' | 'excel' | 'pdf' = 'csv',
+  ): Promise<ExportResult> {
     // On récupère une grande quantité pour l'export (ex: 50000)
     const result = await this.getGlobalLedger(1, 50000);
 
@@ -607,15 +660,42 @@ export class LedgerDisplayService {
     ];
 
     if (format === 'excel') {
-      return this.exportService.exportExcel(result.data, columns, 'Grand livre global', `export_ledger_global_${Date.now()}.xlsx`);
+      return this.exportService.exportExcel(
+        result.data,
+        columns,
+        'Grand livre global',
+        `export_ledger_global_${Date.now()}.xlsx`,
+      );
     }
     if (format === 'pdf') {
-      return this.exportService.exportPDF('Grand livre global', columns.map(c => c.header), result.data.map(item => columns.map(c => String(item[c.key] ?? ''))), `export_ledger_global_${Date.now()}.pdf`);
+      return this.exportService.exportPDF(
+        'Grand livre global',
+        columns.map((c) => c.header),
+        result.data.map((item) =>
+          columns.map((c) => String(item[c.key] ?? '')),
+        ),
+        `export_ledger_global_${Date.now()}.pdf`,
+      );
     }
 
-    const fields = ['dateTime', 'transactionNumber', 'title', 'product', 'detentaire', 'site', 'quantity', 'initialStock', 'finalStock', 'movementType'];
+    const fields = [
+      'dateTime',
+      'transactionNumber',
+      'title',
+      'product',
+      'detentaire',
+      'site',
+      'quantity',
+      'initialStock',
+      'finalStock',
+      'movementType',
+    ];
 
-    return this.exportService.exportCSV(result.data, fields, `export_ledger_global_${Date.now()}.csv`);
+    return this.exportService.exportCSV(
+      result.data,
+      fields,
+      `export_ledger_global_${Date.now()}.csv`,
+    );
   }
 
   /**
@@ -708,26 +788,26 @@ export class LedgerDisplayService {
     // Formater les données pour une meilleure lisibilité
     const formattedActifs = (actifs || []).map((actif: any) => ({
       id: actif._id,
-      productId: (actif.productId as any)?._id || 'N/A',
-      productName: (actif.productId as any)?.productName || 'N/A',
-      productCode: (actif.productId as any)?.codeCPC || 'N/A',
-      productImage: (actif.productId as any)?.productImage || null,
+      productId: actif.productId?._id || 'N/A',
+      productName: actif.productId?.productName || 'N/A',
+      productCode: actif.productId?.codeCPC || 'N/A',
+      productImage: actif.productId?.productImage || null,
       quantite: actif.quantite,
       prixUnitaire: actif.prixUnitaire,
       valeurTotale: (actif.quantite || 0) * (actif.prixUnitaire || 0),
-      depotId: (actif.depotId as any)?._id || 'N/A',
-      depot: (actif.depotId as any)?.siteName || 'N/A',
-      depotAdresse: (actif.depotId as any)?.siteAddress || 'N/A',
-      detentaire: (actif.detentaire as any)
-        ? `${(actif.detentaire as any).userNickName} ${(actif.detentaire as any).userName}`
+      depotId: actif.depotId?._id || 'N/A',
+      depot: actif.depotId?.siteName || 'N/A',
+      depotAdresse: actif.depotId?.siteAddress || 'N/A',
+      detentaire: actif.detentaire
+        ? `${actif.detentaire.userNickName} ${actif.detentaire.userName}`
         : 'N/A',
-      detentaireId: (actif.detentaire as any)?._id || null,
-      ayantDroit: (actif.ayant_droit as any)
-        ? `${(actif.ayant_droit as any).userNickName} ${(actif.ayant_droit as any).userName}`
+      detentaireId: actif.detentaire?._id || null,
+      ayantDroit: actif.ayant_droit
+        ? `${actif.ayant_droit.userNickName} ${actif.ayant_droit.userName}`
         : 'N/A',
-      ayantDroitId: (actif.ayant_droit as any)?._id || null,
-      dateCreation: (actif as any).createdAt,
-      dateModification: (actif as any).updatedAt,
+      ayantDroitId: actif.ayant_droit?._id || null,
+      dateCreation: actif.createdAt,
+      dateModification: actif.updatedAt,
       isActive: actif.isActive,
     }));
 
@@ -815,26 +895,26 @@ export class LedgerDisplayService {
     // Formater les données pour une meilleure lisibilité
     const formattedPassifs = (passifs || []).map((passif: any) => ({
       id: passif._id,
-      productId: (passif.productId as any)?._id || 'N/A',
-      productName: (passif.productId as any)?.productName || 'N/A',
-      productCode: (passif.productId as any)?.codeCPC || 'N/A',
-      productImage: (passif.productId as any)?.productImage || null,
+      productId: passif.productId?._id || 'N/A',
+      productName: passif.productId?.productName || 'N/A',
+      productCode: passif.productId?.codeCPC || 'N/A',
+      productImage: passif.productId?.productImage || null,
       quantite: passif.quantite,
       prixUnitaire: passif.prixUnitaire,
       valeurTotale: (passif.quantite || 0) * (passif.prixUnitaire || 0),
-      depotId: (passif.depotId as any)?._id || 'N/A',
-      depot: (passif.depotId as any)?.siteName || 'N/A',
-      depotAdresse: (passif.depotId as any)?.siteAddress || 'N/A',
-      detentaire: (passif.detentaire as any)
-        ? `${(passif.detentaire as any).userNickName} ${(passif.detentaire as any).userName}`
+      depotId: passif.depotId?._id || 'N/A',
+      depot: passif.depotId?.siteName || 'N/A',
+      depotAdresse: passif.depotId?.siteAddress || 'N/A',
+      detentaire: passif.detentaire
+        ? `${passif.detentaire.userNickName} ${passif.detentaire.userName}`
         : 'N/A',
-      ayantDroit: (passif.ayant_droit as any)
-        ? `${(passif.ayant_droit as any).userNickName} ${(passif.ayant_droit as any).userName}`
+      ayantDroit: passif.ayant_droit
+        ? `${passif.ayant_droit.userNickName} ${passif.ayant_droit.userName}`
         : 'N/A',
-      detentaireId: (passif.detentaire as any)?._id || null,
-      ayantDroitId: (passif.ayant_droit as any)?._id || null,
-      dateCreation: (passif as any).createdAt,
-      dateModification: (passif as any).updatedAt,
+      detentaireId: passif.detentaire?._id || null,
+      ayantDroitId: passif.ayant_droit?._id || null,
+      dateCreation: passif.createdAt,
+      dateModification: passif.updatedAt,
       isActive: passif.isActive,
     }));
 

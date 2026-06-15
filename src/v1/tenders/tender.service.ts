@@ -54,7 +54,9 @@ export class TenderService {
       quantite: dto.quantite,
       unite: dto.unite || '',
       dateLimite: new Date(dto.dateLimite),
-      siteLivraison: dto.siteLivraison ? new Types.ObjectId(dto.siteLivraison) : null,
+      siteLivraison: dto.siteLivraison
+        ? new Types.ObjectId(dto.siteLivraison)
+        : null,
       conditionsPaiement: dto.conditionsPaiement || '',
       delaiLivraisonSouhaite: dto.delaiLivraisonSouhaite || '',
       documentPieces,
@@ -69,24 +71,35 @@ export class TenderService {
     file?: Express.Multer.File,
   ): Promise<TenderDocument> {
     const tender = await this.tenderModel.findById(id);
-    if (!tender) throw new NotFoundException('Appel d\'offres introuvable');
+    if (!tender) throw new NotFoundException("Appel d'offres introuvable");
     if (tender.lanceurId.toString() !== userId) {
-      throw new BadRequestException('Seul le lanceur peut modifier cet appel d\'offres');
+      throw new BadRequestException(
+        "Seul le lanceur peut modifier cet appel d'offres",
+      );
     }
     if (tender.statut !== TenderStatus.OUVERT) {
-      throw new BadRequestException('Seuls les appels d\'offres ouverts peuvent être modifiés');
+      throw new BadRequestException(
+        "Seuls les appels d'offres ouverts peuvent être modifiés",
+      );
     }
 
     const updateData: any = { ...dto };
     if (file) {
-      updateData.documentPieces = await this.uploadService.saveFile(file, 'tenders');
+      updateData.documentPieces = await this.uploadService.saveFile(
+        file,
+        'tenders',
+      );
     }
     if (dto.productId) updateData.productId = new Types.ObjectId(dto.productId);
-    if (dto.siteLivraison) updateData.siteLivraison = new Types.ObjectId(dto.siteLivraison);
+    if (dto.siteLivraison)
+      updateData.siteLivraison = new Types.ObjectId(dto.siteLivraison);
     if (dto.dateLimite) updateData.dateLimite = new Date(dto.dateLimite);
 
-    const updatedTender = await this.tenderModel.findByIdAndUpdate(id, updateData, { new: true }).exec();
-    if (!updatedTender) throw new NotFoundException('Appel d\'offres introuvable');
+    const updatedTender = await this.tenderModel
+      .findByIdAndUpdate(id, updateData, { new: true })
+      .exec();
+    if (!updatedTender)
+      throw new NotFoundException("Appel d'offres introuvable");
     return updatedTender;
   }
 
@@ -131,7 +144,7 @@ export class TenderService {
 
     return {
       status: 'success',
-      message: 'Appels d\'offres récupérés',
+      message: "Appels d'offres récupérés",
       data: enriched,
       total,
       page,
@@ -162,7 +175,7 @@ export class TenderService {
 
     return {
       status: 'success',
-      message: 'Mes appels d\'offres récupérés',
+      message: "Mes appels d'offres récupérés",
       data: data as any,
       total,
       page,
@@ -173,13 +186,16 @@ export class TenderService {
   async findById(id: string, userId?: string): Promise<any> {
     const tender = await this.tenderModel
       .findById(id)
-      .populate('lanceurId', 'userNickName userName raisonSocial userEmail userPhone')
+      .populate(
+        'lanceurId',
+        'userNickName userName raisonSocial userEmail userPhone',
+      )
       .populate('productId', 'productName codeCPC productImage')
       .populate('siteLivraison', 'siteName siteAddress')
       .populate('soumissionRetenue')
       .exec();
     if (!tender) {
-      throw new NotFoundException('Appel d\'offres introuvable');
+      throw new NotFoundException("Appel d'offres introuvable");
     }
 
     let hasBid = false;
@@ -201,10 +217,10 @@ export class TenderService {
     userId?: string,
   ): Promise<any[]> {
     if (!userId || !tenders.length) {
-      return tenders.map(t => ({ ...t.toObject(), hasBid: false }));
+      return tenders.map((t) => ({ ...t.toObject(), hasBid: false }));
     }
 
-    const tenderIds = tenders.map(t => t._id);
+    const tenderIds = tenders.map((t) => t._id);
     const userBids = await this.bidModel
       .find({
         soumissionnaireId: new Types.ObjectId(userId),
@@ -213,9 +229,11 @@ export class TenderService {
       .select('appelOffreId')
       .exec();
 
-    const bidTenderIds = new Set(userBids.map(b => b.appelOffreId.toString()));
+    const bidTenderIds = new Set(
+      userBids.map((b) => b.appelOffreId.toString()),
+    );
 
-    return tenders.map(t => ({
+    return tenders.map((t) => ({
       ...t.toObject(),
       hasBid: bidTenderIds.has(t._id.toString()),
     }));
@@ -224,16 +242,16 @@ export class TenderService {
   async cancel(userId: string, id: string): Promise<TenderDocument> {
     const tender = await this.tenderModel.findById(id);
     if (!tender) {
-      throw new NotFoundException('Appel d\'offres introuvable');
+      throw new NotFoundException("Appel d'offres introuvable");
     }
     if (tender.lanceurId.toString() !== userId) {
       throw new BadRequestException(
-        'Seul le lanceur peut annuler cet appel d\'offres',
+        "Seul le lanceur peut annuler cet appel d'offres",
       );
     }
     if (tender.statut !== TenderStatus.OUVERT) {
       throw new BadRequestException(
-        'Seuls les appels d\'offres ouverts peuvent être annulés',
+        "Seuls les appels d'offres ouverts peuvent être annulés",
       );
     }
 
@@ -250,11 +268,11 @@ export class TenderService {
   ): Promise<BidDocument> {
     const tender = await this.tenderModel.findById(dto.appelOffreId);
     if (!tender) {
-      throw new NotFoundException('Appel d\'offres introuvable');
+      throw new NotFoundException("Appel d'offres introuvable");
     }
     if (tender.statut !== TenderStatus.OUVERT) {
       throw new BadRequestException(
-        'Cet appel d\'offres n\'accepte plus de soumissions',
+        "Cet appel d'offres n'accepte plus de soumissions",
       );
     }
     if (new Date() > new Date(tender.dateLimite)) {
@@ -264,7 +282,7 @@ export class TenderService {
     }
     if (tender.lanceurId.toString() === userId) {
       throw new BadRequestException(
-        'Vous ne pouvez pas soumissionner à votre propre appel d\'offres',
+        "Vous ne pouvez pas soumissionner à votre propre appel d'offres",
       );
     }
 
@@ -273,7 +291,9 @@ export class TenderService {
       soumissionnaireId: new Types.ObjectId(userId),
     });
     if (existingBid) {
-      throw new BadRequestException('Vous avez déjà soumis une offre pour cet appel d\'offres');
+      throw new BadRequestException(
+        "Vous avez déjà soumis une offre pour cet appel d'offres",
+      );
     }
 
     let documentPieces = '';
@@ -301,21 +321,27 @@ export class TenderService {
       .populate('lanceurId', 'userEmail userNickName')
       .exec();
 
-    const bidder = await (bid as any)
-      .populate('soumissionnaireId', 'userNickName')
-      .execPopulate?.() || await this.bidModel.findById(bid._id).populate('soumissionnaireId', 'userNickName');
+    const bidder =
+      (await (bid as any)
+        .populate('soumissionnaireId', 'userNickName')
+        .execPopulate?.()) ||
+      (await this.bidModel
+        .findById(bid._id)
+        .populate('soumissionnaireId', 'userNickName'));
 
     if (fullTender && fullTender.lanceurId && bidder) {
       const lanceur: any = fullTender.lanceurId;
       const bidderInfo: any = bidder.soumissionnaireId;
-      
-      this.mailService.sendTenderBidNotification(
-        lanceur.userEmail,
-        fullTender.titre,
-        bidderInfo.userNickName || 'Un membre',
-        prixTotal,
-        `${process.env.FRONT_URL}/tenders/${fullTender._id}`,
-      ).catch(err => console.error('Erreur envoi mail soumission:', err));
+
+      this.mailService
+        .sendTenderBidNotification(
+          lanceur.userEmail,
+          fullTender.titre,
+          bidderInfo.userNickName || 'Un membre',
+          prixTotal,
+          `${process.env.FRONT_URL}/tenders/${fullTender._id}`,
+        )
+        .catch((err) => console.error('Erreur envoi mail soumission:', err));
     }
 
     return bid;
@@ -330,13 +356,17 @@ export class TenderService {
     const bid = await this.bidModel.findById(bidId);
     if (!bid) throw new NotFoundException('Soumission introuvable');
     if (bid.soumissionnaireId.toString() !== userId) {
-      throw new BadRequestException('Seul le soumissionnaire peut modifier cette offre');
+      throw new BadRequestException(
+        'Seul le soumissionnaire peut modifier cette offre',
+      );
     }
 
     const tender = await this.tenderModel.findById(bid.appelOffreId);
-    if (!tender) throw new NotFoundException('Appel d\'offres introuvable');
+    if (!tender) throw new NotFoundException("Appel d'offres introuvable");
     if (tender.statut !== TenderStatus.OUVERT) {
-      throw new BadRequestException('L\'appel d\'offres n\'est plus ouvert aux modifications');
+      throw new BadRequestException(
+        "L'appel d'offres n'est plus ouvert aux modifications",
+      );
     }
     if (new Date() > new Date(tender.dateLimite)) {
       throw new BadRequestException('La date limite est dépassée');
@@ -344,7 +374,10 @@ export class TenderService {
 
     const updateData: any = { ...dto };
     if (file) {
-      updateData.documentPieces = await this.uploadService.saveFile(file, 'bids');
+      updateData.documentPieces = await this.uploadService.saveFile(
+        file,
+        'bids',
+      );
     }
     if (dto.prixUnitaire || dto.quantite) {
       const pu = dto.prixUnitaire || bid.prixUnitaire;
@@ -352,7 +385,9 @@ export class TenderService {
       updateData.prixTotal = pu * q;
     }
 
-    const updatedBid = await this.bidModel.findByIdAndUpdate(bidId, updateData, { new: true }).exec();
+    const updatedBid = await this.bidModel
+      .findByIdAndUpdate(bidId, updateData, { new: true })
+      .exec();
     if (!updatedBid) throw new NotFoundException('Soumission introuvable');
     return updatedBid;
   }
@@ -361,13 +396,15 @@ export class TenderService {
     const bid = await this.bidModel.findById(bidId);
     if (!bid) throw new NotFoundException('Soumission introuvable');
     if (bid.soumissionnaireId.toString() !== userId) {
-      throw new BadRequestException('Seul le soumissionnaire peut retirer cette offre');
+      throw new BadRequestException(
+        'Seul le soumissionnaire peut retirer cette offre',
+      );
     }
 
     const tender = await this.tenderModel.findById(bid.appelOffreId);
-    if (!tender) throw new NotFoundException('Appel d\'offres introuvable');
+    if (!tender) throw new NotFoundException("Appel d'offres introuvable");
     if (tender.statut !== TenderStatus.OUVERT) {
-      throw new BadRequestException('L\'appel d\'offres n\'est plus ouvert');
+      throw new BadRequestException("L'appel d'offres n'est plus ouvert");
     }
 
     await this.bidModel.findByIdAndDelete(bidId);
@@ -379,13 +416,23 @@ export class TenderService {
   ): Promise<BidDocument[]> {
     const tender = await this.tenderModel.findById(tenderId);
     if (!tender) {
-      throw new NotFoundException('Appel d\'offres introuvable');
+      throw new NotFoundException("Appel d'offres introuvable");
     }
 
     const bids = await this.bidModel
       .find({ appelOffreId: new Types.ObjectId(tenderId) })
-      .populate('soumissionnaireId', 'userNickName userName raisonSocial userEmail userPhone')
-      .populate('productId', 'productName codeCPC productImage')
+      .populate(
+        'soumissionnaireId',
+        'userNickName userName raisonSocial userEmail userPhone',
+      )
+      .populate({
+        path: 'appelOffreId',
+        select: 'productId',
+        populate: {
+          path: 'productId',
+          select: 'productName codeCPC productImage',
+        },
+      })
       .sort({ prixTotal: 1 })
       .exec();
 
@@ -424,7 +471,14 @@ export class TenderService {
     const [data, total] = await Promise.all([
       this.bidModel
         .find(filter)
-        .populate('appelOffreId', 'titre description dateLimite statut')
+        .populate({
+          path: 'appelOffreId',
+          select: 'titre description dateLimite statut productId',
+          populate: {
+            path: 'productId',
+            select: 'productName codeCPC productImage',
+          },
+        })
         .populate('soumissionnaireId', 'userNickName userName raisonSocial')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -445,10 +499,13 @@ export class TenderService {
 
   // ===================== DEPOUILLEMENT & ATTRIBUTION =====================
 
-  async ouvrirDepouillement(userId: string, tenderId: string): Promise<TenderDocument> {
+  async ouvrirDepouillement(
+    userId: string,
+    tenderId: string,
+  ): Promise<TenderDocument> {
     const tender = await this.tenderModel.findById(tenderId);
     if (!tender) {
-      throw new NotFoundException('Appel d\'offres introuvable');
+      throw new NotFoundException("Appel d'offres introuvable");
     }
     if (tender.lanceurId.toString() !== userId) {
       throw new BadRequestException(
@@ -457,7 +514,7 @@ export class TenderService {
     }
     if (tender.statut !== TenderStatus.OUVERT) {
       throw new BadRequestException(
-        'Le dépouillement ne peut être ouvert que pour un appel d\'offres en cours',
+        "Le dépouillement ne peut être ouvert que pour un appel d'offres en cours",
       );
     }
 
@@ -473,16 +530,14 @@ export class TenderService {
   ): Promise<TenderDocument> {
     const tender = await this.tenderModel.findById(tenderId);
     if (!tender) {
-      throw new NotFoundException('Appel d\'offres introuvable');
+      throw new NotFoundException("Appel d'offres introuvable");
     }
     if (tender.lanceurId.toString() !== userId) {
-      throw new BadRequestException(
-        'Seul le lanceur peut attribuer le marché',
-      );
+      throw new BadRequestException('Seul le lanceur peut attribuer le marché');
     }
     if (tender.statut !== TenderStatus.DEPOUILLE) {
       throw new BadRequestException(
-        'Le dépouillement doit être effectué avant l\'attribution',
+        "Le dépouillement doit être effectué avant l'attribution",
       );
     }
 
@@ -492,7 +547,7 @@ export class TenderService {
     }
     if (bid.appelOffreId.toString() !== tenderId) {
       throw new BadRequestException(
-        'Cette soumission ne correspond pas à cet appel d\'offres',
+        "Cette soumission ne correspond pas à cet appel d'offres",
       );
     }
 
@@ -526,22 +581,28 @@ export class TenderService {
     // Notifications
     try {
       // 1. Notifier le gagnant
-      const winner = await (bid as any)
-        .populate('soumissionnaireId', 'userEmail userNickName')
-        .execPopulate?.() || await this.bidModel.findById(bid._id).populate('soumissionnaireId', 'userEmail userNickName');
-      
+      const winner =
+        (await (bid as any)
+          .populate('soumissionnaireId', 'userEmail userNickName')
+          .execPopulate?.()) ||
+        (await this.bidModel
+          .findById(bid._id)
+          .populate('soumissionnaireId', 'userEmail userNickName'));
+
       const winnerInfo: any = winner.soumissionnaireId;
       if (winnerInfo?.userEmail) {
-        this.mailService.sendTenderAwardNotification(
-          winnerInfo.userEmail,
-          winnerInfo.userNickName,
-          tender.titre,
-          bid.quantite,
-          tender.unite,
-          bid.prixUnitaire,
-          bid.prixTotal,
-          `${process.env.FRONT_URL}/my-bids`,
-        ).catch(e => console.error('Mail winner error:', e));
+        this.mailService
+          .sendTenderAwardNotification(
+            winnerInfo.userEmail,
+            winnerInfo.userNickName,
+            tender.titre,
+            bid.quantite,
+            tender.unite,
+            bid.prixUnitaire,
+            bid.prixTotal,
+            `${process.env.FRONT_URL}/my-bids`,
+          )
+          .catch((e) => console.error('Mail winner error:', e));
       }
 
       // 2. Notifier les perdants
@@ -556,11 +617,13 @@ export class TenderService {
       for (const loser of losers) {
         const loserInfo: any = loser.soumissionnaireId;
         if (loserInfo?.userEmail) {
-          this.mailService.sendTenderRejectionNotification(
-            loserInfo.userEmail,
-            loserInfo.userNickName,
-            tender.titre,
-          ).catch(e => console.error('Mail loser error:', e));
+          this.mailService
+            .sendTenderRejectionNotification(
+              loserInfo.userEmail,
+              loserInfo.userNickName,
+              tender.titre,
+            )
+            .catch((e) => console.error('Mail loser error:', e));
         }
       }
     } catch (error) {

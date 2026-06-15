@@ -407,13 +407,21 @@ export class MailService {
   ) {
     let templateName: string;
     if (transactionTypeEnum === TransactionType.DEPOT) {
-      templateName = isDestinataire ? 'transaction-depot-created-destinataire' : 'transaction-depot-created';
+      templateName = isDestinataire
+        ? 'transaction-depot-created-destinataire'
+        : 'transaction-depot-created';
     } else if (transactionTypeEnum === TransactionType.INITIALISATION) {
-      templateName = isDestinataire ? 'transaction-initialized-destinataire' : 'transaction-initialized';
+      templateName = isDestinataire
+        ? 'transaction-initialized-destinataire'
+        : 'transaction-initialized';
     } else if (transactionTypeEnum === TransactionType.VENTE) {
-      templateName = isDestinataire ? 'transaction-vente-created-destinataire' : 'transaction-vente-created';
+      templateName = isDestinataire
+        ? 'transaction-vente-created-destinataire'
+        : 'transaction-vente-created';
     } else {
-      templateName = isDestinataire ? 'transaction-retrait-created-destinataire' : 'transaction-retrait-created';
+      templateName = isDestinataire
+        ? 'transaction-retrait-created-destinataire'
+        : 'transaction-retrait-created';
     }
 
     await this.mailQueue.enqueue({

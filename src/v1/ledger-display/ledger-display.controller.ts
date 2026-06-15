@@ -102,7 +102,9 @@ Erreurs possibles:
           passifs: ledger.movements.passifs,
           // Optionnel: Liste consolidée pour un flux global
           all: [...ledger.movements.actifs, ...ledger.movements.passifs].sort(
-            (a, b) => new Date(b.dateTime || 0).getTime() - new Date(a.dateTime || 0).getTime(),
+            (a, b) =>
+              new Date(b.dateTime || 0).getTime() -
+              new Date(a.dateTime || 0).getTime(),
           ),
         },
       },
@@ -116,22 +118,34 @@ Erreurs possibles:
   @Auth()
   @ApiOperation({
     summary: "Exporter le grand livre d'un utilisateur en CSV, Excel ou PDF",
-    description: "Génère un fichier contenant tous les mouvements d'un utilisateur spécifique.",
+    description:
+      "Génère un fichier contenant tous les mouvements d'un utilisateur spécifique.",
   })
   @ApiParam({
     name: 'userId',
     description: "ID unique de l'utilisateur",
   })
-  @ApiQuery({ name: 'format', required: false, enum: ['csv', 'excel', 'pdf'], description: "Format d'export (défaut: csv)" })
+  @ApiQuery({
+    name: 'format',
+    required: false,
+    enum: ['csv', 'excel', 'pdf'],
+    description: "Format d'export (défaut: csv)",
+  })
   @ApiResponse({
     status: 200,
     description: 'URL du fichier généré',
   })
-  async exportUserLedger(@Param('userId') userId: string, @Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<StreamableFile> {
+  async exportUserLedger(
+    @Param('userId') userId: string,
+    @Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv',
+  ): Promise<StreamableFile> {
     if (!userId || userId.length !== 24) {
       throw new BadRequestException('Un ID utilisateur valide est requis');
     }
-    const result = await this.ledgerDisplayService.exportUserLedger(userId, format);
+    const result = await this.ledgerDisplayService.exportUserLedger(
+      userId,
+      format,
+    );
     return new StreamableFile(result.buffer, {
       type: result.mimeType,
       disposition: `attachment; filename="${result.filename}"`,
@@ -221,12 +235,19 @@ Erreurs possibles:
     summary: 'Exporter le grand livre global en CSV, Excel ou PDF',
     description: 'Génère un fichier contenant tous les mouvements du système.',
   })
-  @ApiQuery({ name: 'format', required: false, enum: ['csv', 'excel', 'pdf'], description: "Format d'export (défaut: csv)" })
+  @ApiQuery({
+    name: 'format',
+    required: false,
+    enum: ['csv', 'excel', 'pdf'],
+    description: "Format d'export (défaut: csv)",
+  })
   @ApiResponse({
     status: 200,
     description: 'URL du fichier généré',
   })
-  async exportGlobalLedger(@Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<StreamableFile> {
+  async exportGlobalLedger(
+    @Query('format') format: 'csv' | 'excel' | 'pdf' = 'csv',
+  ): Promise<StreamableFile> {
     const result = await this.ledgerDisplayService.exportGlobalLedger(format);
     return new StreamableFile(result.buffer, {
       type: result.mimeType,

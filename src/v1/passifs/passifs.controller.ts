@@ -1,4 +1,12 @@
-import { Controller, Get, Param, Query, Req, BadRequestException, StreamableFile } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  Req,
+  BadRequestException,
+  StreamableFile,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { PassifsService } from './passifs.service';
 import { Auth } from '../auth';
@@ -11,7 +19,7 @@ export class PassifsController {
   @Get(':id')
   @Auth()
   @ApiOperation({
-    summary: 'Détails complets d\'un passif (obligation/dette)',
+    summary: "Détails complets d'un passif (obligation/dette)",
     description: `Récupère les informations détaillées d\'un PASSIF spécifique: une obligation de rembourser une marchandise.
 
 Définition PASSIF:\n- Ressource NÉGATIVE au bilan
@@ -24,7 +32,8 @@ Création d\'un passif:\nUn passif est créé quand:\n1. Je REÇOIS un DÉPÔT: 
   })
   @ApiResponse({
     status: 200,
-    description: 'Détails complets du passif avec créancier, quantité due et remboursements',
+    description:
+      'Détails complets du passif avec créancier, quantité due et remboursements',
     schema: {
       example: {
         _id: '507f1f77bcf86cd799439060',
@@ -60,7 +69,7 @@ Création d\'un passif:\nUn passif est créé quand:\n1. Je REÇOIS un DÉPÔT: 
     },
   })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
-  @ApiResponse({ status: 403, description: 'Pas d\'accès à ce passif' })
+  @ApiResponse({ status: 403, description: "Pas d'accès à ce passif" })
   @ApiResponse({ status: 404, description: 'Passif non trouvé' })
   async findOne(@Param('id') id: string) {
     return this.passifsService.getPassifDetails(id);
@@ -69,7 +78,7 @@ Création d\'un passif:\nUn passif est créé quand:\n1. Je REÇOIS un DÉPÔT: 
   @Get('all-by-site/:siteId')
   @Auth()
   @ApiOperation({
-    summary: 'Récupère tous les passifs d\'un site pour un select2',
+    summary: "Récupère tous les passifs d'un site pour un select2",
     description: `Récupère tous les passifs (dettes) disponibles sur un site sans pagination.
     
 Retourne:
@@ -111,14 +120,21 @@ Conditions:
   @Get('export')
   @Auth()
   @ApiOperation({ summary: 'Exporter les données en Excel ou PDF' })
-  @ApiQuery({ name: 'format', required: true, enum: ['excel', 'pdf'], description: "Format d'export: excel ou pdf" })
+  @ApiQuery({
+    name: 'format',
+    required: true,
+    enum: ['excel', 'pdf'],
+    description: "Format d'export: excel ou pdf",
+  })
   @ApiResponse({ status: 200, description: 'URL du fichier généré' })
   async exportAll(
     @Query('format') format: 'excel' | 'pdf',
     @Req() req: any,
   ): Promise<StreamableFile> {
     if (!format || !['excel', 'pdf'].includes(format)) {
-      throw new BadRequestException('Format invalide. Utilisez "excel" ou "pdf".');
+      throw new BadRequestException(
+        'Format invalide. Utilisez "excel" ou "pdf".',
+      );
     }
     const userId = req.user?.userId || 'system';
     const result = await this.passifsService.exportAll(format, userId);

@@ -82,7 +82,7 @@ import { CartModule } from './v1/cart/cart.module';
           { path: 'shop', module: ShopAvailableModule },
           { path: 'tenders', module: TenderModule },
           { path: 'cart', module: CartModule },
-          {path: '', module: MailModule}
+          { path: '', module: MailModule },
         ],
       },
       {

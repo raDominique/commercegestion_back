@@ -29,7 +29,7 @@ export class ShopAvailableController {
   @Post('shop-items')
   @Auth()
   @ApiOperation({
-    summary: "Mettre un actif en vente",
+    summary: 'Mettre un actif en vente',
     description: `Crée une annonce de vente à partir d'un actif existant.
 Le vendeur spécifie le produit, la quantité et le prix unitaire.
 La quantité est vérifiée par rapport à l'actif détenu.`,
@@ -47,13 +47,24 @@ La quantité est vérifiée par rapport à l'actif détenu.`,
   @Auth()
   @ApiOperation({
     summary: 'Lister toutes les annonces actives',
-    description: 'Liste paginée des produits mis en vente par les utilisateurs.',
+    description:
+      'Liste paginée des produits mis en vente par les utilisateurs.',
   })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
   @ApiQuery({ name: 'search', required: false, type: String })
-  @ApiQuery({ name: 'sortBy', required: false, type: String, example: 'createdAt' })
-  @ApiQuery({ name: 'order', required: false, enum: ['asc', 'desc'], example: 'desc' })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    type: String,
+    example: 'createdAt',
+  })
+  @ApiQuery({
+    name: 'order',
+    required: false,
+    enum: ['asc', 'desc'],
+    example: 'desc',
+  })
   @ApiResponse({ status: 200, description: 'Liste des annonces' })
   async findAll(
     @Query('page') page = '1',
@@ -75,14 +86,32 @@ La quantité est vérifiée par rapport à l'actif détenu.`,
   @Auth()
   @ApiOperation({
     summary: 'Mes annonces de vente',
-    description: "Liste paginée de mes propres annonces. Par défaut, seules les annonces actives sont retournées. Utilisez `statut=ALL` pour toutes.",
+    description:
+      'Liste paginée de mes propres annonces. Par défaut, seules les annonces actives sont retournées. Utilisez `statut=ALL` pour toutes.',
   })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
   @ApiQuery({ name: 'search', required: false, type: String })
-  @ApiQuery({ name: 'sortBy', required: false, type: String, example: 'createdAt' })
-  @ApiQuery({ name: 'order', required: false, enum: ['asc', 'desc'], example: 'desc' })
-  @ApiQuery({ name: 'statut', required: false, type: String, example: 'ACTIVE', description: "Filtrer par statut (ACTIVE, SOLD, CANCELLED, ou ALL pour tout voir)" })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    type: String,
+    example: 'createdAt',
+  })
+  @ApiQuery({
+    name: 'order',
+    required: false,
+    enum: ['asc', 'desc'],
+    example: 'desc',
+  })
+  @ApiQuery({
+    name: 'statut',
+    required: false,
+    type: String,
+    example: 'ACTIVE',
+    description:
+      'Filtrer par statut (ACTIVE, SOLD, CANCELLED, ou ALL pour tout voir)',
+  })
   @ApiResponse({ status: 200, description: 'Mes annonces' })
   async findMine(
     @Req() req: any,
@@ -123,8 +152,9 @@ La quantité est vérifiée par rapport à l'actif détenu.`,
   @Delete('shop-items/:id')
   @Auth()
   @ApiOperation({
-    summary: "Annuler une mise en vente",
-    description: "Seul le vendeur peut annuler sa propre annonce et seulement si elle est encore active.",
+    summary: 'Annuler une mise en vente',
+    description:
+      'Seul le vendeur peut annuler sa propre annonce et seulement si elle est encore active.',
   })
   @ApiParam({ name: 'id', description: "ID de l'annonce" })
   @ApiResponse({ status: 200, description: 'Annonce annulée' })

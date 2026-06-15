@@ -1,7 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { ShopAvailable, ShopAvailableDocument, ShopAvailableStatus } from './shop-available.schema';
+import {
+  ShopAvailable,
+  ShopAvailableDocument,
+  ShopAvailableStatus,
+} from './shop-available.schema';
 import { CreateShopItemDto } from './dto/create-shop-item.dto';
 import { ActifsService } from '../actifs/actifs.service';
 import { PaginationResult } from '../../shared/interfaces/pagination.interface';
@@ -52,9 +60,7 @@ export class ShopAvailableService {
     const filter: any = { statut: ShopAvailableStatus.ACTIVE };
 
     if (search) {
-      filter.$or = [
-        { description: { $regex: search, $options: 'i' } },
-      ];
+      filter.$or = [{ description: { $regex: search, $options: 'i' } }];
     }
 
     const sortOrder = order === 'asc' ? 1 : -1;
@@ -64,7 +70,10 @@ export class ShopAvailableService {
       this.shopModel
         .find(filter)
         .populate('vendeurId', 'userNickName userName raisonSocial')
-        .populate('productId', 'productName codeCPC productImage productDescription')
+        .populate(
+          'productId',
+          'productName codeCPC productImage productDescription',
+        )
         .populate('siteId', 'siteName siteAddress')
         .sort({ [sortBy]: sortOrder })
         .skip(skip)
@@ -110,7 +119,10 @@ export class ShopAvailableService {
       this.shopModel
         .find(filter)
         .populate('vendeurId', 'userNickName userName raisonSocial')
-        .populate('productId', 'productName codeCPC productImage productDescription')
+        .populate(
+          'productId',
+          'productName codeCPC productImage productDescription',
+        )
         .populate('siteId', 'siteName siteAddress')
         .sort({ [sortBy]: order === 'asc' ? 1 : -1 })
         .skip(skip)
@@ -133,7 +145,10 @@ export class ShopAvailableService {
     const item = await this.shopModel
       .findById(id)
       .populate('vendeurId', 'userNickName userName raisonSocial')
-      .populate('productId', 'productName codeCPC productImage productDescription')
+      .populate(
+        'productId',
+        'productName codeCPC productImage productDescription',
+      )
       .populate('siteId', 'siteName siteAddress')
       .exec();
     if (!item) {
@@ -148,10 +163,14 @@ export class ShopAvailableService {
       throw new NotFoundException('Annonce introuvable');
     }
     if (item.vendeurId.toString() !== userId) {
-      throw new BadRequestException('Vous ne pouvez annuler que vos propres annonces');
+      throw new BadRequestException(
+        'Vous ne pouvez annuler que vos propres annonces',
+      );
     }
     if (item.statut !== ShopAvailableStatus.ACTIVE) {
-      throw new BadRequestException('Seules les annonces actives peuvent être annulées');
+      throw new BadRequestException(
+        'Seules les annonces actives peuvent être annulées',
+      );
     }
 
     item.statut = ShopAvailableStatus.CANCELLED;

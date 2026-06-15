@@ -12,7 +12,10 @@ import { AuditService } from 'src/v1/audit/audit.service';
 import { LoggerService } from 'src/common/logger/logger.service';
 import { AuditAction, EntityType } from 'src/v1/audit/audit-log.schema';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
-import { ExportService, ExportResult } from '../../shared/export/export.service';
+import {
+  ExportService,
+  ExportResult,
+} from '../../shared/export/export.service';
 import * as path from 'node:path';
 import * as XLSX from 'xlsx';
 import { Readable } from 'node:stream';
@@ -310,7 +313,9 @@ export class CpcService {
   // EXPORT ET BULK
   // ==========================================
 
-  async exportCpc(format: 'csv' | 'excel' | 'pdf' = 'csv'): Promise<ExportResult> {
+  async exportCpc(
+    format: 'csv' | 'excel' | 'pdf' = 'csv',
+  ): Promise<ExportResult> {
     const data = await this.model.find().sort({ code: 1 }).lean().exec();
     if (!data.length) throw new NotFoundException('Aucun CPC à exporter');
 
@@ -322,15 +327,29 @@ export class CpcService {
     ];
 
     if (format === 'excel') {
-      return this.exportService.exportExcel(data, columns, 'CPC', `export_cpc_${Date.now()}.xlsx`);
+      return this.exportService.exportExcel(
+        data,
+        columns,
+        'CPC',
+        `export_cpc_${Date.now()}.xlsx`,
+      );
     }
     if (format === 'pdf') {
-      return this.exportService.exportPDF('Liste des CPC', columns.map(c => c.header), data.map(item => columns.map(c => String(item[c.key] ?? ''))), `export_cpc_${Date.now()}.pdf`);
+      return this.exportService.exportPDF(
+        'Liste des CPC',
+        columns.map((c) => c.header),
+        data.map((item) => columns.map((c) => String(item[c.key] ?? ''))),
+        `export_cpc_${Date.now()}.pdf`,
+      );
     }
 
     const fields = ['code', 'nom', 'niveau', 'parentCode', 'correspondances'];
 
-    return this.exportService.exportCSV(data, fields, `export_cpc_${Date.now()}.csv`);
+    return this.exportService.exportCSV(
+      data,
+      fields,
+      `export_cpc_${Date.now()}.csv`,
+    );
   }
 
   async bulkCreate(

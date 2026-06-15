@@ -1,4 +1,14 @@
-import { Controller, Post, Body, Req, Get, Query, Param, BadRequestException, StreamableFile } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Req,
+  Get,
+  Query,
+  Param,
+  BadRequestException,
+  StreamableFile,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { Auth } from '../auth';
 import { CreateMovementDto } from './dto/create-movement.dto';
@@ -455,14 +465,21 @@ Erreurs possibles:
   @Get('export')
   @Auth()
   @ApiOperation({ summary: 'Exporter les données en Excel ou PDF' })
-  @ApiQuery({ name: 'format', required: true, enum: ['excel', 'pdf'], description: "Format d'export: excel ou pdf" })
+  @ApiQuery({
+    name: 'format',
+    required: true,
+    enum: ['excel', 'pdf'],
+    description: "Format d'export: excel ou pdf",
+  })
   @ApiResponse({ status: 200, description: 'URL du fichier généré' })
   async exportAll(
     @Query('format') format: 'excel' | 'pdf',
     @Req() req: any,
   ): Promise<StreamableFile> {
     if (!format || !['excel', 'pdf'].includes(format)) {
-      throw new BadRequestException('Format invalide. Utilisez "excel" ou "pdf".');
+      throw new BadRequestException(
+        'Format invalide. Utilisez "excel" ou "pdf".',
+      );
     }
     const userId = req.user?.userId || 'system';
     const result = await this.stockService.exportAll(format, userId);

@@ -32,7 +32,10 @@ export class CartController {
   @Get()
   @Auth()
   @ApiOperation({ summary: 'Voir mon panier' })
-  @ApiResponse({ status: 200, description: 'Panier récupéré avec le total et le nombre d\'articles.' })
+  @ApiResponse({
+    status: 200,
+    description: "Panier récupéré avec le total et le nombre d'articles.",
+  })
   @ApiResponse({ status: 401, description: 'Non authentifié.' })
   async getCart(@Req() req: any) {
     return this.cartService.getCart(req.user.userId);
@@ -42,8 +45,14 @@ export class CartController {
   @Auth()
   @ApiOperation({ summary: 'Ajouter un article au panier' })
   @ApiBody({ type: AddCartItemDto })
-  @ApiResponse({ status: 201, description: 'Article ajouté. Retourne le panier mis à jour.' })
-  @ApiResponse({ status: 400, description: 'Quantité insuffisante ou annonce inactive.' })
+  @ApiResponse({
+    status: 201,
+    description: 'Article ajouté. Retourne le panier mis à jour.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Quantité insuffisante ou annonce inactive.',
+  })
   @ApiResponse({ status: 401, description: 'Non authentifié.' })
   @ApiResponse({ status: 404, description: 'Annonce introuvable.' })
   async addItem(@Body() dto: AddCartItemDto, @Req() req: any) {
@@ -52,28 +61,47 @@ export class CartController {
 
   @Patch('item/:shopItemId')
   @Auth()
-  @ApiOperation({ summary: 'Modifier la quantité d\'un article' })
+  @ApiOperation({ summary: "Modifier la quantité d'un article" })
   @ApiParam({ name: 'shopItemId', description: 'ID du ShopAvailable' })
   @ApiBody({ type: UpdateCartItemDto })
-  @ApiResponse({ status: 200, description: 'Quantité mise à jour. Retourne le panier.' })
-  @ApiResponse({ status: 400, description: 'Quantité insuffisante ou annonce inactive.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Quantité mise à jour. Retourne le panier.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Quantité insuffisante ou annonce inactive.',
+  })
   @ApiResponse({ status: 401, description: 'Non authentifié.' })
-  @ApiResponse({ status: 404, description: 'Article introuvable dans le panier.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Article introuvable dans le panier.',
+  })
   async updateItem(
     @Param('shopItemId') shopItemId: string,
     @Body() dto: UpdateCartItemDto,
     @Req() req: any,
   ) {
-    return this.cartService.updateItemQuantity(req.user.userId, shopItemId, dto);
+    return this.cartService.updateItemQuantity(
+      req.user.userId,
+      shopItemId,
+      dto,
+    );
   }
 
   @Delete('item/:shopItemId')
   @Auth()
   @ApiOperation({ summary: 'Retirer un article du panier' })
   @ApiParam({ name: 'shopItemId', description: 'ID du ShopAvailable' })
-  @ApiResponse({ status: 200, description: 'Article retiré. Retourne le panier mis à jour.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Article retiré. Retourne le panier mis à jour.',
+  })
   @ApiResponse({ status: 401, description: 'Non authentifié.' })
-  @ApiResponse({ status: 404, description: 'Article introuvable dans le panier.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Article introuvable dans le panier.',
+  })
   async removeItem(@Param('shopItemId') shopItemId: string, @Req() req: any) {
     return this.cartService.removeItem(req.user.userId, shopItemId);
   }
@@ -90,13 +118,16 @@ export class CartController {
   @Post('checkout')
   @Auth()
   @ApiOperation({
-    summary: 'Valider le panier et créer les transactions d\'achat',
+    summary: "Valider le panier et créer les transactions d'achat",
     description:
       'Crée une transaction VENTE par article dans le panier, regroupe dans une commande, puis vide le panier.',
   })
   @ApiBody({ type: CheckoutDto })
   @ApiResponse({ status: 201, description: 'Commande créée avec succès.' })
-  @ApiResponse({ status: 400, description: 'Panier vide ou échec de création des transactions.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Panier vide ou échec de création des transactions.',
+  })
   @ApiResponse({ status: 401, description: 'Non authentifié.' })
   async checkout(@Body() dto: CheckoutDto, @Req() req: any) {
     return this.cartService.checkout(req.user.userId, dto);
@@ -105,8 +136,20 @@ export class CartController {
   @Get('orders')
   @Auth()
   @ApiOperation({ summary: 'Historique de mes commandes avec pagination' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1, description: 'Numéro de la page' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10, description: 'Nombre d\'éléments par page' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    example: 1,
+    description: 'Numéro de la page',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    example: 10,
+    description: "Nombre d'éléments par page",
+  })
   @ApiResponse({ status: 200, description: 'Liste paginée des commandes.' })
   @ApiResponse({ status: 401, description: 'Non authentifié.' })
   async getOrders(
@@ -119,7 +162,7 @@ export class CartController {
 
   @Get('orders/:orderId')
   @Auth()
-  @ApiOperation({ summary: 'Détail d\'une commande' })
+  @ApiOperation({ summary: "Détail d'une commande" })
   @ApiParam({ name: 'orderId', description: 'ID de la commande' })
   @ApiResponse({ status: 200, description: 'Commande trouvée.' })
   @ApiResponse({ status: 401, description: 'Non authentifié.' })

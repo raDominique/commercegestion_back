@@ -150,7 +150,7 @@ export class ProductController {
   @ApiOperation({
     summary: 'Valider tous les produits non validés (ADMIN)',
     description:
-      "Valide en masse tous les produits en attente de validation. Notifie chaque propriétaire.",
+      'Valide en masse tous les produits en attente de validation. Notifie chaque propriétaire.',
   })
   @ApiResponse({ status: 200, description: 'Produits validés.' })
   async validateAll() {
@@ -241,17 +241,21 @@ export class ProductController {
   @ApiResponse({
     status: 200,
     description: 'Liste des produits validés récupérée.',
-    schema: { example: {
-      status: 'success',
-      message: 'Liste des produits validés récupérée',
-      data: [ {
-        _id: '65dcf...',
-        productImage: '/upload/products/hash.jpg',
-        productName: 'Blé dur',
-        categoryNom: 'Céréales',
-        codeCPC: '01111',
-      }]
-    } },
+    schema: {
+      example: {
+        status: 'success',
+        message: 'Liste des produits validés récupérée',
+        data: [
+          {
+            _id: '65dcf...',
+            productImage: '/upload/products/hash.jpg',
+            productName: 'Blé dur',
+            categoryNom: 'Céréales',
+            codeCPC: '01111',
+          },
+        ],
+      },
+    },
   })
   async getActiveProducts(@Query() query: any) {
     return this.productService.getSelectProducts(query);
@@ -260,14 +264,21 @@ export class ProductController {
   @Get('export')
   @Auth()
   @ApiOperation({ summary: 'Exporter les données en Excel ou PDF' })
-  @ApiQuery({ name: 'format', required: true, enum: ['excel', 'pdf'], description: "Format d'export: excel ou pdf" })
+  @ApiQuery({
+    name: 'format',
+    required: true,
+    enum: ['excel', 'pdf'],
+    description: "Format d'export: excel ou pdf",
+  })
   @ApiResponse({ status: 200, description: 'URL du fichier généré' })
   async exportAll(
     @Query('format') format: 'excel' | 'pdf',
     @Req() req: any,
   ): Promise<StreamableFile> {
     if (!format || !['excel', 'pdf'].includes(format)) {
-      throw new BadRequestException('Format invalide. Utilisez "excel" ou "pdf".');
+      throw new BadRequestException(
+        'Format invalide. Utilisez "excel" ou "pdf".',
+      );
     }
     const userId = req.user?.userId || 'system';
     const result = await this.productService.exportAll(format, userId);

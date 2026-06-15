@@ -14,7 +14,10 @@ import {
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { LoggerService } from 'src/common/logger/logger.service';
 import { MailService } from 'src/shared/mail/mail.service';
-import { ExportService, ExportResult } from '../../shared/export/export.service';
+import {
+  ExportService,
+  ExportResult,
+} from '../../shared/export/export.service';
 
 @Injectable()
 export class StockService {
@@ -142,11 +145,11 @@ export class StockService {
   ): Promise<void> {
     // Utiliser les détenteur et ayant-droit fournis, sinon utiliser les defaults
     // IMPORTANT: Cette logique est critique pour la cohérence Actifs/Passifs
-    
+
     // Détenteur: qui garde physiquement le produit
     // Default: propriétaire du site de destination
     const detentaireId = dto.detentaire || siteDestOwnerId;
-    
+
     // Ayant-droit: qui possède légalement le produit
     // Default: l'utilisateur qui effectue le dépôt (userId)
     const ayantDroitId = dto.ayant_droit || userId;
@@ -297,7 +300,10 @@ export class StockService {
 
     // 3. Transfert de créance entre ancienProprietaire et nouveauProprietaire
     // Si le détentaire n'est pas le propriétaire, la dette change de créancier
-    if (detentaireId !== ancienProprietaire || detentaireId !== nouveauProprietaire) {
+    if (
+      detentaireId !== ancienProprietaire ||
+      detentaireId !== nouveauProprietaire
+    ) {
       await this.passifsService.updateCreancier(
         detentaireId,
         dto.productId,
@@ -621,8 +627,15 @@ export class StockService {
     };
   }
 
-  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<ExportResult> {
-    const items = await this.movementModel.find().sort({ createdAt: -1 }).lean().exec();
+  async exportAll(
+    format: 'excel' | 'pdf',
+    userId?: string,
+  ): Promise<ExportResult> {
+    const items = await this.movementModel
+      .find()
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
 
     if (!items.length) {
       throw new NotFoundException('Aucune donnée à exporter');
@@ -640,12 +653,17 @@ export class StockService {
     ];
 
     if (format === 'excel') {
-      return this.exportService.exportExcel(items, columns, 'Mouvements', `export_stock_${Date.now()}.xlsx`);
+      return this.exportService.exportExcel(
+        items,
+        columns,
+        'Mouvements',
+        `export_stock_${Date.now()}.xlsx`,
+      );
     }
     return this.exportService.exportPDF(
       'Liste des Mouvements de Stock',
-      columns.map(c => c.header),
-      items.map(item => columns.map(c => item[c.key] ?? '')),
+      columns.map((c) => c.header),
+      items.map((item) => columns.map((c) => item[c.key] ?? '')),
       `export_stock_${Date.now()}.pdf`,
     );
   }

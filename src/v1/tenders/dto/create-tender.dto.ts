@@ -13,22 +13,23 @@ import {
 export class CreateTenderDto {
   @ApiProperty({
     example: '64b8f0c2e1d3f2a5c6b7d8e9',
-    description: 'ID technique du produit faisant l\'objet de l\'appel d\'offres',
+    description: "ID technique du produit faisant l'objet de l'appel d'offres",
   })
   @IsMongoId()
   @IsNotEmpty()
   productId: string;
 
   @ApiProperty({
-    example: "Fourniture de 100 tonnes de Maïs jaune",
-    description: "Titre clair et précis de votre besoin",
+    example: 'Fourniture de 100 tonnes de Maïs jaune',
+    description: 'Titre clair et précis de votre besoin',
   })
   @IsString()
   @IsNotEmpty()
   titre: string;
 
   @ApiProperty({
-    example: 'Description détaillée incluant les spécifications techniques, la qualité attendue, etc.',
+    example:
+      'Description détaillée incluant les spécifications techniques, la qualité attendue, etc.',
     description: 'Cahier des charges ou description complète du besoin',
   })
   @IsString()

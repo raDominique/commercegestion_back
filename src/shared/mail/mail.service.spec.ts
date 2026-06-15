@@ -39,7 +39,11 @@ describe('MailService', () => {
   });
 
   it('verificationAccountUser() should enqueue the correct payload', async () => {
-    await service.verificationAccountUser('user@test.com', 'Alice', 'http://verify.link');
+    await service.verificationAccountUser(
+      'user@test.com',
+      'Alice',
+      'http://verify.link',
+    );
 
     expect(mockMailQueueService.enqueue).toHaveBeenCalledTimes(1);
     expect(mockMailQueueService.enqueue).toHaveBeenCalledWith(
@@ -52,7 +56,11 @@ describe('MailService', () => {
   });
 
   it('sendParrainValidationEmail() should enqueue the correct payload', async () => {
-    await service.sendParrainValidationEmail('parrain@test.com', 'Bob', 'http://validate.link');
+    await service.sendParrainValidationEmail(
+      'parrain@test.com',
+      'Bob',
+      'http://validate.link',
+    );
 
     expect(mockMailQueueService.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({

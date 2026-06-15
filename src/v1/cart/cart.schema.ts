@@ -35,7 +35,13 @@ export type CartDocument = Cart & Document;
 
 @Schema({ timestamps: true })
 export class Cart {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, unique: true, index: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'User',
+    required: true,
+    unique: true,
+    index: true,
+  })
   userId: Types.ObjectId;
 
   @Prop({ type: [CartItem], default: [] })
@@ -64,7 +70,11 @@ export class Order {
   @Prop({ required: true, min: 0 })
   total: number;
 
-  @Prop({ type: String, enum: Object.values(OrderStatus), default: OrderStatus.PENDING })
+  @Prop({
+    type: String,
+    enum: Object.values(OrderStatus),
+    default: OrderStatus.PENDING,
+  })
   status: OrderStatus;
 
   @Prop({ type: [Types.ObjectId], ref: 'Transaction', default: [] })

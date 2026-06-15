@@ -31,7 +31,10 @@ import { CreateMovementDto } from '../stock/dto/create-movement.dto';
 import { UsersService } from '../users/users.service';
 import { SiteService } from '../sites/sites.service';
 import { LoggerService } from 'src/common/logger/logger.service';
-import { ExportService, ExportResult } from '../../shared/export/export.service';
+import {
+  ExportService,
+  ExportResult,
+} from '../../shared/export/export.service';
 
 @Injectable()
 export class TransactionsService {
@@ -828,7 +831,10 @@ export class TransactionsService {
       );
       const productName = product?.data?.[0]?.productName || 'Produit';
 
-      const recipientType = this.getTransactionTypeLabel(transaction.type, false);
+      const recipientType = this.getTransactionTypeLabel(
+        transaction.type,
+        false,
+      );
 
       await this.mailService.notificationTransactionApproved(
         recipientEmail,
@@ -849,7 +855,10 @@ export class TransactionsService {
         transaction.initiatorId.toString(),
       );
       const initiatorEmail = initiatorUser.userEmail;
-      const initiatorType = this.getTransactionTypeLabel(transaction.type, true);
+      const initiatorType = this.getTransactionTypeLabel(
+        transaction.type,
+        true,
+      );
       await this.mailService.notificationTransactionApproved(
         initiatorEmail,
         initiatorUser.userName,
@@ -896,7 +905,10 @@ export class TransactionsService {
         transaction.recipientId.toString(),
       );
       const recipientEmail = recipientUser.userEmail;
-      const recipientType = this.getTransactionTypeLabel(transaction.type, false);
+      const recipientType = this.getTransactionTypeLabel(
+        transaction.type,
+        false,
+      );
 
       await this.mailService.notificationTransactionRejected(
         recipientEmail,
@@ -918,7 +930,10 @@ export class TransactionsService {
         transaction.initiatorId.toString(),
       );
       const initiatorEmail = initiatorUser.userEmail;
-      const initiatorType = this.getTransactionTypeLabel(transaction.type, true);
+      const initiatorType = this.getTransactionTypeLabel(
+        transaction.type,
+        true,
+      );
       await this.mailService.notificationTransactionRejected(
         initiatorEmail,
         initiatorUser.userName,
@@ -1022,7 +1037,10 @@ export class TransactionsService {
 
       if (recipientUser && recipientUser.userEmail) {
         try {
-          const recipientType = this.getTransactionTypeLabel(transaction.type, false);
+          const recipientType = this.getTransactionTypeLabel(
+            transaction.type,
+            false,
+          );
           await this.mailService.notificationTransactionCreated(
             recipientUser.userEmail,
             recipientUser.userName,
@@ -1051,7 +1069,10 @@ export class TransactionsService {
       // --- ÉTAPE 2 : Mail à l'INITIATEUR (acheteur pour VENTE) ---
       if (initiatorUser.userEmail) {
         try {
-          const initiatorType = this.getTransactionTypeLabel(transaction.type, true);
+          const initiatorType = this.getTransactionTypeLabel(
+            transaction.type,
+            true,
+          );
           await this.mailService.notificationTransactionCreated(
             initiatorUser.userEmail,
             initiatorUser.userName,
@@ -1082,7 +1103,10 @@ export class TransactionsService {
   /**
    * Retourne le label lisible du type de transaction
    */
-  private getTransactionTypeLabel(type: TransactionType, isInitiator = true): string {
+  private getTransactionTypeLabel(
+    type: TransactionType,
+    isInitiator = true,
+  ): string {
     if (type === TransactionType.VENTE) {
       return isInitiator ? 'Achat' : 'Vente';
     }
@@ -1267,9 +1291,23 @@ export class TransactionsService {
     transactions: any[],
     fileName: string,
   ): Promise<ExportResult> {
-    const fields = ['date', 'transactionNumber', 'type', 'status', 'product', 'quantite', 'prixUnitaire', 'valeurTotale', 'initiator', 'recipient', 'siteOrigine', 'siteDestination', 'observations'];
+    const fields = [
+      'date',
+      'transactionNumber',
+      'type',
+      'status',
+      'product',
+      'quantite',
+      'prixUnitaire',
+      'valeurTotale',
+      'initiator',
+      'recipient',
+      'siteOrigine',
+      'siteDestination',
+      'observations',
+    ];
 
-    const data = transactions.map(t => ({
+    const data = transactions.map((t) => ({
       date: t.createdAt ? new Date(t.createdAt).toLocaleString() : 'N/A',
       transactionNumber: t.transactionNumber,
       type: this.getTransactionTypeLabel(t.type),

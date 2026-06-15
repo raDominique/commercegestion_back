@@ -46,7 +46,12 @@ export class Tender {
   @Prop({ default: null })
   dateDepouillement: Date;
 
-  @Prop({ type: String, enum: Object.values(TenderStatus), default: TenderStatus.OUVERT, index: true })
+  @Prop({
+    type: String,
+    enum: Object.values(TenderStatus),
+    default: TenderStatus.OUVERT,
+    index: true,
+  })
   statut: TenderStatus;
 
   @Prop({ type: Types.ObjectId, ref: 'Site', default: null })
@@ -96,7 +101,12 @@ export class Bid {
   @Prop({ default: '' })
   documentPieces: string;
 
-  @Prop({ type: String, enum: Object.values(BidStatus), default: BidStatus.EN_ATTENTE, index: true })
+  @Prop({
+    type: String,
+    enum: Object.values(BidStatus),
+    default: BidStatus.EN_ATTENTE,
+    index: true,
+  })
   statut: BidStatus;
 
   @Prop({ default: false })

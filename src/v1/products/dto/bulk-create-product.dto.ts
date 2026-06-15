@@ -43,7 +43,7 @@ export class BulkProductItemDto {
   productCategory?: string;
 
   @ApiPropertyOptional({
-    description: 'URL de l\'image à télécharger',
+    description: "URL de l'image à télécharger",
     example: 'https://example.com/image.jpg',
   })
   @IsString()

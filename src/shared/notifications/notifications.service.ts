@@ -86,8 +86,15 @@ export class NotificationsService {
     };
   }
 
-  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<ExportResult> {
-    const items = await this.notificationModel.find().sort({ createdAt: -1 }).lean().exec();
+  async exportAll(
+    format: 'excel' | 'pdf',
+    userId?: string,
+  ): Promise<ExportResult> {
+    const items = await this.notificationModel
+      .find()
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
 
     if (!items.length) {
       throw new NotFoundException('Aucune donnée à exporter');
@@ -103,12 +110,17 @@ export class NotificationsService {
     ];
 
     if (format === 'excel') {
-      return this.exportService.exportExcel(items, columns, 'Notifications', `export_notifications_${Date.now()}.xlsx`);
+      return this.exportService.exportExcel(
+        items,
+        columns,
+        'Notifications',
+        `export_notifications_${Date.now()}.xlsx`,
+      );
     }
     return this.exportService.exportPDF(
       'Liste des Notifications',
-      columns.map(c => c.header),
-      items.map(item => columns.map(c => String(item[c.key] ?? ''))),
+      columns.map((c) => c.header),
+      items.map((item) => columns.map((c) => String(item[c.key] ?? ''))),
       `export_notifications_${Date.now()}.pdf`,
     );
   }

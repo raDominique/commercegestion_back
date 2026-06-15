@@ -27,7 +27,7 @@ export class Passif {
 
   @Prop({ type: Date, default: null })
   archivedAt?: Date; // Date d'archivage (quand quantité devient 0)
-  
+
   @Prop({ type: Types.ObjectId, ref: 'User', default: null })
   detentaire: Types.ObjectId; // Localisation physique (Qui a le produit ?)
 

@@ -16,7 +16,10 @@ import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { NotificationsService } from 'src/shared/notifications/notifications.service';
 import { MailService } from 'src/shared/mail/mail.service';
 import { UsersService } from 'src/v1/users/users.service';
-import { ExportService, ExportResult } from '../../shared/export/export.service';
+import {
+  ExportService,
+  ExportResult,
+} from '../../shared/export/export.service';
 import { CpcProduct } from '../cpc/cpc.schema';
 import { BulkCreateProductDto } from './dto/bulk-create-product.dto';
 import { BulkFakeProductDto } from './dto/bulk-fake-product.dto';
@@ -54,7 +57,9 @@ export class ProductService {
 
     const cpcList = await this.cpcModel.find().exec();
     if (!cpcList.length) {
-      throw new BadRequestException('Aucune catégorie CPC trouvée dans la base.');
+      throw new BadRequestException(
+        'Aucune catégorie CPC trouvée dans la base.',
+      );
     }
 
     const created: Product[] = [];
@@ -216,10 +221,7 @@ export class ProductService {
    * - Télécharge l'image depuis une URL en ligne
    * - Ignore la logique métier (doublons, audit, notifications, emails)
    */
-  async bulkCreate(
-    dto: BulkCreateProductDto,
-    userId: string,
-  ) {
+  async bulkCreate(dto: BulkCreateProductDto, userId: string) {
     if (!userId) throw new BadRequestException('Utilisateur non identifié.');
 
     const created: Product[] = [];
@@ -230,7 +232,10 @@ export class ProductService {
       try {
         const cpc = await this.cpcModel.findOne({ code: item.codeCPC });
         if (!cpc) {
-          errors.push({ index: i, reason: `Code CPC "${item.codeCPC}" introuvable` });
+          errors.push({
+            index: i,
+            reason: `Code CPC "${item.codeCPC}" introuvable`,
+          });
           continue;
         }
 
@@ -844,9 +849,7 @@ export class ProductService {
     const data = await this.productModel
       .find(filter)
       .populate('categoryId', 'nom')
-      .select(
-        '_id productImage productName categoryId codeCPC createdAt',
-      )
+      .select('_id productImage productName categoryId codeCPC createdAt')
       .sort({ productName: 1 })
       .exec();
     return {
@@ -862,8 +865,15 @@ export class ProductService {
     };
   }
 
-  async exportAll(format: 'excel' | 'pdf', userId?: string): Promise<ExportResult> {
-    const items = await this.productModel.find().sort({ createdAt: -1 }).lean().exec();
+  async exportAll(
+    format: 'excel' | 'pdf',
+    userId?: string,
+  ): Promise<ExportResult> {
+    const items = await this.productModel
+      .find()
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
 
     if (!items.length) {
       throw new NotFoundException('Aucune donnée à exporter');
@@ -879,12 +889,17 @@ export class ProductService {
     ];
 
     if (format === 'excel') {
-      return this.exportService.exportExcel(items, columns, 'Produits', `export_products_${Date.now()}.xlsx`);
+      return this.exportService.exportExcel(
+        items,
+        columns,
+        'Produits',
+        `export_products_${Date.now()}.xlsx`,
+      );
     }
     return this.exportService.exportPDF(
       'Liste des Produits',
-      columns.map(c => c.header),
-      items.map(item => columns.map(c => item[c.key] ?? '')),
+      columns.map((c) => c.header),
+      items.map((item) => columns.map((c) => item[c.key] ?? '')),
       `export_products_${Date.now()}.pdf`,
     );
   }
