@@ -154,14 +154,9 @@ export class StockService {
     // Default: l'utilisateur qui effectue le dépôt (userId)
     const ayantDroitId = dto.ayant_droit || userId;
 
-    // IMPORTANT: Pour un DÉPÔT, on NE DOIT JAMAIS diminuer l'actif de l'initiateur
-    // car les propriétaires (ayant-droit) n'ont pas d'actifs physiques.
-    // Un DÉPÔT crée un nouvel actif au site de destination.
-    // Si le détenteur devait retirer d'un autre site, ce serait un TRANSFERT, pas un DÉPÔT.
-
-    // Créer l'actif pour le propriétaire avec les détenteur et ayant-droit spécifiés
+    // Créer l'actif pour le détenteur (destinataire) qui reçoit physiquement le produit
     await this.actifsService.addOrIncreaseActif(
-      ayantDroitId, // userId (propriétaire du bilan)
+      detentaireId, // userId (propriétaire du bilan) = détenteur/destinataire
       dto.siteDestinationId,
       dto.productId,
       dto.quantite,
@@ -171,14 +166,14 @@ export class StockService {
     );
 
     // Créer un passif si le détenteur n'est pas le propriétaire
-    // Le détenteur doit le produit au propriétaire
+    // Le propriétaire (ayant-droit / déposant) doit le produit au détenteur
     if (detentaireId !== ayantDroitId) {
       await this.passifsService.addOrIncreasePassif(
-        detentaireId, // Le débiteur (celui qui détient)
+        ayantDroitId, // Le débiteur (celui qui a déposé / propriétaire légal)
         dto.siteDestinationId,
         dto.productId,
         dto.quantite,
-        ayantDroitId, // Le créancier (propriétaire)
+        detentaireId, // Le créancier (celui qui détient physiquement)
       );
     }
   }
