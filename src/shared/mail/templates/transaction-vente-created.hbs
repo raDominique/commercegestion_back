@@ -1,278 +1,167 @@
 <!DOCTYPE html>
-<html lang='fr'>
-  <head>
-    <meta charset='UTF-8' />
-    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
-    <title>Demande d'achat - {{appName}}</title>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Demande d'achat - {{appName}}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-      body {
-        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-        background-color: #f8fafc;
-        padding: 20px;
-      }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #e8eaed;
+      padding: 16px;
+    }
 
-      .email-container {
-        max-width: 600px;
-        margin: 0 auto;
-        background-color: #ffffff;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-      }
+    .email-container {
+      max-width: 560px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+    }
 
-      .header {
-        background: linear-gradient(135deg, #1e5631 0%, #2d7c4a 100%);
-        padding: 40px;
-        text-align: center;
-      }
+    .header { padding: 28px 32px 20px; text-align: center; }
+    .header-info { background-color: #1a73e8; }
+    .header-success { background-color: #1e8e3e; }
+    .header-warning { background-color: #f9ab00; }
+    .header-error { background-color: #d93025; }
 
-      .header h1 {
-        color: #ffffff;
-        font-size: 28px;
-        font-weight: 700;
-        margin-bottom: 8px;
-        line-height: 1.3;
-      }
+    .header h1 { color: #ffffff; font-size: 20px; font-weight: 400; letter-spacing: -0.2px; line-height: 1.3; }
+    .header p { color: rgba(255,255,255,0.8); font-size: 13px; margin-top: 4px; }
 
-      .header p {
-        color: rgba(255, 255, 255, 0.9);
-        font-size: 14px;
-      }
+    .content { padding: 28px 32px 20px; }
 
-      .content {
-        padding: 40px;
-      }
+    .greeting { font-size: 14px; color: #202124; margin-bottom: 16px; line-height: 1.6; }
+    .message { font-size: 14px; color: #5f6368; line-height: 1.6; margin-bottom: 24px; }
 
-      .greeting {
-        font-size: 16px;
-        color: #1e293b;
-        margin-bottom: 20px;
-        line-height: 1.6;
-        font-weight: 500;
-      }
+    .section-title {
+      font-size: 11px; font-weight: 500; color: #80868b; text-transform: uppercase;
+      letter-spacing: 0.5px; margin-top: 24px; margin-bottom: 8px;
+    }
 
-      .intro-text {
-        font-size: 15px;
-        color: #475569;
-        line-height: 1.7;
-        margin-bottom: 32px;
-      }
+    .details-card { background: #f8f9fa; border: 1px solid #dadce0; border-radius: 8px; padding: 0 16px; }
 
-      .section-title {
-        font-size: 12px;
-        font-weight: 600;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-        margin-top: 32px;
-        margin-bottom: 12px;
-      }
+    .detail-row {
+      display: flex; justify-content: space-between; padding: 10px 0;
+      font-size: 14px; color: #5f6368; border-bottom: 1px solid #e8eaed;
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .label { color: #5f6368; }
+    .value { color: #202124; font-weight: 500; text-align: right; }
 
-      .details-card {
-        background-color: #f8fafc;
-        border: 1px solid #e2e8f0;
-        padding: 4px 20px;
-        border-radius: 8px;
-      }
+    .status-box {
+      padding: 14px 16px; margin: 20px 0; border-radius: 8px;
+      font-size: 13px; line-height: 1.6;
+    }
+    .status-box strong { display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; }
+    .status-info { background: #e8f0fe; color: #174ea6; }
+    .status-success { background: #e6f4ea; color: #1e7e34; }
+    .status-warning { background: #fef7e0; color: #5f4b00; }
+    .status-error { background: #fce8e6; color: #a50e0e; }
 
-      .detail-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        padding: 14px 0;
-        font-size: 14px;
-        color: #475569;
-        border-bottom: 1px solid #e2e8f0;
-      }
+    .button-container { text-align: center; margin: 24px 0; }
 
-      .detail-row:last-child {
-        border-bottom: none;
-      }
+    .button {
+      display: inline-block; background: #1a73e8; color: #ffffff;
+      padding: 10px 28px; text-decoration: none; border-radius: 4px;
+      font-weight: 500; font-size: 14px;
+    }
+    .button:hover { background: #1557b0; }
 
-      .label {
-        font-weight: 600;
-        color: #1e293b;
-      }
+    .next-steps {
+      background: #f8f9fa; border: 1px solid #dadce0;
+      padding: 16px 20px; margin: 20px 0; border-radius: 8px;
+      font-size: 13px; color: #5f6368; line-height: 1.8;
+    }
+    .next-steps ol { margin-left: 18px; }
+    .next-steps li { margin-bottom: 6px; }
+    .next-steps li:last-child { margin-bottom: 0; }
 
-      .value {
-        color: #1e5631;
-        font-weight: 500;
-        text-align: right;
-      }
+    .support {
+      text-align: center; font-size: 13px; color: #5f6368;
+      line-height: 1.8; margin-top: 20px; padding-top: 16px;
+      border-top: 1px solid #e8eaed;
+    }
+    .support a { color: #1a73e8; text-decoration: none; font-weight: 500; }
 
-      .info-box {
-        background-color: #eff6ff;
-        border-left: 4px solid #2563eb;
-        padding: 16px 20px;
-        margin: 24px 0;
-        border-radius: 8px;
-        font-size: 14px;
-        color: #1e3a5f;
-        line-height: 1.6;
-      }
+    .footer {
+      padding: 16px 32px; text-align: center; font-size: 12px;
+      color: #80868b; line-height: 1.8; background: #f8f9fa;
+      border-top: 1px solid #dadce0;
+    }
+    .footer a { color: #5f6368; text-decoration: none; }
 
-      .info-box strong {
-        display: block;
-        margin-bottom: 4px;
-      }
+    @media (max-width: 600px) {
+      .header { padding: 24px 20px 16px; }
+      .header h1 { font-size: 18px; }
+      .content { padding: 24px 20px 16px; }
+      .footer { padding: 16px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header header-warning">
+      <h1>Demande d'achat</h1>
+      <p>Vers {{envoyeurName}} &middot; Transaction #{{transactionNumber}}</p>
+    </div>
+    <div class="content">
+      <p class="greeting">Bonjour {{recipientName}},</p>
+      <p class="message">Nous vous confirmons que votre demande d'achat a été enregistrée avec succès dans le système <strong>{{appName}}</strong>.</p>
 
-      .button-container {
-        text-align: center;
-        margin: 36px 0;
-      }
-
-      .button {
-        display: inline-block;
-        background: linear-gradient(135deg, #1e5631 0%, #2d7c4a 100%);
-        color: #ffffff;
-        padding: 14px 40px;
-        text-decoration: none;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 15px;
-        transition: all 0.2s ease;
-      }
-
-      .button:hover {
-        box-shadow: 0 4px 14px rgba(30, 86, 49, 0.3);
-      }
-
-      .next-steps {
-        background-color: #f8fafc;
-        border: 1px solid #e2e8f0;
-        padding: 20px 24px;
-        margin: 24px 0;
-        border-radius: 8px;
-        font-size: 14px;
-        color: #475569;
-        line-height: 1.8;
-      }
-
-      .next-steps ol {
-        margin-left: 20px;
-      }
-
-      .next-steps li {
-        margin-bottom: 8px;
-        padding-left: 4px;
-      }
-
-      .next-steps li:last-child {
-        margin-bottom: 0;
-      }
-
-      .support {
-        text-align: center;
-        font-size: 13px;
-        color: #64748b;
-        line-height: 1.8;
-        margin-top: 32px;
-        padding-top: 24px;
-        border-top: 1px solid #e2e8f0;
-      }
-
-      .support a {
-        color: #1e5631;
-        text-decoration: none;
-        font-weight: 600;
-      }
-
-      .support a:hover {
-        text-decoration: underline;
-      }
-
-      .footer {
-        padding: 24px 40px;
-        font-size: 12px;
-        color: #94a3b8;
-        text-align: center;
-        line-height: 1.8;
-        background-color: #f8fafc;
-      }
-
-      .footer a {
-        color: #64748b;
-        text-decoration: none;
-      }
-
-      .footer a:hover {
-        text-decoration: underline;
-      }
-
-      @media (max-width: 600px) {
-        .header { padding: 28px 20px; }
-        .header h1 { font-size: 24px; }
-        .content { padding: 28px 20px; }
-        .footer { padding: 20px; }
-      }
-    </style>
-  </head>
-  <body>
-    <div class='email-container'>
-      <div class='header'>
-        <h1>Demande d'achat</h1>
-        <p>Vers {{envoyeurName}} &middot; Transaction #{{transactionNumber}}</p>
-      </div>
-      <div class='content'>
-        <p class='greeting'>Bonjour {{recipientName}},</p>
-        <p class='intro-text'>
-          Nous vous confirmons que votre demande d'achat a ete enregistree avec succes dans le systeme <strong>{{appName}}</strong>.
-        </p>
-
-        <h2 class='section-title'>Details de la transaction</h2>
-        <div class='details-card'>
-          <div class='detail-row'>
-            <span class='label'>Numero de transaction</span>
-            <span class='value'>#{{transactionNumber}}</span>
-          </div>
-          <div class='detail-row'>
-            <span class='label'>Type de transaction</span>
-            <span class='value'>{{transactionType}}</span>
-          </div>
-          <div class='detail-row'>
-            <span class='label'>Produit</span>
-            <span class='value'>{{productName}}</span>
-          </div>
-          <div class='detail-row'>
-            <span class='label'>Quantite</span>
-            <span class='value'>{{quantity}}</span>
-          </div>
-          <div class='detail-row'>
-            <span class='label'>Date de creation</span>
-            <span class='value'>{{currentDate}}</span>
-          </div>
+      <h2 class="section-title">Détails de la transaction</h2>
+      <div class="details-card">
+        <div class="detail-row">
+          <span class="label">Numéro : </span>
+          <span class="value">#{{transactionNumber}}</span>
         </div>
-
-        <div class='info-box'>
-          <strong>Statut actuel</strong>
-          Votre transaction est en attente de validation. Le destinataire examinera et approuvera votre demande.
+        <div class="detail-row">
+          <span class="label">Type : </span>
+          <span class="value">{{transactionType}}</span>
         </div>
-
-        <h2 class='section-title'>Prochaines etapes</h2>
-        <div class='next-steps'>
-          <ol>
-            <li>Votre transaction reste <strong>en attente d'approbation</strong></li>
-            <li>Vous recevrez une confirmation une fois la transaction approuvee</li>
-            <li>Consultez votre tableau de bord pour suivre l'evolution</li>
-          </ol>
+        <div class="detail-row">
+          <span class="label">Produit : </span>
+          <span class="value">{{productName}}</span>
         </div>
-
-        <div class='button-container'>
-          <a href='{{dashboardLink}}' class='button'>Acceder au tableau de bord</a>
+        <div class="detail-row">
+          <span class="label">Quantité : </span>
+          <span class="value">{{quantity}}</span>
         </div>
-
-        <div class='support'>
-          <strong>Besoin d'aide ?</strong><br />
-          <a href='{{supportLink}}'>Assistance</a>
+        <div class="detail-row">
+          <span class="label">Date : </span>
+          <span class="value">{{currentDate}}</span>
         </div>
       </div>
-      <div class='footer'>
-        <p>&copy; 2026 {{appName}}. Tous droits reserves.</p>
-        <p><a href='{{dashboardLink}}'>Tableau de bord</a> &middot; <a href='{{supportLink}}'>Assistance</a></p>
+
+      <div class="status-box status-warning">
+        <strong>Statut actuel</strong>
+        Votre transaction est en attente de validation. Le destinataire examinera et approuvera votre demande.
+      </div>
+
+      <h2 class="section-title">Prochaines étapes</h2>
+      <div class="next-steps">
+        <ol>
+          <li>Votre transaction reste en attente d'approbation</li>
+          <li>Vous recevrez une confirmation une fois la transaction approuvée</li>
+          <li>Consultez votre tableau de bord pour suivre l'évolution</li>
+        </ol>
+      </div>
+
+      <div class="button-container">
+        <a href="{{dashboardLink}}" class="button">Accéder au tableau de bord</a>
+      </div>
+
+      <div class="support">
+        <strong>Besoin d'aide ?</strong><br />
+        <a href="{{supportLink}}">Assistance</a>
       </div>
     </div>
-  </body>
+    <div class="footer">
+      <p>&copy; 2026 {{appName}}. Tous droits réservés.</p>
+      <p><a href="{{dashboardLink}}">Tableau de bord</a> &middot; <a href="{{supportLink}}">Assistance</a></p>
+    </div>
+  </div>
+</body>
 </html>
