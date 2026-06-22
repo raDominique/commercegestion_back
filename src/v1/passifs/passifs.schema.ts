@@ -10,8 +10,24 @@ export class Passif {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   userId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Site', required: true, index: true })
-  depotId: Types.ObjectId;
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Site',
+    required: false,
+    default: null,
+    index: true,
+  })
+  depotId: Types.ObjectId | null;
+
+  // Créancier: à qui on doit la marchandise (utilisé par PassifsService)
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'User',
+    required: false,
+    default: null,
+    index: true,
+  })
+  creancierId: Types.ObjectId | null;
 
   @Prop({ type: Types.ObjectId, ref: 'Product', required: true, index: true })
   productId: Types.ObjectId;

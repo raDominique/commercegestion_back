@@ -162,6 +162,51 @@ export class CreateInitializationDto {
   observations?: string;
 }
 
+export class CreateVirementDroitDto {
+  @ApiProperty({
+    description: "ID du bénéficiaire (membre Z) qui reçoit le droit",
+    example: '69989c5cdff25ef7fe0a4613',
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  beneficiaryId!: string;
+
+  @ApiProperty({
+    description: 'ID du détenteur (membre Y) qui garde physiquement le produit',
+    example: '69989c5cdff25ef7fe0a460f',
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  detentaireId!: string;
+
+  @ApiProperty({
+    description: 'ID du site du détenteur (où le produit est déposé)',
+    example: '69989c5cdff25ef7fe0a4610',
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  siteId!: string;
+
+  @ApiProperty({
+    description: 'ID du produit',
+    example: '69989c5cdff25ef7fe0a460f',
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  productId!: string;
+
+  @ApiProperty({ description: 'Quantité à virer', example: 10 })
+  @IsNumber()
+  @IsPositive()
+  @IsNotEmpty()
+  quantite!: number;
+
+  @ApiProperty({ description: 'Observations', required: false })
+  @IsOptional()
+  @IsString()
+  observations?: string;
+}
+
 export class ApproveTransactionDto {
   @ApiProperty({
     description: "ID de l'approbateur",

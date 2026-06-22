@@ -15,6 +15,7 @@ import { StockModule } from './stock/stock.module';
 import { ActifsModule } from './actifs/actifs.module';
 import { PassifsModule } from './passifs/passifs.module';
 import { TransactionsModule } from './transactions/transactions.module';
+import { ExchangeModule } from './exchange/exchange.module';
 import { LedgerDisplayModule } from './ledger-display/ledger-display.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ShopAvailableModule } from './shop-available';
@@ -37,6 +38,7 @@ import { CartModule } from './cart/cart.module';
     ActifsModule,
     PassifsModule,
     TransactionsModule,
+    ExchangeModule,
     LedgerDisplayModule,
     DashboardModule,
     ShopAvailableModule,

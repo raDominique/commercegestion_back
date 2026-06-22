@@ -106,6 +106,90 @@ export class ActifsService {
   }
 
   /**
+   * Transfère un droit de propriété (ayant_droit) sur un actif stocké chez un détenteur.
+   * Cas d'usage: dépôt chez un tiers + virement de droit (propriétaire X -> bénéficiaire Z)
+   *
+   * Important: ici, l'actif est identifié par (detentaireId=userId, depotId, productId, ayant_droit).
+   */
+  async transferAyantDroitWithinDetentaire(params: {
+    detentaireId: string;
+    depotId: string;
+    productId: string;
+    fromAyantDroitId: string;
+    toAyantDroitId: string;
+    quantite: number;
+    prixUnitaire?: number;
+  }) {
+    const {
+      detentaireId,
+      depotId,
+      productId,
+      fromAyantDroitId,
+      toAyantDroitId,
+      quantite,
+      prixUnitaire = 0,
+    } = params;
+
+    const sourceActif = await this.actifModel.findOne({
+      userId: new Types.ObjectId(detentaireId),
+      depotId: new Types.ObjectId(depotId),
+      productId: new Types.ObjectId(productId),
+      ayant_droit: new Types.ObjectId(fromAyantDroitId),
+      isActive: true,
+    });
+
+    if (!sourceActif || sourceActif.quantite < quantite) {
+      throw new NotFoundException(
+        `Stock insuffisant ou actif inexistant pour transfert de droit. (Demandé: ${quantite}, Dispo: ${sourceActif?.quantite})`,
+      );
+    }
+
+    sourceActif.quantite -= quantite;
+    if (sourceActif.quantite === 0) {
+      sourceActif.isActive = false;
+      sourceActif.archivedAt = new Date();
+    }
+    await sourceActif.save();
+
+    // Créer / augmenter l'actif cible au même détenteur/site, mais avec nouveau ayant_droit
+    return this.addOrIncreaseActif(
+      detentaireId,
+      depotId,
+      productId,
+      quantite,
+      prixUnitaire,
+      detentaireId,
+      toAyantDroitId,
+    );
+  }
+
+  /**
+   * Retrouve un actif déposé chez un détenteur, appartenant à un ayant-droit.
+   * Si depotId est omis, cherche sur n'importe quel dépôt du détenteur.
+   */
+  async findDepositedActif(params: {
+    detentaireId: string;
+    productId: string;
+    ayantDroitId: string;
+    depotId?: string;
+    minQuantite?: number;
+  }) {
+    const { detentaireId, productId, ayantDroitId, depotId, minQuantite = 0 } =
+      params;
+
+    const filter: any = {
+      userId: new Types.ObjectId(detentaireId),
+      productId: new Types.ObjectId(productId),
+      ayant_droit: new Types.ObjectId(ayantDroitId),
+      isActive: true,
+    };
+    if (depotId) filter.depotId = new Types.ObjectId(depotId);
+    if (minQuantite > 0) filter.quantite = { $gte: minQuantite };
+
+    return this.actifModel.findOne(filter);
+  }
+
+  /**
    * Met à jour la propriété (Ayant-droit) sans mouvement physique.
    * Correspond à l'étape 4c (Virement de marchandise).
    */

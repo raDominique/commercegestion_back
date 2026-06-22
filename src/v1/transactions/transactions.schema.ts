@@ -8,6 +8,8 @@ export enum TransactionType {
   RETRAIT = 'RETRAIT',
   INITIALISATION = 'INITIALISATION',
   VENTE = 'VENTE',
+  VIREMENT_DROIT = 'VIREMENT_DROIT',
+  ECHANGE = 'ECHANGE',
 }
 
 export enum TransactionStatus {

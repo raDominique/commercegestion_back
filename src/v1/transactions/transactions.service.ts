@@ -18,6 +18,7 @@ import {
   CreateReturnDto,
   CreateInitializationDto,
   CreateVenteDto,
+  CreateVirementDroitDto,
   ApproveTransactionDto,
   RejectTransactionDto,
 } from './dto/create-transaction.dto';
@@ -273,6 +274,78 @@ export class TransactionsService {
       status: 'success',
       message:
         "Transaction d'achat/vente créée avec succès et en attente d'approbation",
+      data: [savedTransaction],
+      total: 1,
+    };
+  }
+
+  /**
+   * Virement de droit auprès d'un bénéficiaire tiers
+   * X (ayant-droit/propriétaire) transfère ses droits sur un dépôt chez Y (détenteur) vers Z.
+   * Opération validée immédiatement (pas de mouvement physique).
+   */
+  async createVirementDroit(
+    dto: CreateVirementDroitDto,
+    initiatorId: string,
+  ): Promise<PaginationResult<TransactionDocument>> {
+    const transactionNumber = this.generateTransactionNumber();
+
+    // Validation: X doit avoir assez de quantité sur l'actif déposé chez Y au site indiqué
+    // (Actif identifié par detentaireId=userId, depotId=siteId, productId, ayant_droit=initiatorId)
+    await this.actifsService.transferAyantDroitWithinDetentaire({
+      detentaireId: dto.detentaireId,
+      depotId: dto.siteId,
+      productId: dto.productId,
+      fromAyantDroitId: initiatorId,
+      toAyantDroitId: dto.beneficiaryId,
+      quantite: dto.quantite,
+      prixUnitaire: 0,
+    });
+
+    // Transfert du passif associé (si existant): débiteur X -> débiteur Z, créancier = détenteur Y
+    await this.passifsService.transferDebtorByCreditor({
+      fromDebtorId: initiatorId,
+      toDebtorId: dto.beneficiaryId,
+      productId: dto.productId,
+      creancierId: dto.detentaireId,
+      quantite: dto.quantite,
+      depotId: dto.siteId,
+    });
+
+    const transaction = new this.transactionModel({
+      transactionNumber,
+      type: TransactionType.VIREMENT_DROIT,
+      status: TransactionStatus.APPROVED,
+      initiatorId: new Types.ObjectId(initiatorId),
+      recipientId: new Types.ObjectId(dto.beneficiaryId),
+      productId: new Types.ObjectId(dto.productId),
+      siteOrigineId: new Types.ObjectId(dto.siteId),
+      siteDestinationId: new Types.ObjectId(dto.siteId),
+      quantite: dto.quantite,
+      prixUnitaire: null,
+      detentaire: new Types.ObjectId(dto.detentaireId),
+      ayant_droit: new Types.ObjectId(dto.beneficiaryId),
+      observations: dto.observations || null,
+      isActive: true,
+      approvedAt: new Date(),
+      approuveurId: new Types.ObjectId(initiatorId),
+      metadata: {
+        previousAyantDroitId: initiatorId,
+        beneficiaryId: dto.beneficiaryId,
+        detentaireId: dto.detentaireId,
+      },
+    });
+
+    const savedTransaction = await transaction.save();
+
+    // Notifications: X, Y, Z
+    this.sendVirementDroitNotifications(savedTransaction, initiatorId, dto.detentaireId, dto.beneficiaryId).catch(
+      (error) => console.error('Failed to send virement notifications:', error),
+    );
+
+    return {
+      status: 'success',
+      message: 'Virement de droit effectué avec succès',
       data: [savedTransaction],
       total: 1,
     };
@@ -1112,8 +1185,48 @@ export class TransactionsService {
       [TransactionType.DEPOT]: 'Dépôt',
       [TransactionType.RETRAIT]: 'Retrait',
       [TransactionType.INITIALISATION]: 'Initialisation',
+      [TransactionType.VIREMENT_DROIT]: 'Virement de droit',
+      [TransactionType.ECHANGE]: 'Échange d’actifs',
     };
     return labels[type] || (type as string);
+  }
+
+  private async sendVirementDroitNotifications(
+    transaction: TransactionDocument,
+    initiatorId: string,
+    detentaireId: string,
+    beneficiaryId: string,
+  ) {
+    const [initiatorUser, detentaireUser, beneficiaryUser] = await Promise.all([
+      this.usersService.getById(initiatorId),
+      this.usersService.getById(detentaireId),
+      this.usersService.getById(beneficiaryId),
+    ]);
+
+    const product = await this.productService.findById(
+      transaction.productId.toString(),
+    );
+    const productName = product?.data?.[0]?.productName || 'Produit';
+    const txType = this.getTransactionTypeLabel(TransactionType.VIREMENT_DROIT);
+
+    const sendTo = async (user: any, recipientName: string) => {
+      if (!user?.userEmail) return;
+      await this.mailService.notificationTransactionApproved(
+        user.userEmail,
+        recipientName,
+        txType,
+        productName,
+        transaction.quantite,
+        transaction.transactionNumber,
+        initiatorUser.userName,
+      );
+    };
+
+    await Promise.all([
+      sendTo(initiatorUser, initiatorUser.userName),
+      sendTo(detentaireUser, detentaireUser.userName),
+      sendTo(beneficiaryUser, beneficiaryUser.userName),
+    ]);
   }
 
   /**

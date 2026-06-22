@@ -119,6 +119,33 @@ export class PassifsService {
   }
 
   /**
+   * Transfère une dette (passif) d'un débiteur vers un autre, pour un créancier donné.
+   * Utile lors d'un virement de droit: ancien ayant-droit -> bénéficiaire, détenteur (créancier) inchangé.
+   */
+  async transferDebtorByCreditor(params: {
+    fromDebtorId: string;
+    toDebtorId: string;
+    productId: string;
+    creancierId: string;
+    quantite: number;
+    depotId?: string | null;
+  }) {
+    const {
+      fromDebtorId,
+      toDebtorId,
+      productId,
+      creancierId,
+      quantite,
+      depotId = null,
+    } = params;
+
+    if (fromDebtorId === toDebtorId) return;
+
+    await this.decreasePassifByCreditor(fromDebtorId, productId, creancierId, quantite);
+    await this.addOrIncreasePassif(toDebtorId, depotId, productId, quantite, creancierId);
+  }
+
+  /**
    * Transfert de créancier (Étape 4c).
    * Le détenteur ne change pas, mais il doit maintenant le produit à l'acheteur.
    */

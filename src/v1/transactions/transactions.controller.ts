@@ -26,6 +26,7 @@ import {
   CreateReturnDto,
   CreateInitializationDto,
   CreateVenteDto,
+  CreateVirementDroitDto,
   ApproveTransactionDto,
   RejectTransactionDto,
 } from './dto/create-transaction.dto';
@@ -242,6 +243,25 @@ Erreurs possibles:
       createInitDto,
       req.user.userId,
     );
+  }
+
+  /**
+   * Virement de droit auprès d’un bénéficiaire tiers
+   * Transfère le droit de propriété (ayant_droit) d'un dépôt chez un détenteur Y,
+   * depuis le membre X (initiateur/propriétaire) vers Z (bénéficiaire), sans mouvement physique.
+   */
+  @Post('virement-droit')
+  @Auth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Virement de droit (X -> Z) sur un dépôt chez Y',
+  })
+  @ApiBody({ type: CreateVirementDroitDto })
+  async createVirementDroit(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() dto: CreateVirementDroitDto,
+  ) {
+    return this.transactionsService.createVirementDroit(dto, req.user.userId);
   }
 
   /**
