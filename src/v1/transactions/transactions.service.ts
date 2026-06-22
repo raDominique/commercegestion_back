@@ -477,48 +477,46 @@ export class TransactionsService {
     transaction: TransactionDocument,
   ): Promise<void> {
     try {
-      const initiatorId = transaction.initiatorId.toString(); // Qui retourne (détenteur)
-      const recipientId = transaction.recipientId.toString(); // Propriétaire (ayant-droit)
+      // Pour un RETRAIT (retour), on inverse le flux d'un DEPOT :
+      // - Le détenteur (qui gardait physiquement) sort le stock
+      // - L'ayant-droit (propriétaire légal) récupère le stock
+      // - Le passif créé au dépôt est diminué
+
+      const detentaireId = transaction.detentaire.toString();
+      const ayantDroitId = transaction.ayant_droit.toString();
       const productId = transaction.productId.toString();
       const originSiteId = transaction.siteOrigineId.toString();
       const destinationSiteId = transaction.siteDestinationId.toString();
       const quantity = transaction.quantite;
       const unitPrice = transaction.prixUnitaire || 0;
 
-      // 1. Diminuer l'actif de l'initiator (ayant droit) au site d'origine
+      // 1. Sortie du stock chez le détenteur (site d'origine)
       await this.actifsService.decreaseActif(
-        initiatorId,
+        detentaireId,
         originSiteId,
         productId,
         quantity,
       );
 
-      // 2. Augmenter l'actif du recipient (detenteur) au site de destination
+      // 2. Entrée du stock chez l'ayant-droit (site de destination)
       await this.actifsService.addOrIncreaseActif(
-        recipientId, // userId: Propriétaire du bilan
+        ayantDroitId, // userId: Propriétaire du bilan
         destinationSiteId, // depotId: Site physique
-        productId, // productId: Le produit
-        quantity, // quantite
-        unitPrice, // prixUnitaire
-        recipientId, // detentaireId: Qui garde le produit (maintenant le propriétaire)
-        recipientId, // ayantDroitId: Qui possède le produit (le propriétaire)
+        productId,
+        quantity,
+        unitPrice,
+        ayantDroitId, // detentaireId: il récupère physiquement
+        ayantDroitId, // ayantDroitId: il est propriétaire légal
       );
 
-      // 3. Diminuer le passif du recipient envers l'initiator
+      // 3. Diminuer le passif lié au dépôt (si existant)
+      // NB: lors d'un DEPOT via StockService, le passif est créé avec:
+      // userId = ayantDroitId (débiteur) / creancierId = detentaireId
       await this.passifsService.decreasePassifByCreditor(
-        recipientId, // detentaireId: Qui devait (le recipient)
-        productId, // productId
-        initiatorId, // creancierId: À qui il devait (l'initiator/propriétaire)
-        quantity, // quantite: Diminuer la dette
-      );
-
-      // 4. Ajouter dans les passifs du initiateur
-      await this.passifsService.addOrIncreasePassif(
-        initiatorId, // detentaireId: Qui devait (le recipient)
-        destinationSiteId, // depotId
-        recipientId, // creancierId: À qui il devait (l'initiator/propriétaire)
-        quantity, // quantite: Diminuer la dette,
-        initiatorId, //detentaireId:Qui doit
+        ayantDroitId,
+        productId,
+        detentaireId,
+        quantity,
       );
 
       console.log(
