@@ -136,3 +136,81 @@ export class GlobalLedgerDto {
   })
   total: number;
 }
+
+export class VirementActifDto {
+  @ApiProperty({ description: 'Membre (X ou Z)', example: 'RAKOTO Jean' })
+  membre: string;
+
+  @ApiProperty({ description: 'Date et Heure du mouvement', example: '2024-01-15T10:30:00Z' })
+  dateTime: Date;
+
+  @ApiProperty({ description: 'Numéro de transaction', example: '20240115103000001' })
+  numeroTransaction: string;
+
+  @ApiProperty({ description: 'Intitulé', example: 'Virement de droit' })
+  title: string;
+
+  @ApiProperty({ description: 'Produit/Article', example: 'RIZ MAKALIOKA' })
+  product: string;
+
+  @ApiProperty({ description: 'Détenteur (Y)', example: 'RAKOTO' })
+  detenteur: string;
+
+  @ApiProperty({ description: 'Nom du Site', example: 'HANGAR ANDRANOMENA' })
+  site: string;
+
+  @ApiProperty({ description: 'Quantité (±Q1)', example: -100 })
+  quantite: number;
+
+  @ApiProperty({ description: 'Stock initial (A1)', example: 500 })
+  stockInitial: number;
+
+  @ApiProperty({ description: 'Stock final', example: 400 })
+  stockFinal: number;
+}
+
+export class VirementPassifDto {
+  @ApiProperty({ description: 'Membre (Y)', example: 'RAKOTO' })
+  membre: string;
+
+  @ApiProperty({ description: 'Date et Heure du mouvement', example: '2024-01-15T10:30:00Z' })
+  dateTime: Date;
+
+  @ApiProperty({ description: 'Numéro de transaction', example: '20240115103000001' })
+  numeroTransaction: string;
+
+  @ApiProperty({ description: 'Intitulé', example: 'Virement de droit' })
+  title: string;
+
+  @ApiProperty({ description: 'Produit/Article', example: 'RIZ MAKALIOKA' })
+  product: string;
+
+  @ApiProperty({ description: 'Ayant droit (X ou Z)', example: 'RAKOTO Jean' })
+  ayantDroit: string;
+
+  @ApiProperty({ description: 'Nom du Site', example: 'HANGAR ANDRANOMENA' })
+  site: string;
+
+  @ApiProperty({ description: 'Quantité (±Q1)', example: -100 })
+  quantite: number;
+
+  @ApiProperty({ description: 'Stock initial (A1)', example: 500 })
+  stockInitial: number;
+
+  @ApiProperty({ description: 'Stock final', example: 400 })
+  stockFinal: number;
+}
+
+export class VirementLedgerDto {
+  @ApiProperty({ description: "Nom de la membre connectée", example: 'RAKOTO Jean' })
+  memberName: string;
+
+  @ApiProperty({ description: 'Date de génération', example: '2024-01-15T10:30:00Z' })
+  generatedAt: Date;
+
+  @ApiProperty({ description: 'Mouvements des Actifs', type: [VirementActifDto] })
+  actifs: VirementActifDto[];
+
+  @ApiProperty({ description: 'Mouvements des Passifs', type: [VirementPassifDto] })
+  passifs: VirementPassifDto[];
+}

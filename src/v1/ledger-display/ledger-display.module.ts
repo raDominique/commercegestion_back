@@ -8,6 +8,7 @@ import {
 } from '../transactions/transactions.schema';
 import { Actif, ActifSchema } from '../actifs/actifs.schema';
 import { Passif, PassifSchema } from '../passifs/passifs.schema';
+import { User, UserSchema } from '../users/users.schema';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { Passif, PassifSchema } from '../passifs/passifs.schema';
       { name: Transaction.name, schema: TransactionSchema },
       { name: Actif.name, schema: ActifSchema },
       { name: Passif.name, schema: PassifSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   controllers: [LedgerDisplayController],

@@ -9,6 +9,7 @@ import {
 } from '../transactions/transactions.schema';
 import { Actif, ActifDocument } from '../actifs/actifs.schema';
 import { Passif, PassifDocument } from '../passifs/passifs.schema';
+import { User, UserDocument } from '../users/users.schema';
 import {
   ExportService,
   ExportResult,
@@ -52,6 +53,8 @@ export class LedgerDisplayService {
     private readonly actifModel: Model<ActifDocument>,
     @InjectModel(Passif.name)
     private readonly passifModel: Model<PassifDocument>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
     private readonly exportService: ExportService,
   ) {}
 
@@ -696,6 +699,149 @@ export class LedgerDisplayService {
       fields,
       `export_ledger_global_${Date.now()}.csv`,
     );
+  }
+
+  /**
+   * Récupère les mouvements d'actifs et de passifs suite à un virement de droit
+   * pour l'utilisateur connecté
+   */
+  async getUserVirementMovements(userId: string) {
+    const userIdObj = new Types.ObjectId(userId);
+
+    const user = await this.userModel
+      .findById(userIdObj)
+      .select('userFirstname userName')
+      .lean()
+      .exec();
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    const transactions = await this.transactionModel
+      .find({
+        type: TransactionType.VIREMENT_DROIT,
+        status: TransactionStatus.APPROVED,
+        $or: [
+          { initiatorId: userIdObj },
+          { recipientId: userIdObj },
+          { ayant_droit: userIdObj },
+          { detentaire: userIdObj },
+        ],
+      })
+      .sort({ approvedAt: 1 })
+      .populate([
+        { path: 'initiatorId', select: 'userFirstname userName' },
+        { path: 'recipientId', select: 'userFirstname userName' },
+        { path: 'productId', select: 'productName codeCPC' },
+        { path: 'siteOrigineId', select: 'siteName' },
+        { path: 'detentaire', select: 'userFirstname userName' },
+        { path: 'ayant_droit', select: 'userFirstname userName' },
+      ])
+      .exec();
+
+    const memberName = `${user.userFirstname} ${user.userName}`;
+    const actifs: any[] = [];
+    const passifs: any[] = [];
+    const actifBalances: Record<string, number> = {};
+    const passifBalances: Record<string, number> = {};
+
+    for (const tx of transactions) {
+      const txn: any = tx;
+      const productName = this.getName(txn.productId) || 'Produit inconnu';
+      const siteName = this.getName(txn.siteOrigineId) || 'Site non spécifié';
+      const dateTime = txn.approvedAt || txn.createdAt || new Date();
+      const numeroTransaction = txn.transactionNumber || 'N/A';
+      const title = 'Virement de droit';
+      const quantite = txn.quantite || 0;
+
+      // --- ACTIFS ---
+      // Entry 1: X (initiator) loses right
+      const membreX = this.getName(txn.initiatorId);
+      const detenteur = this.getName(txn.detentaire || txn.initiatorId);
+      const actifKeyX = `${membreX}|${productName}`;
+      const a1Actif = actifBalances[actifKeyX] || 0;
+      actifBalances[actifKeyX] = a1Actif - quantite;
+
+      actifs.push({
+        membre: membreX,
+        dateTime,
+        numeroTransaction,
+        title,
+        product: productName,
+        detenteur,
+        site: siteName,
+        quantite: -quantite,
+        stockInitial: a1Actif,
+        stockFinal: a1Actif - quantite,
+      });
+
+      // Entry 2: Z (recipient) gains right
+      const membreZ = this.getName(txn.recipientId || txn.ayant_droit);
+      const actifKeyZ = `${membreZ}|${productName}`;
+      const a2Actif = actifBalances[actifKeyZ] || 0;
+      actifBalances[actifKeyZ] = a2Actif + quantite;
+
+      actifs.push({
+        membre: membreZ,
+        dateTime,
+        numeroTransaction,
+        title,
+        product: productName,
+        detenteur,
+        site: siteName,
+        quantite: +quantite,
+        stockInitial: a2Actif,
+        stockFinal: a2Actif + quantite,
+      });
+
+      // --- PASSIFS ---
+      // Entry 3: Y (detentaire) debt to X decreases
+      const membreY = this.getName(txn.detentaire);
+      const ayantDroitX = this.getName(txn.initiatorId);
+      const passifKeyX = `${membreY}|${productName}|${ayantDroitX}`;
+      const a1Passif = passifBalances[passifKeyX] || 0;
+      passifBalances[passifKeyX] = a1Passif - quantite;
+
+      passifs.push({
+        membre: membreY,
+        dateTime,
+        numeroTransaction,
+        title,
+        product: productName,
+        ayantDroit: ayantDroitX,
+        site: siteName,
+        quantite: -quantite,
+        stockInitial: a1Passif,
+        stockFinal: a1Passif - quantite,
+      });
+
+      // Entry 4: Y (detentaire) debt to Z increases
+      const ayantDroitZ = this.getName(txn.recipientId || txn.ayant_droit);
+      const passifKeyZ = `${membreY}|${productName}|${ayantDroitZ}`;
+      const a2Passif = passifBalances[passifKeyZ] || 0;
+      passifBalances[passifKeyZ] = a2Passif + quantite;
+
+      passifs.push({
+        membre: membreY,
+        dateTime,
+        numeroTransaction,
+        title,
+        product: productName,
+        ayantDroit: ayantDroitZ,
+        site: siteName,
+        quantite: +quantite,
+        stockInitial: a2Passif,
+        stockFinal: a2Passif + quantite,
+      });
+    }
+
+    return {
+      memberName,
+      generatedAt: new Date(),
+      actifs,
+      passifs,
+    };
   }
 
   /**

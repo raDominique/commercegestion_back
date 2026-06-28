@@ -3,6 +3,7 @@ import {
   Get,
   Param,
   Query,
+  Req,
   BadRequestException,
   StreamableFile,
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import {
 } from '@nestjs/swagger';
 import { LedgerDisplayService } from './ledger-display.service';
 import { Auth } from '../auth';
+import { Request } from 'express';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 
 @ApiTags('Livre')
@@ -686,5 +688,53 @@ Erreurs possibles:
       message: `Passifs pour l'utilisateur ${userId} (page ${result.page}/${result.totalPages})`,
       data: result.data,
     } as any;
+  }
+
+  /**
+   * Grand livre des virements de droit pour l'utilisateur connecté
+   * Affiche les mouvements d'actifs suite à un virement (VIREMENT_DROIT)
+   */
+  @Get('me/virements')
+  @Auth()
+  @ApiOperation({
+    summary: "Grand livre des virements de droit de l'utilisateur connecté",
+    description: `Affiche les mouvements d'actifs suite à un virement de droit (VIREMENT_DROIT) pour l'utilisateur connecté.
+
+Format des données:
+- Nom de la membre
+- Date et Heure du mouvement
+- Intitulé (Virement de droit)
+- Produit/Article
+- Détentaire
+- Nom du Site
+- Quantité (Q1)
+- Stock initial (A1)
+- Stock final (A1 - Q1)
+
+Ce sont les écritures comptables dans le grand livre générées par les virements de droit.`,
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Grand livre des virements de droit (Actifs + Passifs)",
+  })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  async getMyVirementLedger(
+    @Req() req: Request & { user: { userId: string } },
+  ) {
+    const result =
+      await this.ledgerDisplayService.getUserVirementMovements(
+        req.user.userId,
+      );
+
+    return {
+      status: 'success',
+      message: `Grand livre des virements de droit pour ${result.memberName}`,
+      data: {
+        memberName: result.memberName,
+        generatedAt: result.generatedAt,
+        actifs: result.actifs,
+        passifs: result.passifs,
+      },
+    };
   }
 }
