@@ -79,6 +79,117 @@ Erreurs possibles:
     status: 200,
     description:
       "Grand livre complet: actifs, passifs et mouvements de l'utilisateur",
+    schema: {
+      example: {
+        status: 'success',
+        message: "Grand livre pour l'utilisateur John DOE",
+        data: {
+          info: {
+            userId: '69989c5cdff25ef7fe0a4613',
+            userName: 'John DOE',
+            generatedAt: '2025-06-01T10:30:00.000Z',
+          },
+          movements: {
+            actifs: [
+              {
+                dateTime: '2025-05-30T14:22:00.000Z',
+                transactionId: '69989c5cdff25ef7fe0a4614',
+                transactionNumber: 'DEPOT-2025-0042',
+                title: 'Dépôt reçu',
+                product: 'Blé tendre',
+                productCode: 'BLE-001',
+                detentaire: 'John DOE',
+                site: 'Entrepôt A',
+                quantity: 500,
+                initialStock: 1000,
+                finalStock: 1500,
+                movementType: 'ACTIF',
+                isRejected: false,
+              },
+              {
+                dateTime: '2025-05-25T09:15:00.000Z',
+                transactionId: '69989c5cdff25ef7fe0a4615',
+                transactionNumber: 'RETRAIT-2025-0018',
+                title: 'Retrait',
+                product: 'Blé tendre',
+                productCode: 'BLE-001',
+                detentaire: 'John DOE',
+                site: 'Entrepôt A',
+                quantity: -200,
+                initialStock: 1200,
+                finalStock: 1000,
+                movementType: 'ACTIF',
+                isRejected: false,
+              },
+            ],
+            passifs: [
+              {
+                dateTime: '2025-05-28T11:00:00.000Z',
+                transactionId: '69989c5cdff25ef7fe0a4616',
+                transactionNumber: 'DEPOT-2025-0040',
+                title: 'Dépôt confié',
+                product: 'Maïs grain',
+                productCode: 'MAIS-002',
+                detentaire: 'John DOE',
+                site: 'Entrepôt A',
+                quantity: 300,
+                initialStock: 500,
+                finalStock: 800,
+                movementType: 'PASSIF',
+                isRejected: false,
+              },
+            ],
+            all: [
+              {
+                dateTime: '2025-05-30T14:22:00.000Z',
+                transactionId: '69989c5cdff25ef7fe0a4614',
+                transactionNumber: 'DEPOT-2025-0042',
+                title: 'Dépôt reçu',
+                product: 'Blé tendre',
+                productCode: 'BLE-001',
+                detentaire: 'John DOE',
+                site: 'Entrepôt A',
+                quantity: 500,
+                initialStock: 1000,
+                finalStock: 1500,
+                movementType: 'ACTIF',
+                isRejected: false,
+              },
+              {
+                dateTime: '2025-05-28T11:00:00.000Z',
+                transactionId: '69989c5cdff25ef7fe0a4616',
+                transactionNumber: 'DEPOT-2025-0040',
+                title: 'Dépôt confié',
+                product: 'Maïs grain',
+                productCode: 'MAIS-002',
+                detentaire: 'John DOE',
+                site: 'Entrepôt A',
+                quantity: 300,
+                initialStock: 500,
+                finalStock: 800,
+                movementType: 'PASSIF',
+                isRejected: false,
+              },
+              {
+                dateTime: '2025-05-25T09:15:00.000Z',
+                transactionId: '69989c5cdff25ef7fe0a4615',
+                transactionNumber: 'RETRAIT-2025-0018',
+                title: 'Retrait',
+                product: 'Blé tendre',
+                productCode: 'BLE-001',
+                detentaire: 'John DOE',
+                site: 'Entrepôt A',
+                quantity: -200,
+                initialStock: 1200,
+                finalStock: 1000,
+                movementType: 'ACTIF',
+                isRejected: false,
+              },
+            ],
+          },
+        },
+      },
+    },
   })
   @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
@@ -218,6 +329,39 @@ Erreurs possibles:
   @ApiResponse({
     status: 200,
     description: 'Grand livre global avec tous les mouvements du système',
+    schema: {
+      example: {
+        data: [
+          {
+            dateTime: '2025-06-01T08:00:00.000Z',
+            transactionId: '69989c5cdff25ef7fe0a4620',
+            transactionNumber: 'DEPOT-2025-0050',
+            title: 'Dépôt reçu',
+            product: 'Blé tendre',
+            detentaire: 'John DOE',
+            site: 'Entrepôt A',
+            quantity: 500,
+            initialStock: 0,
+            finalStock: 0,
+            movementType: 'ACTIF',
+          },
+          {
+            dateTime: '2025-05-31T16:30:00.000Z',
+            transactionId: '69989c5cdff25ef7fe0a4621',
+            transactionNumber: 'VIREMENT-2025-0001',
+            title: 'Virement de droit',
+            product: 'Orge',
+            detentaire: 'Marie DUPONT',
+            site: 'Entrepôt B',
+            quantity: -300,
+            initialStock: 0,
+            finalStock: 0,
+            movementType: 'ACTIF',
+          },
+        ],
+        total: 2,
+      },
+    },
   })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
   @ApiResponse({ status: 403, description: 'Pas permissions admin' })
@@ -327,6 +471,36 @@ Erreurs possibles:
   @ApiResponse({
     status: 200,
     description: 'Mouvements complets du produit',
+    schema: {
+      example: [
+        {
+          dateTime: '2025-06-01T08:00:00.000Z',
+          transactionId: '69989c5cdff25ef7fe0a4620',
+          transactionNumber: 'DEPOT-2025-0050',
+          title: 'Dépôt reçu',
+          product: 'Blé tendre',
+          detentaire: 'John DOE',
+          site: 'Entrepôt A',
+          quantity: 500,
+          initialStock: 0,
+          finalStock: 0,
+          movementType: 'ACTIF',
+        },
+        {
+          dateTime: '2025-05-25T09:15:00.000Z',
+          transactionId: '69989c5cdff25ef7fe0a4622',
+          transactionNumber: 'RETRAIT-2025-0018',
+          title: 'Retrait',
+          product: 'Blé tendre',
+          detentaire: 'John DOE',
+          site: 'Entrepôt A',
+          quantity: -200,
+          initialStock: 0,
+          finalStock: 0,
+          movementType: 'ACTIF',
+        },
+      ],
+    },
   })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
   @ApiResponse({ status: 404, description: 'Produit non trouvé' })
@@ -425,6 +599,40 @@ Erreurs possibles:
     status: 200,
     description:
       'Fiche de stock détaillée avec tous les mouvements et statistiques',
+    schema: {
+      example: {
+        product: 'Blé tendre',
+        currentStock: 800,
+        movements: [
+          {
+            dateTime: '2025-06-01T08:00:00.000Z',
+            transactionId: '69989c5cdff25ef7fe0a4620',
+            transactionNumber: 'DEPOT-2025-0050',
+            title: 'Dépôt reçu',
+            product: 'Blé tendre',
+            detentaire: 'John DOE',
+            site: 'Entrepôt A',
+            quantity: 500,
+            initialStock: 0,
+            finalStock: 0,
+            movementType: 'ACTIF',
+          },
+          {
+            dateTime: '2025-05-25T09:15:00.000Z',
+            transactionId: '69989c5cdff25ef7fe0a4622',
+            transactionNumber: 'RETRAIT-2025-0018',
+            title: 'Retrait',
+            product: 'Blé tendre',
+            detentaire: 'John DOE',
+            site: 'Entrepôt A',
+            quantity: -200,
+            initialStock: 0,
+            finalStock: 0,
+            movementType: 'ACTIF',
+          },
+        ],
+      },
+    },
   })
   @ApiResponse({
     status: 404,
@@ -525,6 +733,55 @@ Erreurs possibles:
     status: 200,
     description:
       "Mouvements d'actifs: tous les produits possédés par l'utilisateur avec pagination",
+    schema: {
+      example: {
+        status: 'success',
+        message:
+          "Actifs pour l'utilisateur 69989c5cdff25ef7fe0a4613 (page 1/1)",
+        data: [
+          {
+            id: '69989c5cdff25ef7fe0a4630',
+            productId: '69989c5cdff25ef7fe0a460f',
+            productName: 'Blé tendre',
+            productCode: 'BLE-001',
+            productImage: null,
+            quantite: 800,
+            prixUnitaire: 12.5,
+            valeurTotale: 10000,
+            depotId: '69989c5cdff25ef7fe0a4610',
+            depot: 'Entrepôt A',
+            depotAdresse: 'Zone Industrielle, Dakar',
+            detentaire: 'John DOE',
+            detentaireId: '69989c5cdff25ef7fe0a4613',
+            ayantDroit: 'John DOE',
+            ayantDroitId: '69989c5cdff25ef7fe0a4613',
+            dateCreation: '2025-01-15T10:00:00.000Z',
+            dateModification: '2025-06-01T08:00:00.000Z',
+            isActive: true,
+          },
+          {
+            id: '69989c5cdff25ef7fe0a4631',
+            productId: '69989c5cdff25ef7fe0a4611',
+            productName: 'Maïs grain',
+            productCode: 'MAIS-002',
+            productImage: null,
+            quantite: 500,
+            prixUnitaire: 8.0,
+            valeurTotale: 4000,
+            depotId: '69989c5cdff25ef7fe0a4612',
+            depot: 'Entrepôt B',
+            depotAdresse: 'Thiès, Sénégal',
+            detentaire: 'John DOE',
+            detentaireId: '69989c5cdff25ef7fe0a4613',
+            ayantDroit: 'Marie DUPONT',
+            ayantDroitId: '69989c5cdff25ef7fe0a4614',
+            dateCreation: '2025-03-20T14:30:00.000Z',
+            dateModification: '2025-05-28T11:00:00.000Z',
+            isActive: true,
+          },
+        ],
+      },
+    },
   })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
   @ApiResponse({
@@ -658,6 +915,55 @@ Erreurs possibles:
     status: 200,
     description:
       "Mouvements de passifs: toutes les dettes de l'utilisateur (page 1/1)",
+    schema: {
+      example: {
+        status: 'success',
+        message:
+          "Passifs pour l'utilisateur 69989c5cdff25ef7fe0a4613 (page 1/1)",
+        data: [
+          {
+            id: '69989c5cdff25ef7fe0a4640',
+            productId: '69989c5cdff25ef7fe0a460f',
+            productName: 'Blé tendre',
+            productCode: 'BLE-001',
+            productImage: null,
+            quantite: 300,
+            prixUnitaire: 12.5,
+            valeurTotale: 3750,
+            depotId: '69989c5cdff25ef7fe0a4610',
+            depot: 'Entrepôt A',
+            depotAdresse: 'Zone Industrielle, Dakar',
+            detentaire: 'John DOE',
+            detentaireId: '69989c5cdff25ef7fe0a4613',
+            ayantDroit: 'Alice MARTIN',
+            ayantDroitId: '69989c5cdff25ef7fe0a4615',
+            dateCreation: '2025-04-10T09:00:00.000Z',
+            dateModification: '2025-06-01T08:00:00.000Z',
+            isActive: true,
+          },
+          {
+            id: '69989c5cdff25ef7fe0a4641',
+            productId: '69989c5cdff25ef7fe0a4611',
+            productName: 'Maïs grain',
+            productCode: 'MAIS-002',
+            productImage: null,
+            quantite: 150,
+            prixUnitaire: 8.0,
+            valeurTotale: 1200,
+            depotId: '69989c5cdff25ef7fe0a4612',
+            depot: 'Entrepôt B',
+            depotAdresse: 'Thiès, Sénégal',
+            detentaire: 'John DOE',
+            detentaireId: '69989c5cdff25ef7fe0a4613',
+            ayantDroit: 'Marie DUPONT',
+            ayantDroitId: '69989c5cdff25ef7fe0a4614',
+            dateCreation: '2025-05-15T16:00:00.000Z',
+            dateModification: '2025-05-28T11:00:00.000Z',
+            isActive: true,
+          },
+        ],
+      },
+    },
   })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
   @ApiResponse({
@@ -715,7 +1021,7 @@ Ce sont les écritures comptables dans le grand livre générées par les vireme
   })
   @ApiResponse({
     status: 200,
-    description: "Grand livre des virements de droit (Actifs + Passifs)",
+    description: 'Grand livre des virements de droit (Actifs + Passifs)',
     schema: {
       example: {
         status: 'success',
@@ -783,10 +1089,9 @@ Ce sont les écritures comptables dans le grand livre générées par les vireme
   async getMyVirementLedger(
     @Req() req: Request & { user: { userId: string } },
   ) {
-    const result =
-      await this.ledgerDisplayService.getUserVirementMovements(
-        req.user.userId,
-      );
+    const result = await this.ledgerDisplayService.getUserVirementMovements(
+      req.user.userId,
+    );
 
     return {
       status: 'success',

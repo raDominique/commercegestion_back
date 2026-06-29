@@ -339,8 +339,13 @@ export class TransactionsService {
     const savedTransaction = await transaction.save();
 
     // Notifications: X, Y, Z
-    this.sendVirementDroitNotifications(savedTransaction, initiatorId, dto.detentaireId, dto.beneficiaryId).catch(
-      (error) => console.error('Failed to send virement notifications:', error),
+    this.sendVirementDroitNotifications(
+      savedTransaction,
+      initiatorId,
+      dto.detentaireId,
+      dto.beneficiaryId,
+    ).catch((error) =>
+      console.error('Failed to send virement notifications:', error),
     );
 
     return {

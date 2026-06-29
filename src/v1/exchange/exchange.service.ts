@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ActifsService } from '../actifs/actifs.service';
@@ -101,12 +105,21 @@ export class ExchangeService {
         .skip(skip)
         .limit(Number(limit))
         .populate([
-          { path: 'vendeurId', select: 'userFirstname userName userNickName userEmail' },
-          { path: 'detentaireAId', select: 'userFirstname userName userNickName userEmail' },
+          {
+            path: 'vendeurId',
+            select: 'userFirstname userName userNickName userEmail',
+          },
+          {
+            path: 'detentaireAId',
+            select: 'userFirstname userName userNickName userEmail',
+          },
           { path: 'depotAId', select: 'siteName' },
           { path: 'productAId', select: 'productName' },
           { path: 'productBId', select: 'productName' },
-          { path: 'acceptedDetenteurBIds', select: 'userFirstname userName userNickName' },
+          {
+            path: 'acceptedDetenteurBIds',
+            select: 'userFirstname userName userNickName',
+          },
         ])
         .exec(),
       this.offerModel.countDocuments(filter),
@@ -122,14 +135,20 @@ export class ExchangeService {
     };
   }
 
-  async buyOffer(offerId: string, dto: BuyExchangeOfferDto, acheteurId: string) {
+  async buyOffer(
+    offerId: string,
+    dto: BuyExchangeOfferDto,
+    acheteurId: string,
+  ) {
     const offer = await this.offerModel.findById(offerId);
     if (!offer || !offer.isActive) {
       throw new NotFoundException('Offre introuvable ou inactive');
     }
 
     if (dto.quantiteA > offer.quantiteA) {
-      throw new BadRequestException('Quantité demandée supérieure à la quantité disponible');
+      throw new BadRequestException(
+        'Quantité demandée supérieure à la quantité disponible',
+      );
     }
 
     const qtyA = dto.quantiteA;
@@ -145,7 +164,9 @@ export class ExchangeService {
       : [];
 
     if (accepted.length === 0) {
-      throw new BadRequestException('Aucun détenteur accepté pour la contrepartie (produit B)');
+      throw new BadRequestException(
+        'Aucun détenteur accepté pour la contrepartie (produit B)',
+      );
     }
 
     // On cherche un actif B appartenant à l'acheteur (ayant_droit=acheteurId) chez un détenteur Y accepté.
@@ -162,7 +183,9 @@ export class ExchangeService {
     }
 
     if (!actifB) {
-      throw new BadRequestException("Contrepartie insuffisante: aucun détenteur accepté ne dispose d'assez de produit B pour l'acheteur");
+      throw new BadRequestException(
+        "Contrepartie insuffisante: aucun détenteur accepté ne dispose d'assez de produit B pour l'acheteur",
+      );
     }
 
     const detentaireBId = actifB.userId.toString();

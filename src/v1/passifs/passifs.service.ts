@@ -141,8 +141,19 @@ export class PassifsService {
 
     if (fromDebtorId === toDebtorId) return;
 
-    await this.decreasePassifByCreditor(fromDebtorId, productId, creancierId, quantite);
-    await this.addOrIncreasePassif(toDebtorId, depotId, productId, quantite, creancierId);
+    await this.decreasePassifByCreditor(
+      fromDebtorId,
+      productId,
+      creancierId,
+      quantite,
+    );
+    await this.addOrIncreasePassif(
+      toDebtorId,
+      depotId,
+      productId,
+      quantite,
+      creancierId,
+    );
   }
 
   /**

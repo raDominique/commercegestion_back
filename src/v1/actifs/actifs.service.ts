@@ -174,8 +174,13 @@ export class ActifsService {
     depotId?: string;
     minQuantite?: number;
   }) {
-    const { detentaireId, productId, ayantDroitId, depotId, minQuantite = 0 } =
-      params;
+    const {
+      detentaireId,
+      productId,
+      ayantDroitId,
+      depotId,
+      minQuantite = 0,
+    } = params;
 
     const filter: any = {
       userId: new Types.ObjectId(detentaireId),

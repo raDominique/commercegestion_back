@@ -10,40 +10,59 @@ import {
 } from 'class-validator';
 
 export class CreateExchangeOfferDto {
-  @ApiProperty({ description: 'Produit A mis en vente (vendu)', example: '69989c5cdff25ef7fe0a460f' })
+  @ApiProperty({
+    description: 'Produit A mis en vente (vendu)',
+    example: '69989c5cdff25ef7fe0a460f',
+  })
   @IsMongoId()
   @IsNotEmpty()
   productAId!: string;
 
-  @ApiProperty({ description: 'Quantité de produit A mise en vente', example: 10 })
+  @ApiProperty({
+    description: 'Quantité de produit A mise en vente',
+    example: 10,
+  })
   @IsNumber()
   @IsPositive()
   @IsNotEmpty()
   quantiteA!: number;
 
-  @ApiProperty({ description: 'Détenteur W du produit A (chez qui le produit est déposé)', example: '69989c5cdff25ef7fe0a4611' })
+  @ApiProperty({
+    description: 'Détenteur W du produit A (chez qui le produit est déposé)',
+    example: '69989c5cdff25ef7fe0a4611',
+  })
   @IsMongoId()
   @IsNotEmpty()
   detentaireAId!: string;
 
-  @ApiProperty({ description: 'Site/dépôt de W où le produit A est stocké', example: '69989c5cdff25ef7fe0a4610' })
+  @ApiProperty({
+    description: 'Site/dépôt de W où le produit A est stocké',
+    example: '69989c5cdff25ef7fe0a4610',
+  })
   @IsMongoId()
   @IsNotEmpty()
   depotAId!: string;
 
-  @ApiProperty({ description: 'Produit B de contrepartie demandé', example: '69989c5cdff25ef7fe0a4620' })
+  @ApiProperty({
+    description: 'Produit B de contrepartie demandé',
+    example: '69989c5cdff25ef7fe0a4620',
+  })
   @IsMongoId()
   @IsNotEmpty()
   productBId!: string;
 
-  @ApiProperty({ description: 'Taux d’échange: quantité de B pour 1 unité de A', example: 2 })
+  @ApiProperty({
+    description: 'Taux d’échange: quantité de B pour 1 unité de A',
+    example: 2,
+  })
   @IsNumber()
   @IsPositive()
   @Min(0.000001)
   tauxEchange!: number;
 
   @ApiProperty({
-    description: 'Liste des détenteurs Y acceptés pour fournir le produit B (IDs utilisateurs)',
+    description:
+      'Liste des détenteurs Y acceptés pour fournir le produit B (IDs utilisateurs)',
     example: ['69989c5cdff25ef7fe0a4701', '69989c5cdff25ef7fe0a4702'],
     required: false,
   })

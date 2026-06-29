@@ -84,7 +84,7 @@ import { ExchangeModule } from './v1/exchange/exchange.module';
           { path: 'tenders', module: TenderModule },
           { path: 'cart', module: CartModule },
           { path: '', module: MailModule },
-          {path: '', module: ExchangeModule},
+          { path: '', module: ExchangeModule },
         ],
       },
       {

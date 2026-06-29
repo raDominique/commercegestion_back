@@ -164,7 +164,7 @@ export class CreateInitializationDto {
 
 export class CreateVirementDroitDto {
   @ApiProperty({
-    description: "ID du bénéficiaire (membre Z) qui reçoit le droit",
+    description: 'ID du bénéficiaire (membre Z) qui reçoit le droit',
     example: '69989c5cdff25ef7fe0a4613',
   })
   @IsMongoId()
