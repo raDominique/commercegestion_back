@@ -716,6 +716,68 @@ Ce sont les écritures comptables dans le grand livre générées par les vireme
   @ApiResponse({
     status: 200,
     description: "Grand livre des virements de droit (Actifs + Passifs)",
+    schema: {
+      example: {
+        status: 'success',
+        message: 'Grand livre des virements de droit pour John DOE',
+        data: {
+          memberName: 'John DOE',
+          generatedAt: '2025-06-01T10:30:00.000Z',
+          actifs: [
+            {
+              membre: 'John DOE',
+              dateTime: '2025-05-30T14:22:00.000Z',
+              numeroTransaction: 'VIREMENT-2025-0001',
+              title: 'Virement de droit',
+              product: 'Blé tendre',
+              detenteur: 'Marie DUPONT',
+              site: 'Entrepôt A',
+              quantite: -500,
+              stockInitial: 1500,
+              stockFinal: 1000,
+            },
+            {
+              membre: 'Alice MARTIN',
+              dateTime: '2025-05-30T14:22:00.000Z',
+              numeroTransaction: 'VIREMENT-2025-0001',
+              title: 'Virement de droit',
+              product: 'Blé tendre',
+              detenteur: 'Marie DUPONT',
+              site: 'Entrepôt A',
+              quantite: 500,
+              stockInitial: 200,
+              stockFinal: 700,
+            },
+          ],
+          passifs: [
+            {
+              membre: 'Marie DUPONT',
+              dateTime: '2025-05-30T14:22:00.000Z',
+              numeroTransaction: 'VIREMENT-2025-0001',
+              title: 'Virement de droit',
+              product: 'Blé tendre',
+              ayantDroit: 'John DOE',
+              site: 'Entrepôt A',
+              quantite: -500,
+              stockInitial: 1500,
+              stockFinal: 1000,
+            },
+            {
+              membre: 'Marie DUPONT',
+              dateTime: '2025-05-30T14:22:00.000Z',
+              numeroTransaction: 'VIREMENT-2025-0001',
+              title: 'Virement de droit',
+              product: 'Blé tendre',
+              ayantDroit: 'Alice MARTIN',
+              site: 'Entrepôt A',
+              quantite: 500,
+              stockInitial: 0,
+              stockFinal: 500,
+            },
+          ],
+        },
+      },
+    },
   })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
   async getMyVirementLedger(
