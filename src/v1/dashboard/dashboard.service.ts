@@ -149,6 +149,24 @@ export class DashboardService {
             },
           },
         },
+        {
+          $lookup: {
+            from: 'sites',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'site',
+          },
+        },
+        {
+          $unwind: { path: '$site', preserveNullAndEmptyArrays: true },
+        },
+        {
+          $project: {
+            _id: 1,
+            name: '$site.siteName',
+            total: 1,
+          },
+        },
       ]),
       // passifsBySite
       this.passifModel.aggregate([
@@ -161,6 +179,24 @@ export class DashboardService {
                 $multiply: ['$quantite', { $ifNull: ['$prixUnitaire', 0] }],
               },
             },
+          },
+        },
+        {
+          $lookup: {
+            from: 'sites',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'site',
+          },
+        },
+        {
+          $unwind: { path: '$site', preserveNullAndEmptyArrays: true },
+        },
+        {
+          $project: {
+            _id: 1,
+            name: '$site.siteName',
+            total: 1,
           },
         },
       ]),
@@ -178,6 +214,24 @@ export class DashboardService {
             },
           },
         },
+        {
+          $lookup: {
+            from: 'products',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'product',
+          },
+        },
+        {
+          $unwind: { path: '$product', preserveNullAndEmptyArrays: true },
+        },
+        {
+          $project: {
+            _id: 1,
+            name: '$product.productName',
+            total: 1,
+          },
+        },
       ]),
       // passifsByProduct
       this.passifModel.aggregate([
@@ -190,6 +244,24 @@ export class DashboardService {
                 $multiply: ['$quantite', { $ifNull: ['$prixUnitaire', 0] }],
               },
             },
+          },
+        },
+        {
+          $lookup: {
+            from: 'products',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'product',
+          },
+        },
+        {
+          $unwind: { path: '$product', preserveNullAndEmptyArrays: true },
+        },
+        {
+          $project: {
+            _id: 1,
+            name: '$product.productName',
+            total: 1,
           },
         },
       ]),
