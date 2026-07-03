@@ -879,6 +879,125 @@ export class TransactionsService {
   }
 
   /**
+   * Récupère tous les dépôts APProuvés où l'utilisateur est ayant_droit
+   * et le détenteur est un autre membre, et qui n'ont pas encore fait
+   * l'objet d'un virement de droit (VIREMENT_DROIT).
+   */
+  async getAllDepositAtOthersMe(
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    siteId?: string,
+    productId?: string,
+    detentaireId?: string,
+  ): Promise<PaginationResult<TransactionDocument>> {
+    const skip = (page - 1) * limit;
+    const userObjId = new Types.ObjectId(userId);
+
+    // 1) Trouver tous les VIREMENT_DROIT où cet utilisateur a transféré ses droits
+    const virements = await this.transactionModel
+      .find({
+        type: TransactionType.VIREMENT_DROIT,
+        status: TransactionStatus.APPROVED,
+        'metadata.previousAyantDroitId': userId,
+        isActive: true,
+      })
+      .select('productId detentaire siteOrigineId quantite')
+      .lean()
+      .exec();
+
+    // Index: (productId|detentaire|siteOrigineId) -> quantité totale virée
+    const viredMap = new Map<string, number>();
+    for (const v of virements) {
+      const key = `${v.productId.toString()}|${v.detentaire?.toString() || ''}|${v.siteOrigineId?.toString() || ''}`;
+      viredMap.set(key, (viredMap.get(key) || 0) + v.quantite);
+    }
+
+    // 2) Construire la requête MongoDB avec les filtres directs
+    const filters: any[] = [
+      { type: TransactionType.DEPOT },
+      { status: TransactionStatus.APPROVED },
+      { ayant_droit: userObjId },
+      { detentaire: { $ne: userObjId } },
+      { isActive: true },
+    ];
+
+    if (productId) {
+      filters.push({ productId: new Types.ObjectId(productId) });
+    }
+
+    if (siteId) {
+      const siteObjId = new Types.ObjectId(siteId);
+      filters.push({
+        $or: [
+          { siteOrigineId: siteObjId },
+          { siteDestinationId: siteObjId },
+        ],
+      });
+    }
+
+    if (detentaireId) {
+      filters.push({ detentaire: new Types.ObjectId(detentaireId) });
+    }
+
+    const query = filters.length > 1 ? { $and: filters } : filters[0];
+
+    const depots = await this.transactionModel
+      .find(query)
+      .sort({ createdAt: -1 })
+      .populate([
+        'initiatorId',
+        'recipientId',
+        'productId',
+        'siteOrigineId',
+        'siteDestinationId',
+        'detentaire',
+        'ayant_droit',
+      ])
+      .exec();
+
+    // 3) Filtrer ceux dont la totalité de la quantité a déjà été virée
+    const getId = (field: any): string => {
+      if (!field) return '';
+      if (field._id) return field._id.toString();
+      return field.toString();
+    };
+
+    const filtered = depots.filter((d) => {
+      const key = `${getId(d.productId)}|${getId(d.detentaire)}|${getId(d.siteOrigineId)}`;
+      const viredQty = viredMap.get(key) || 0;
+      return viredQty < d.quantite;
+    });
+
+    // 4) Filtre text search (post-filter sur les données peuplées)
+    const searchLower = search?.toLowerCase();
+    const searched = searchLower
+      ? filtered.filter((d) => {
+          const productName = (d.productId as any)?.productName?.toLowerCase() || '';
+          const txNumber = d.transactionNumber?.toLowerCase() || '';
+          return (
+            productName.includes(searchLower) ||
+            txNumber.includes(searchLower)
+          );
+        })
+      : filtered;
+
+    const total = searched.length;
+    const data = searched.slice(skip, skip + limit);
+
+    return {
+      status: 'success',
+      message:
+        'Dépôts chez les autres membres sans virement de droit récupérés avec succès',
+      data,
+      page,
+      limit,
+      total,
+    };
+  }
+
+  /**
    * Envoie les notifications d'approbation de transaction
    * Notifie le destinataire que sa transaction a été approuvée
    * Notifie aussi le déposant/initiator que sa transaction a été approuvée

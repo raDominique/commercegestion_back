@@ -426,6 +426,87 @@ Erreurs possibles:
   }
 
   /**
+   * Récupère les dépôts de l'utilisateur chez d'autres membres
+   * qui n'ont pas encore fait l'objet d'un virement de droit
+   */
+  @Get('deposit-at-others/me')
+  @Auth()
+  @ApiOperation({
+    summary: 'Dépôts chez les autres membres sans virement de droit',
+    description: `Récupère toutes les transactions DÉPÔT approuvées où l'utilisateur connecté est l'ayant-droit (propriétaire)
+et le détenteur est un autre membre, et qui n'ont pas encore fait l'objet d'un virement de droit (VIREMENT_DROIT).
+
+Utilité:
+- Voir les marchandises déposées chez d'autres membres dont les droits n'ont pas été transférés
+- Identifier les dépôts disponibles pour un virement de droit
+- Gérer les actifs externes
+
+Pagination:
+- page: numéro de page (défaut: 1)
+- limit: nombre par page (défaut: 10)`,
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Numéro de page (défaut: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: "Nombre d'éléments par page (défaut: 10)",
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Recherche par nom de produit ou numéro de transaction',
+  })
+  @ApiQuery({
+    name: 'siteId',
+    required: false,
+    type: String,
+    description: "Filtrer par site (ID du site d'origine ou de destination)",
+  })
+  @ApiQuery({
+    name: 'productId',
+    required: false,
+    type: String,
+    description: 'Filtrer par produit',
+  })
+  @ApiQuery({
+    name: 'detentaireId',
+    required: false,
+    type: String,
+    description: 'Filtrer par détenteur (membre qui garde physiquement)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste paginée des dépôts chez les autres membres',
+  })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  async getAllDepositAtOthersMe(
+    @Req() req: Request & { user: { userId: string } },
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @Query('search') search?: string,
+    @Query('siteId') siteId?: string,
+    @Query('productId') productId?: string,
+    @Query('detentaireId') detentaireId?: string,
+  ) {
+    return this.transactionsService.getAllDepositAtOthersMe(
+      req.user.userId,
+      page,
+      limit,
+      search,
+      siteId,
+      productId,
+      detentaireId,
+    );
+  }
+
+  /**
    * Récupère une transaction par ID
    */
   @Get(':id')
