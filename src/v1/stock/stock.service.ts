@@ -130,6 +130,7 @@ export class StockService {
       await this.processTransferOrWithdraw(
         dto,
         userId,
+        type,
         siteOrigine,
         siteDestOwnerId,
       );
@@ -143,43 +144,47 @@ export class StockService {
     userId: string,
     siteDestOwnerId: string,
   ): Promise<void> {
-    // Utiliser les détenteur et ayant-droit fournis, sinon utiliser les defaults
-    // IMPORTANT: Cette logique est critique pour la cohérence Actifs/Passifs
-
-    // Détenteur: qui garde physiquement le produit
-    // Default: propriétaire du site de destination
     const detentaireId = dto.detentaire || siteDestOwnerId;
-
-    // Ayant-droit: qui possède légalement le produit
-    // Default: l'utilisateur qui effectue le dépôt (userId)
     const ayantDroitId = dto.ayant_droit || userId;
 
-    // Créer l'actif pour le détenteur (destinataire) qui reçoit physiquement le produit
+    // 1. Actif pour le propriétaire (ayant_droit) : ses biens détenus physiquement par le détenteur
     await this.actifsService.addOrIncreaseActif(
-      detentaireId, // userId (propriétaire du bilan) = détenteur/destinataire
+      ayantDroitId, // userId (bilan du propriétaire)
       dto.siteDestinationId,
       dto.productId,
       dto.quantite,
       dto.prixUnitaire,
-      detentaireId, // Qui garde physiquement
-      ayantDroitId, // Qui possède légalement
+      detentaireId, // détenteur physique
+      ayantDroitId, // propriétaire légal
     );
 
-    // Créer un passif si le détenteur n'est pas le propriétaire
-    // Le propriétaire (ayant-droit / déposant) doit le produit au détenteur
+    // 2. Si le détenteur est différent du propriétaire
     if (detentaireId !== ayantDroitId) {
-      await this.passifsService.addOrIncreasePassif(
-        ayantDroitId, // Le débiteur (celui qui a déposé / propriétaire légal)
+      // Actif pour le détenteur : il garde un bien qui ne lui appartient pas
+      await this.actifsService.addOrIncreaseActif(
+        detentaireId, // userId (bilan du détenteur)
         dto.siteDestinationId,
         dto.productId,
         dto.quantite,
-        detentaireId, // Le créancier (celui qui détient physiquement)
+        dto.prixUnitaire,
+        detentaireId, // détenteur physique
+        ayantDroitId, // propriétaire légal
+      );
+
+      // Passif : le détenteur doit le bien au propriétaire
+      await this.passifsService.addOrIncreasePassif(
+        detentaireId, // débiteur = détenteur (qui garde sans posséder)
+        dto.siteDestinationId,
+        dto.productId,
+        dto.quantite,
+        ayantDroitId, // créancier = propriétaire légal
       );
     }
   }
   private async processTransferOrWithdraw(
     dto: CreateMovementDto,
     userId: string,
+    type: MovementType,
     siteOrigine: any,
     siteDestOwnerId: string,
   ): Promise<void> {
@@ -222,7 +227,7 @@ export class StockService {
     }
 
     // 3. Cas du TRANSFERT (si on déplace vers un autre site)
-    if (MovementType.TRANSFERT) {
+    if (type === MovementType.TRANSFERT) {
       // Respecter les paramètres dto si fournis, sinon utiliser les defaults
       const detentaireId = dto.detentaire || siteDestOwnerId;
       const ayantDroitId = dto.ayant_droit || userId;

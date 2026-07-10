@@ -103,10 +103,10 @@ export class TransactionsService {
       console.error('Failed to send creation notification:', error);
     });
 
-    // Réserver la quantité dans l'actif du déposant (site d'origine) si un actif existe
-    // Si aucun actif n'existe, le stock est considéré comme externe (hors système)
+    // Mettre la quantité en attente dans l'actif du déposant (site d'origine)
+    // La quantité réelle n'est pas diminuée tant que la transaction n'est pas approuvée
     try {
-      await this.actifsService.decreaseActif(
+      await this.actifsService.reserveActif(
         createDepositDto.ayant_droit,
         createDepositDto.siteOrigineId,
         createDepositDto.productId,
@@ -387,6 +387,22 @@ export class TransactionsService {
 
     const updatedTransaction = await transaction.save();
 
+    // Pour un DEPOT : confirmer la réservation (en attente -> stock réel)
+    if (transaction.type === TransactionType.DEPOT) {
+      try {
+        await this.actifsService.confirmPendingActif(
+          transaction.ayant_droit.toString(),
+          transaction.siteOrigineId.toString(),
+          transaction.productId.toString(),
+          transaction.quantite,
+        );
+      } catch (error) {
+        console.warn(
+          `Aucun actif à confirmer pour le dépôt #${transaction.transactionNumber}: ${error.message}`,
+        );
+      }
+    }
+
     // Appliquer les mouvements d'actifs/passifs selon le type
     await this.applyTransactionMovements(updatedTransaction);
 
@@ -432,16 +448,13 @@ export class TransactionsService {
 
     const updatedTransaction = await transaction.save();
 
-    // Restaurer la quantite dans l'actif du déposant si depot
+    // Libérer la réservation (en attente) si depot
     if (transaction.type === TransactionType.DEPOT) {
-      await this.actifsService.addOrIncreaseActif(
+      await this.actifsService.releasePendingActif(
         transaction.ayant_droit.toString(),
         transaction.siteOrigineId.toString(),
         transaction.productId.toString(),
         transaction.quantite,
-        transaction.prixUnitaire || 0,
-        transaction.detentaire.toString(),
-        transaction.ayant_droit.toString(),
       );
     } else if (transaction.type === TransactionType.VENTE) {
       // Restaurer la quantite chez le vendeur si vente annulée

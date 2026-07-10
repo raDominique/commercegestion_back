@@ -106,6 +106,97 @@ export class ActifsService {
   }
 
   /**
+   * Réserve une quantité sur un actif (met en attente).
+   * La quantité est déduite du disponible sans impacter le stock réel.
+   */
+  async reserveActif(
+    userId: string,
+    depotId: string,
+    productId: string,
+    quantite: number,
+  ) {
+    const actif = await this.actifModel.findOne({
+      userId: new Types.ObjectId(userId),
+      depotId: new Types.ObjectId(depotId),
+      productId: new Types.ObjectId(productId),
+      isActive: true,
+    });
+
+    if (!actif || actif.quantite - actif.quantiteEnAttente < quantite) {
+      throw new NotFoundException(
+        `Stock disponible insuffisant pour réservation. (Disponible: ${actif ? actif.quantite - actif.quantiteEnAttente : 0}, Demandé: ${quantite})`,
+      );
+    }
+
+    actif.quantiteEnAttente += quantite;
+    return await actif.save();
+  }
+
+  /**
+   * Libère une quantité précédemment réservée (remet dans le disponible).
+   * Utilisé quand une transaction est rejetée ou annulée.
+   */
+  async releasePendingActif(
+    userId: string,
+    depotId: string,
+    productId: string,
+    quantite: number,
+  ) {
+    const actif = await this.actifModel.findOne({
+      userId: new Types.ObjectId(userId),
+      depotId: new Types.ObjectId(depotId),
+      productId: new Types.ObjectId(productId),
+      isActive: true,
+    });
+
+    if (!actif || actif.quantiteEnAttente < quantite) {
+      console.warn(
+        `Aucune réservation trouvée ou insuffisante pour libérer ${quantite} (en attente: ${actif?.quantiteEnAttente || 0})`,
+      );
+      return;
+    }
+
+    actif.quantiteEnAttente -= quantite;
+    return await actif.save();
+  }
+
+  /**
+   * Confirme une réservation : retire du en-attente et diminue le stock réel.
+   * Utilisé quand une transaction en attente est approuvée.
+   */
+  async confirmPendingActif(
+    userId: string,
+    depotId: string,
+    productId: string,
+    quantite: number,
+  ) {
+    const actif = await this.actifModel.findOne({
+      userId: new Types.ObjectId(userId),
+      depotId: new Types.ObjectId(depotId),
+      productId: new Types.ObjectId(productId),
+      isActive: true,
+    });
+
+    if (!actif || actif.quantite < quantite) {
+      throw new NotFoundException(
+        `Stock insuffisant pour confirmer la réservation. (Stock: ${actif?.quantite || 0}, Demandé: ${quantite})`,
+      );
+    }
+
+    // Retirer du en-attente
+    actif.quantiteEnAttente = Math.max(0, actif.quantiteEnAttente - quantite);
+    // Diminuer le stock réel
+    actif.quantite -= quantite;
+
+    if (actif.quantite === 0) {
+      actif.isActive = false;
+      actif.archivedAt = new Date();
+    }
+
+    return await actif.save();
+  }
+
+  /**
    * Transfère un droit de propriété (ayant_droit) sur un actif stocké chez un détenteur.
    * Cas d'usage: dépôt chez un tiers + virement de droit (propriétaire X -> bénéficiaire Z)
    *

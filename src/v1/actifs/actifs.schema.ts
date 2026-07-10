@@ -19,6 +19,9 @@ export class Actif {
   @Prop({ required: true })
   quantite: number;
 
+  @Prop({ default: 0, min: 0 })
+  quantiteEnAttente: number;
+
   @Prop({ type: Number, default: null })
   prixUnitaire: number; // Prix unitaire du produit au moment du dépôt
 
