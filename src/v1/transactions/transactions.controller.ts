@@ -50,23 +50,36 @@ export class TransactionsController {
     description: `Crée une demande de dépôt d'actif vers un autre membre (phase 1: création en attente).
     
 Flux métier:
-1. Initiateur crée la demande (statut PENDING)
-2. Un email est envoyé au destinataire pour notification
-3. Destinataire reçoit une notification "nouvelle transaction"
+1. Initiateur (ayant_droit) crée la demande (statut PENDING)
+2. La quantité est mise en **attente** (quantiteEnAttente) — pas de déduction du stock réel
+3. Un email est envoyé au détenteur (destinataire) pour notification
 4. Admin/Manager approuve ou rejette
-5. Si approuvé: mouvements appliqués automatiquement
-   - Actif initiateur: -quantité
-   - Actif destinataire: +quantité
-   - Passif créé: destinataire doit la marchandise à l'initiateur
-6. Un email de confirmation est envoyé au destinataire
+5. Si approuvé:
+   - Réservation confirmée: le stock réel du déposant diminue
+   - Actif du **déposant**: quantité ajoutée sur son bilan, détenue physiquement par le détenteur
+   - Actif du **détenteur**: quantité ajoutée sur son bilan, appartient légalement au déposant
+   - Passif du **détenteur**: il doit la marchandise au déposant (débiteur = détenteur, créancier = ayant_droit)
+6. Si rejeté: la réservation est libérée (stock disponible restauré)
+7. Un email de confirmation est envoyé
+
+Schéma comptable (dépôt de 10 Riz chez Superadmin):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Déposant (ayant_droit) :
+  Actif:  10 Riz détenus par Superadmin    ✅
+  Passif: aucun                             ✅
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Superadmin (détenteur) :
+  Actif:  10 Riz appartenant au déposant   ✅
+  Passif: 10 Riz dus au déposant            ✅
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Champs requis:
-- siteOrigineId: Site de départ
-- siteDestinationId: Site d'arrivée
+- siteOrigineId: Site de départ (où est le stock actuellement)
+- siteDestinationId: Site d'arrivée (où sera stocké physiquement)
 - productId: ID du produit
 - quantite: Quantité
-- detentaire: ID du détentaire
-- ayant_droit: ID de l'ayant-droit
+- detentaire: ID du membre qui gardera physiquement (destinataire)
+- ayant_droit: ID du membre propriétaire légal (initiateur)
 - prixUnitaire: (optionnel) Prix unitaire
 - observations: (optionnel) Observations
 
@@ -307,12 +320,17 @@ Flux:
 
 Flux métier:
 1. Admin/Manager approuve la transaction (statut change à APPROVED)
-2. Les mouvements d'actif/passif sont appliqués:
-   - Transaction DÉPÔT: initiateur perd quantité, destinataire gagne, passif créé
+2. Confirmation des réservations:
+   - Transaction DÉPÔT: confirmation de la mise en attente (quantiteEnAttente → stock réel)
+3. Mouvements d'actif/passif appliqués:
+   - Transaction DÉPÔT:
+     * Actif du déposant: +quantité détenue par le détenteur
+     * Actif du détenteur: +quantité appartenant au déposant
+     * Passif du détenteur: doit la marchandise au déposant (débiteur = détenteur)
    - Transaction RETOUR: détenteur perd quantité, propriétaire regagne, passif réduit
    - Transaction INITIALISATION: stock créé avec mouvement INIT validé
-3. Email de confirmation envoyé à l'initiateur (ou destinataire pour dépôt)
-4. Approver name enregistré pour traçabilité
+4. Email de confirmation envoyé à l'initiateur (ou destinataire pour dépôt)
+5. Approver name enregistré pour traçabilité
 
 Champs:
 - id (path): ID unique de la transaction
