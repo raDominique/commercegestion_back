@@ -301,9 +301,37 @@ Flux:
   })
   @ApiResponse({
     status: 201,
-    description: "Transaction d'achat créée avec succès",
+    description: `Transaction de vente/échange créée avec succès.
+- Stock du produit réservé chez le vendeur
+- Stock de la contrepartie réservé chez l'acheteur (si échange produit)
+- En attente d'approbation par le vendeur`,
+    schema: {
+      example: {
+        _id: '507f1f77bcf86cd799439011',
+        transactionNumber: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+        type: 'VENTE',
+        status: 'PENDING',
+        initiatorId: '507f1f77bcf86cd799439001', // acheteur
+        recipientId: '507f1f77bcf86cd799439002', // vendeur
+        productId: '507f1f77bcf86cd799439003', // produit acheté
+        contrepartieId: '507f1f77bcf86cd799439004', // null si vente monétaire
+        rapportEchange: 500, // FCFA/unité ou ratio produit
+        siteOrigineId: '507f1f77bcf86cd799439005', // site du vendeur
+        siteDestinationId: '507f1f77bcf86cd799439006', // site de l'acheteur
+        quantite: 100,
+        prixUnitaire: 500, // null si échange produit
+        detentaire: '507f1f77bcf86cd799439002', // vendeur
+        ayant_droit: '507f1f77bcf86cd799439001', // acheteur
+        observations: 'Achat de 100 kg de Riz',
+        createdAt: '2026-04-01T10:30:45.000Z',
+      },
+    },
   })
-  @ApiResponse({ status: 400, description: 'Stock insuffisant' })
+  @ApiResponse({
+    status: 400,
+    description: 'Paramètres invalides, champs manquants ou stock insuffisant',
+  })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
   @ApiBody({ type: CreateVenteDto })
   async createVente(
     @Req() req: Request & { user: { userId: string } },
