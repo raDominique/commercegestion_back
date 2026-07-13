@@ -882,7 +882,8 @@ export class LedgerDisplayService {
     // Construire le filtre pour la recherche
     const filter: any = {
       userId: userIdObj,
-      isActive: true, // Uniquement les actifs actifs (quantité > 0)
+      $or: [{ quantite: { $gt: 0 } }, { quantiteEnAttente: { $gt: 0 } }],
+      isActive: true,
     };
 
     if (search) {
@@ -932,30 +933,37 @@ export class LedgerDisplayService {
     ]);
 
     // Formater les données pour une meilleure lisibilité
-    const formattedActifs = (actifs || []).map((actif: any) => ({
-      id: actif._id,
-      productId: actif.productId?._id || 'N/A',
-      productName: actif.productId?.productName || 'N/A',
-      productCode: actif.productId?.codeCPC || 'N/A',
-      productImage: actif.productId?.productImage || null,
-      quantite: actif.quantite,
-      prixUnitaire: actif.prixUnitaire,
-      valeurTotale: (actif.quantite || 0) * (actif.prixUnitaire || 0),
-      depotId: actif.depotId?._id || 'N/A',
-      depot: actif.depotId?.siteName || 'N/A',
-      depotAdresse: actif.depotId?.siteAddress || 'N/A',
-      detentaire: actif.detentaire
-        ? `${actif.detentaire.userNickName} ${actif.detentaire.userName}`
-        : 'N/A',
-      detentaireId: actif.detentaire?._id || null,
-      ayantDroit: actif.ayant_droit
-        ? `${actif.ayant_droit.userNickName} ${actif.ayant_droit.userName}`
-        : 'N/A',
-      ayantDroitId: actif.ayant_droit?._id || null,
-      dateCreation: actif.createdAt,
-      dateModification: actif.updatedAt,
-      isActive: actif.isActive,
-    }));
+    const formattedActifs = (actifs || []).map((actif: any) => {
+      const quantiteReelle = actif.quantite || 0;
+      const quantiteEnAttente = actif.quantiteEnAttente || 0;
+      const quantiteDisponible = Math.max(0, quantiteReelle - quantiteEnAttente);
+      return {
+        id: actif._id,
+        productId: actif.productId?._id || 'N/A',
+        productName: actif.productId?.productName || 'N/A',
+        productCode: actif.productId?.codeCPC || 'N/A',
+        productImage: actif.productId?.productImage || null,
+        quantite: quantiteReelle,
+        quantiteEnAttente,
+        quantiteDisponible,
+        prixUnitaire: actif.prixUnitaire,
+        valeurTotale: quantiteDisponible * (actif.prixUnitaire || 1),
+        depotId: actif.depotId?._id || 'N/A',
+        depot: actif.depotId?.siteName || 'N/A',
+        depotAdresse: actif.depotId?.siteAddress || 'N/A',
+        detentaire: actif.detentaire
+          ? `${actif.detentaire.userNickName} ${actif.detentaire.userName}`
+          : 'N/A',
+        detentaireId: actif.detentaire?._id || null,
+        ayantDroit: actif.ayant_droit
+          ? `${actif.ayant_droit.userNickName} ${actif.ayant_droit.userName}`
+          : 'N/A',
+        ayantDroitId: actif.ayant_droit?._id || null,
+        dateCreation: actif.createdAt,
+        dateModification: actif.updatedAt,
+        isActive: actif.isActive,
+      };
+    });
 
     return {
       data: formattedActifs,
