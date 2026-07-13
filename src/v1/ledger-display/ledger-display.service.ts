@@ -986,12 +986,12 @@ export class LedgerDisplayService {
     const userIdObj = new Types.ObjectId(userId);
     const skip = (page - 1) * limit;
 
-    // 1. Récupérer les PENDING DEPOT où l'utilisateur est le détenteur (passifs en attente)
+    // 1. Récupérer les PENDING DEPOT initiées par l'utilisateur (passifs en attente, l'envoyeur a réservé la quantité)
     const pendingDepots = await this.transactionModel
       .find({
         type: TransactionType.DEPOT,
         status: TransactionStatus.PENDING,
-        recipientId: userIdObj,
+        initiatorId: userIdObj,
         isActive: true,
       })
       .sort({ createdAt: -1 })
@@ -1033,7 +1033,7 @@ export class LedgerDisplayService {
         id: tx._id,
         transactionNumber: tx.transactionNumber,
         type: 'DEPOT',
-        statut: 'en_attente',
+        statut: TransactionStatus.PENDING,
         productId: tx.productId?._id || 'N/A',
         productName: tx.productId?.productName || 'N/A',
         productCode: tx.productId?.codeCPC || 'N/A',
@@ -1107,7 +1107,7 @@ export class LedgerDisplayService {
       id: passif._id,
       transactionNumber: null,
       type: 'PASSIF',
-      statut: 'confirmé',
+      statut: TransactionStatus.APPROVED,
       productId: passif.productId?._id || 'N/A',
       productName: passif.productId?.productName || 'N/A',
       productCode: passif.productId?.codeCPC || 'N/A',

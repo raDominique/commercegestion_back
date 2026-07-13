@@ -46,6 +46,8 @@ export class PassifsService {
         productId: new Types.ObjectId(productId),
         depotId: depotId ? new Types.ObjectId(depotId) : null,
         quantite,
+        detentaire: new Types.ObjectId(detentaireId),
+        ayant_droit: new Types.ObjectId(creancierId),
         typePassif: 'DETTE_MARCHANDISE_EN_DEPOT',
         isActive: true,
       });
