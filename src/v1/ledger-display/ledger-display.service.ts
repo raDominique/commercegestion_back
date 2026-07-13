@@ -986,30 +986,96 @@ export class LedgerDisplayService {
     const userIdObj = new Types.ObjectId(userId);
     const skip = (page - 1) * limit;
 
-    // Construire le filtre pour la recherche
+    // 1. Récupérer les PENDING DEPOT où l'utilisateur est le détenteur (passifs en attente)
+    const pendingDepots = await this.transactionModel
+      .find({
+        type: TransactionType.DEPOT,
+        status: TransactionStatus.PENDING,
+        recipientId: userIdObj,
+        isActive: true,
+      })
+      .sort({ createdAt: -1 })
+      .populate([
+        {
+          path: 'productId',
+          select: 'productName codeCPC productImage prixUnitaire productVolume',
+        },
+        {
+          path: 'siteDestinationId',
+          select: 'siteId siteName siteAddress location siteUserID',
+          populate: { path: 'siteUserID', select: 'userName userNickName' },
+        },
+        {
+          path: 'detentaire',
+          select: 'userName userNickName userPhone',
+        },
+        {
+          path: 'ayant_droit',
+          select: 'userName userNickName userPhone',
+        },
+      ])
+      .lean()
+      .exec() as any[];
+
+    // Formater les dépôts en attente en passifs
+    const pendingPassifs = (pendingDepots || [])
+      .filter((tx: any) => {
+        if (!search) return true;
+        const searchLower = search.toLowerCase();
+        const productName = tx.productId?.productName?.toLowerCase() || '';
+        const txNumber = tx.transactionNumber?.toLowerCase() || '';
+        return (
+          productName.includes(searchLower) ||
+          txNumber.includes(searchLower)
+        );
+      })
+      .map((tx: any) => ({
+        id: tx._id,
+        transactionNumber: tx.transactionNumber,
+        type: 'DEPOT',
+        statut: 'en_attente',
+        productId: tx.productId?._id || 'N/A',
+        productName: tx.productId?.productName || 'N/A',
+        productCode: tx.productId?.codeCPC || 'N/A',
+        productImage: tx.productId?.productImage || null,
+        quantite: tx.quantite,
+        prixUnitaire: tx.prixUnitaire,
+        valeurTotale: (tx.quantite || 0) * (tx.prixUnitaire || 0),
+        depotId: tx.siteDestinationId?._id || 'N/A',
+        depot: tx.siteDestinationId?.siteName || 'N/A',
+        depotAdresse: tx.siteDestinationId?.siteAddress || 'N/A',
+        detentaire: tx.detentaire
+          ? `${tx.detentaire.userNickName} ${tx.detentaire.userName}`
+          : 'N/A',
+        ayantDroit: tx.ayant_droit
+          ? `${tx.ayant_droit.userNickName} ${tx.ayant_droit.userName}`
+          : 'N/A',
+        detentaireId: tx.detentaire?._id || null,
+        ayantDroitId: tx.ayant_droit?._id || null,
+        dateCreation: tx.createdAt,
+        dateModification: tx.updatedAt,
+        isActive: true,
+      }));
+
+    // 2. Récupérer les passifs confirmés
     const filter: any = {
       userId: userIdObj,
-      isActive: true, // Uniquement les passifs actifs (quantité > 0)
+      isActive: true,
     };
 
     if (search) {
-      // Si search fourni, chercher par productId partiellement ou par autres champs
       try {
-        // Essayer de chercher par ObjectId si c'est un ID valide
         const searchObjId = new Types.ObjectId(search);
         filter.$or = [{ productId: searchObjId }, { depotId: searchObjId }];
       } catch {
-        // Sinon, ignorer si c'est pas un ObjectId valide
+        // ignorer si pas un ObjectId valide
       }
     }
 
-    // Récupérer les passifs bruts avec pagination
-    const [passifs, total] = await Promise.all([
+    const [confirmedPassifs] = await Promise.all([
       this.passifModel
         .find(filter)
         .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
         .populate([
           {
             path: 'productId',
@@ -1035,12 +1101,13 @@ export class LedgerDisplayService {
         ])
         .lean()
         .exec() as any,
-      this.passifModel.countDocuments(filter),
     ]);
 
-    // Formater les données pour une meilleure lisibilité
-    const formattedPassifs = (passifs || []).map((passif: any) => ({
+    const formattedConfirmed = (confirmedPassifs || []).map((passif: any) => ({
       id: passif._id,
+      transactionNumber: null,
+      type: 'PASSIF',
+      statut: 'confirmé',
       productId: passif.productId?._id || 'N/A',
       productName: passif.productId?.productName || 'N/A',
       productCode: passif.productId?.codeCPC || 'N/A',
@@ -1064,8 +1131,18 @@ export class LedgerDisplayService {
       isActive: passif.isActive,
     }));
 
+    // 3. Fusionner, trier par date décroissante, paginer
+    const merged = [...pendingPassifs, ...formattedConfirmed].sort(
+      (a, b) =>
+        new Date(b.dateCreation).getTime() -
+        new Date(a.dateCreation).getTime(),
+    );
+
+    const total = merged.length;
+    const data = merged.slice(skip, skip + limit);
+
     return {
-      data: formattedPassifs,
+      data,
       total,
       page,
       limit,
