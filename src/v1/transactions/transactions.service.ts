@@ -236,6 +236,13 @@ export class TransactionsService {
   ): Promise<PaginationResult<TransactionDocument>> {
     const transactionNumber = this.generateTransactionNumber();
 
+    const contrepartieId = createVenteDto.contrepartieId
+      ? new Types.ObjectId(createVenteDto.contrepartieId)
+      : null;
+    const quantiteContrepartie = contrepartieId
+      ? Math.round(createVenteDto.quantite * createVenteDto.rapportEchange * 1e6) / 1e6
+      : 0;
+
     const transaction = new this.transactionModel({
       transactionNumber,
       type: TransactionType.VENTE,
@@ -243,12 +250,14 @@ export class TransactionsService {
       initiatorId: new Types.ObjectId(acheteurId),
       recipientId: new Types.ObjectId(createVenteDto.vendeurId),
       productId: new Types.ObjectId(createVenteDto.productId),
+      contrepartieId,
+      rapportEchange: createVenteDto.rapportEchange,
       siteOrigineId: new Types.ObjectId(createVenteDto.siteOrigineId),
       siteDestinationId: createVenteDto.siteDestinationId
         ? new Types.ObjectId(createVenteDto.siteDestinationId)
         : new Types.ObjectId(createVenteDto.siteOrigineId),
       quantite: createVenteDto.quantite,
-      prixUnitaire: createVenteDto.prixUnitaire,
+      prixUnitaire: contrepartieId ? null : createVenteDto.rapportEchange,
       detentaire: new Types.ObjectId(createVenteDto.vendeurId),
       ayant_droit: new Types.ObjectId(acheteurId),
       observations: createVenteDto.observations || null,
@@ -257,13 +266,25 @@ export class TransactionsService {
 
     const savedTransaction = await transaction.save();
 
-    // Réserver la quantite chez le vendeur
+    // Réserver la quantite du produit chez le vendeur
     await this.actifsService.decreaseActif(
       createVenteDto.vendeurId,
       createVenteDto.siteOrigineId,
       createVenteDto.productId,
       createVenteDto.quantite,
     );
+
+    // Si contrepartie produit : réserver aussi la contrepartie chez l'acheteur
+    if (contrepartieId && quantiteContrepartie > 0) {
+      const contrepartieSiteId =
+        createVenteDto.siteDestinationId || createVenteDto.siteOrigineId;
+      await this.actifsService.decreaseActif(
+        acheteurId,
+        contrepartieSiteId,
+        createVenteDto.contrepartieId!,
+        quantiteContrepartie,
+      );
+    }
 
     // Envoyer la notification de création (fire-and-forget)
     this.sendCreationNotification(savedTransaction).catch((error) => {
@@ -457,7 +478,7 @@ export class TransactionsService {
         transaction.quantite,
       );
     } else if (transaction.type === TransactionType.VENTE) {
-      // Restaurer la quantite chez le vendeur si vente annulée
+      // Restaurer la quantite du produit chez le vendeur
       await this.actifsService.addOrIncreaseActif(
         transaction.detentaire.toString(),
         transaction.siteOrigineId.toString(),
@@ -467,6 +488,28 @@ export class TransactionsService {
         transaction.detentaire.toString(),
         transaction.detentaire.toString(),
       );
+
+      // Restaurer la contrepartie chez l'acheteur si échange
+      if (transaction.contrepartieId) {
+        const contrepartieQte = transaction.rapportEchange
+          ? Math.round(transaction.quantite * transaction.rapportEchange * 1e6) / 1e6
+          : 0;
+        if (contrepartieQte > 0) {
+          const contrepartieSiteId =
+            transaction.siteDestinationId?.toString() ||
+            transaction.siteOrigineId.toString();
+          const acheteurId = transaction.ayant_droit.toString();
+          await this.actifsService.addOrIncreaseActif(
+            acheteurId,
+            contrepartieSiteId,
+            transaction.contrepartieId.toString(),
+            contrepartieQte,
+            transaction.prixUnitaire || 0,
+            acheteurId,
+            acheteurId,
+          );
+        }
+      }
     }
 
     // Envoyer la notification de rejet (fire-and-forget)
@@ -673,7 +716,7 @@ export class TransactionsService {
       const quantity = transaction.quantite;
       const unitPrice = transaction.prixUnitaire || 0;
 
-      // 1. Créer un actif pour l'acheteur
+      // 1. Actif du produit pour l'acheteur
       await this.actifsService.addOrIncreaseActif(
         acheteurId,
         siteDestinationId,
@@ -684,10 +727,34 @@ export class TransactionsService {
         acheteurId,
       );
 
+      // 2. Si contrepartie produit : transférer la contrepartie de l'acheteur au vendeur
+      if (transaction.contrepartieId) {
+        const contrepartieIdStr = transaction.contrepartieId.toString();
+        const contrepartieQte = transaction.rapportEchange
+          ? Math.round(quantity * transaction.rapportEchange * 1e6) / 1e6
+          : 0;
+
+        if (contrepartieQte > 0) {
+          // Actif de la contrepartie pour le vendeur (sur le site d'origine)
+          await this.actifsService.addOrIncreaseActif(
+            vendeurId,
+            siteOrigineId,
+            contrepartieIdStr,
+            contrepartieQte,
+            unitPrice,
+            vendeurId,
+            vendeurId,
+          );
+        }
+      }
+
       console.log(
         'Vente movements applied for transaction:',
         transaction.transactionNumber,
-        `Vendeur: ${vendeurId}, Acheteur: ${acheteurId}, Produit: ${productId}, Quantité: ${quantity}`,
+        `Vendeur: ${vendeurId}, Acheteur: ${acheteurId}, Produit: ${productId}, Quantité: ${quantity}` +
+          (transaction.contrepartieId
+            ? `, Contrepartie: ${transaction.contrepartieId}`
+            : ''),
       );
     } catch (error) {
       console.error('Error applying vente movements:', error);

@@ -74,6 +74,12 @@ export class Transaction {
   @Prop({ type: Number, default: null })
   prixUnitaire: number; // Prix unitaire au moment de la transaction
 
+  @Prop({ type: Types.ObjectId, ref: 'Product', default: null })
+  contrepartieId: Types.ObjectId; // Produit reçu en échange (null = vente monétaire)
+
+  @Prop({ type: Number, default: null })
+  rapportEchange: number; // Rapport d'échange (quantité de contrepartie par unité du produit)
+
   // Pour les dépôts: qui détient et qui possède
   @Prop({ type: Types.ObjectId, ref: 'User', default: null })
   detentaire: Types.ObjectId; // Qui garde physiquement l'actif (hangar ou utilisateur)

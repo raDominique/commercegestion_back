@@ -163,7 +163,7 @@ export class CartService {
             siteOrigineId: item.siteId.toString(),
             siteDestinationId: dto?.siteDestinationId || undefined,
             quantite: item.quantite,
-            prixUnitaire: item.prixUnitaire,
+            rapportEchange: item.prixUnitaire,
             observations:
               dto?.observations || `Commande groupée depuis le panier`,
           },

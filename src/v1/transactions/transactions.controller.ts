@@ -283,15 +283,21 @@ Erreurs possibles:
   @Post('vente')
   @Auth()
   @ApiOperation({
-    summary: 'Acheter un actif (Créer une transaction VENTE)',
-    description: `Un membre achète un actif d'un autre membre.
-L'acheteur initie la transaction. La quantité est réservée chez le vendeur en attendant l'approbation.
-Une fois approuvée, l'actif est transféré du vendeur vers l'acheteur.
+    summary: 'Acheter/Échanger un actif (Créer une transaction VENTE)',
+    description: `Un membre achète ou échange un actif avec un autre membre.
+
+La contrepartie peut être monétaire (pas de produit de contrepartie) ou un autre produit (échange).
+Le rapport d'échange remplace le prix unitaire:
+  - Vente monétaire : rapport d'échange = prix en FCFA par unité (ex: 500 FCFA/kg)
+  - Échange produit : rapport d'échange = quantité de contrepartie par unité (ex: 2 kg de Maïs pour 1 kg de Riz)
+
+L'acheteur initie la transaction. Les stocks sont réservés chez les deux parties en attente d'approbation.
+Une fois approuvée, les actifs sont transférés.
 
 Flux:
-1. Acheteur soumet la demande d'achat → statut PENDING, stock réservé chez le vendeur
-2. Vendeur approuve → actif transféré chez l'acheteur (addOrIncreaseActif)
-3. Vendeur rejette → stock restauré chez le vendeur`,
+1. Acheteur soumet → statut PENDING, stock produit réservé chez le vendeur + stock contrepartie réservé chez l'acheteur
+2. Vendeur approuve → actif produit vers acheteur + actif contrepartie vers vendeur
+3. Vendeur rejette → stocks restaurés des deux côtés`,
   })
   @ApiResponse({
     status: 201,
