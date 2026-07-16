@@ -79,6 +79,10 @@ pipeline {
                     docker run -d \
                         --name ${DOCKER_CONTAINER_NAME} \
                         --restart unless-stopped \
+                        --memory="2g" \
+                        --memory-reservation="512m" \
+                        --cpus="2" \
+                        --pids-limit="200" \
                         -p ${PORT}:${PORT} \
                         -e PORT=${PORT} \
                         -e MONGO_URI="${MONGO_URI}" \
