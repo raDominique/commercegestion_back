@@ -3,6 +3,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { NotFoundException } from '@nestjs/common';
 import { PassifsService } from './passifs.service';
 import { Passif } from './passifs.schema';
+import { Transaction, TransactionStatus } from '../transactions/transactions.schema';
 import { ExportService } from '../../shared/export/export.service';
 
 const OID = (hex: string) => (hex + '0'.repeat(24)).slice(0, 24);
@@ -22,6 +23,11 @@ const mockDoc = (overrides = {}) => ({
   typePassif: 'DETTE_MARCHANDISE_EN_DEPOT',
   detentaire: USER_ID,
   ayant_droit: CREDITOR_ID,
+  archivedAt: undefined,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  transactionNumber: null,
+  statut: undefined,
   save: jest.fn().mockResolvedValue(true),
   toObject: jest.fn(),
   ...overrides,
@@ -43,6 +49,12 @@ mockModel.populate = jest.fn().mockReturnThis();
 mockModel.select = jest.fn().mockReturnThis();
 mockModel.exec = jest.fn();
 
+const mockTransactionModel: any = jest.fn();
+mockTransactionModel.findById = jest.fn();
+mockTransactionModel.lean = jest.fn().mockReturnThis();
+mockTransactionModel.populate = jest.fn().mockReturnThis();
+mockTransactionModel.exec = jest.fn();
+
 describe('PassifsService', () => {
   let service: PassifsService;
 
@@ -53,6 +65,10 @@ describe('PassifsService', () => {
         {
           provide: getModelToken(Passif.name),
           useValue: mockModel,
+        },
+        {
+          provide: getModelToken(Transaction.name),
+          useValue: mockTransactionModel,
         },
         {
           provide: ExportService,
@@ -222,25 +238,76 @@ describe('PassifsService', () => {
   });
 
   describe('getPassifDetails', () => {
-    it('should return passif when found', async () => {
-      const doc = mockDoc();
+    function mockPassifFindById(doc: any) {
       const execMock = jest.fn().mockResolvedValue(doc);
       const populate3 = jest.fn().mockReturnValue({ exec: execMock });
       const populate2 = jest.fn().mockReturnValue({ populate: populate3 });
       const populate1 = jest.fn().mockReturnValue({ populate: populate2 });
       mockModel.findById.mockReturnValue({ populate: populate1 });
+    }
+
+    it('should return passif when found', async () => {
+      const doc = mockDoc();
+      mockPassifFindById(doc);
 
       const result = await service.getPassifDetails(OID('aabbccddee01'));
 
       expect(result).toEqual(doc);
     });
 
-    it('should throw NotFoundException when passif not found', async () => {
+    it('should fallback to pending transaction when passif not found', async () => {
+      mockPassifFindById(null);
+
+      const txDoc = {
+        _id: OID('txId00000001'),
+        transactionNumber: 'PENDING-001',
+        initiatorId: USER_ID,
+        ayant_droit: { _id: CREDITOR_ID },
+        siteDestinationId: { _id: DEPOT_ID },
+        productId: { _id: PRODUCT_ID },
+        detentaire: { _id: USER_ID },
+        quantite: 50,
+        status: TransactionStatus.PENDING,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const populateMock4 = jest.fn().mockReturnThis();
+      const populateMock3 = jest.fn().mockReturnThis();
+      const populateMock2 = jest.fn().mockReturnThis();
+      const populateMock1 = jest.fn().mockReturnThis();
+      const execMock = jest.fn().mockResolvedValue(txDoc);
+      mockTransactionModel.findById.mockReturnValue({
+        populate: populateMock1,
+      });
+      populateMock1.mockReturnValue({ populate: populateMock2 });
+      populateMock2.mockReturnValue({ populate: populateMock3 });
+      populateMock3.mockReturnValue({ populate: populateMock4 });
+      populateMock4.mockReturnValue({ lean: jest.fn().mockReturnValue({ exec: execMock }) });
+
+      const result: any = await service.getPassifDetails(OID('txId00000001'));
+
+      expect(result.statut).toBe(TransactionStatus.PENDING);
+      expect(result.quantite).toBe(50);
+      expect(result.transactionNumber).toBe('PENDING-001');
+    });
+
+    it('should throw NotFoundException when neither passif nor pending transaction found', async () => {
+      mockPassifFindById(null);
+
+      const populateMock4 = jest.fn().mockReturnThis();
+      const populateMock3 = jest.fn().mockReturnThis();
+      const populateMock2 = jest.fn().mockReturnThis();
+      const populateMock1 = jest.fn().mockReturnThis();
       const execMock = jest.fn().mockResolvedValue(null);
-      const populate3 = jest.fn().mockReturnValue({ exec: execMock });
-      const populate2 = jest.fn().mockReturnValue({ populate: populate3 });
-      const populate1 = jest.fn().mockReturnValue({ populate: populate2 });
-      mockModel.findById.mockReturnValue({ populate: populate1 });
+      mockTransactionModel.findById.mockReturnValue({
+        populate: populateMock1,
+      });
+      populateMock1.mockReturnValue({ populate: populateMock2 });
+      populateMock2.mockReturnValue({ populate: populateMock3 });
+      populateMock3.mockReturnValue({ populate: populateMock4 });
+      populateMock4.mockReturnValue({ lean: jest.fn().mockReturnValue({ exec: execMock }) });
 
       await expect(service.getPassifDetails(OID('aabbccddee02'))).rejects.toThrow(NotFoundException);
     });

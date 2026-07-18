@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { Transaction, TransactionStatus } from '../transactions/transactions.schema';
 import { Passif, PassifDocument } from './passifs.schema';
 import {
   ExportService,
@@ -12,6 +13,8 @@ export class PassifsService {
   constructor(
     @InjectModel(Passif.name)
     private readonly passifModel: Model<PassifDocument>,
+    @InjectModel(Transaction.name)
+    private readonly transactionModel: Model<Transaction>,
     private readonly exportService: ExportService,
   ) {}
 
@@ -196,16 +199,43 @@ export class PassifsService {
   async getPassifDetails(passifId: string) {
     const passif = await this.passifModel
       .findById(passifId)
-      .populate('productId', 'productName codeCPC productImage prixUnitaire') // Détails du produit
-      .populate('userId', 'userNickName userName userPhone userEmail') // Détails de l'ayant-droit
-      .populate('depotId', 'siteName siteAddress siteLat siteLng') // Détails du site/hangar
+      .populate('productId', 'productName codeCPC productImage prixUnitaire')
+      .populate('userId', 'userNickName userName userPhone userEmail')
+      .populate('depotId', 'siteName siteAddress siteLat siteLng')
       .exec();
 
-    if (!passif) {
+    if (passif) return passif;
+
+    // Fallback: chercher dans les transactions PENDING (passif en attente d'approbation)
+    const pendingTx = await this.transactionModel
+      .findById(passifId)
+      .populate('productId', 'productName codeCPC productImage prixUnitaire')
+      .populate('siteDestinationId', 'siteName siteAddress siteLat siteLng')
+      .populate('detentaire', 'userNickName userName userPhone userEmail')
+      .populate('ayant_droit', 'userNickName userName userPhone userEmail')
+      .lean()
+      .exec() as any;
+
+    if (!pendingTx || pendingTx.status !== TransactionStatus.PENDING) {
       throw new NotFoundException(`Passif avec l'ID ${passifId} non trouvé`);
     }
 
-    return passif;
+    return {
+      _id: pendingTx._id,
+      transactionNumber: pendingTx.transactionNumber,
+      statut: TransactionStatus.PENDING,
+      userId: pendingTx.initiatorId,
+      creancierId: pendingTx.ayant_droit?._id,
+      productId: pendingTx.productId,
+      depotId: pendingTx.siteDestinationId?._id,
+      quantite: pendingTx.quantite,
+      detentaire: pendingTx.detentaire?._id,
+      ayant_droit: pendingTx.ayant_droit?._id,
+      isActive: pendingTx.isActive,
+      createdAt: pendingTx.createdAt,
+      updatedAt: pendingTx.updatedAt,
+      typePassif: 'PENDING_DEPOT',
+    };
   }
 
   /**
