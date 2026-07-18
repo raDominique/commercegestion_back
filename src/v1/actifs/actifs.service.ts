@@ -528,4 +528,20 @@ export class ActifsService {
       quantite: { $gt: 0 },
     });
   }
+
+  /**
+   * Trouve un actif sans restriction de quantité ou isActive.
+   * Utilisé pour récupérer le détenteur (detentaire) d'un actif même après diminution.
+   */
+  async findActifLight(
+    userId: string,
+    depotId: string,
+    productId: string,
+  ): Promise<ActifDocument | null> {
+    return this.actifModel.findOne({
+      userId: new Types.ObjectId(userId),
+      depotId: new Types.ObjectId(depotId),
+      productId: new Types.ObjectId(productId),
+    });
+  }
 }

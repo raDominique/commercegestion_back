@@ -739,7 +739,31 @@ export class TransactionsService {
         acheteurId,
       );
 
-      // 2. Si contrepartie produit : transférer la contrepartie de l'acheteur au vendeur
+      // 2. Transfert du passif du produit
+      // Le détenteur (physique) ne doit plus au vendeur, mais à l'acheteur
+      const sellerActif = await this.actifsService.findActifLight(
+        vendeurId,
+        siteOrigineId,
+        productId,
+      );
+      const holderId =
+        sellerActif?.detentaire?.toString() || vendeurId;
+
+      await this.passifsService.decreasePassifByCreditor(
+        holderId,
+        productId,
+        vendeurId,
+        quantity,
+      );
+      await this.passifsService.addOrIncreasePassif(
+        holderId,
+        siteOrigineId,
+        productId,
+        quantity,
+        acheteurId,
+      );
+
+      // 3. Contrepartie (échange ou monnaie)
       if (transaction.contrepartieId) {
         const contrepartieIdStr = transaction.contrepartieId.toString();
         const contrepartieQte = transaction.rapportEchange
@@ -747,14 +771,37 @@ export class TransactionsService {
           : 0;
 
         if (contrepartieQte > 0) {
-          // Actif de la contrepartie pour le vendeur (sur le site d'origine)
+          // Actif de la contrepartie pour le vendeur (au site de la contrepartie)
           await this.actifsService.addOrIncreaseActif(
             vendeurId,
-            siteOrigineId,
+            siteDestinationId,
             contrepartieIdStr,
             contrepartieQte,
             unitPrice,
             vendeurId,
+            vendeurId,
+          );
+
+          // Transfert du passif de la contrepartie
+          const buyerActif = await this.actifsService.findActifLight(
+            acheteurId,
+            siteDestinationId,
+            contrepartieIdStr,
+          );
+          const contrepartieHolderId =
+            buyerActif?.detentaire?.toString() || acheteurId;
+
+          await this.passifsService.decreasePassifByCreditor(
+            contrepartieHolderId,
+            contrepartieIdStr,
+            acheteurId,
+            contrepartieQte,
+          );
+          await this.passifsService.addOrIncreasePassif(
+            contrepartieHolderId,
+            siteDestinationId,
+            contrepartieIdStr,
+            contrepartieQte,
             vendeurId,
           );
         }
