@@ -115,9 +115,13 @@ export class TransactionsService {
     } catch (error) {
       if (error instanceof NotFoundException) {
         console.warn(
-          `Aucun actif existant pour le dépôt (ayant_droit=${createDepositDto.ayant_droit}, site=${createDepositDto.siteOrigineId}, product=${createDepositDto.productId}). Le stock est considéré comme externe.`,
+          `[reserveActif] Aucun actif existant pour le dépôt (ayant_droit=${createDepositDto.ayant_droit}, site=${createDepositDto.siteOrigineId}, product=${createDepositDto.productId}). Le stock est considéré comme externe.`,
         );
       } else {
+        console.error(
+          `[reserveActif] Erreur inattendue lors de la réservation:`,
+          error,
+        );
         throw error;
       }
     }
@@ -418,8 +422,9 @@ export class TransactionsService {
           transaction.quantite,
         );
       } catch (error) {
-        console.warn(
-          `Aucun actif à confirmer pour le dépôt #${transaction.transactionNumber}: ${error.message}`,
+        console.error(
+          `[confirmPendingActif] Erreur lors de la confirmation du dépôt #${transaction.transactionNumber}:`,
+          error,
         );
       }
     }
@@ -624,7 +629,15 @@ export class TransactionsService {
       const quantity = transaction.quantite;
       const unitPrice = transaction.prixUnitaire || 0;
 
-      // 1. Sortie du stock chez le détenteur (site d'origine)
+      // 1. Sortie du stock chez l'ayant-droit (site d'origine = sa créance)
+      await this.actifsService.decreaseActif(
+        ayantDroitId,
+        originSiteId,
+        productId,
+        quantity,
+      );
+
+      // 2. Sortie du stock chez le détenteur (site d'origine)
       await this.actifsService.decreaseActif(
         detentaireId,
         originSiteId,
@@ -632,24 +645,23 @@ export class TransactionsService {
         quantity,
       );
 
-      // 2. Entrée du stock chez l'ayant-droit (site de destination)
+      // 3. Entrée du stock chez l'ayant-droit (site de destination)
       await this.actifsService.addOrIncreaseActif(
-        ayantDroitId, // userId: Propriétaire du bilan
-        destinationSiteId, // depotId: Site physique
+        ayantDroitId,
+        destinationSiteId,
         productId,
         quantity,
         unitPrice,
-        ayantDroitId, // detentaireId: il récupère physiquement
-        ayantDroitId, // ayantDroitId: il est propriétaire légal
+        ayantDroitId,
+        ayantDroitId,
       );
 
-      // 3. Diminuer le passif lié au dépôt (si existant)
-      // NB: lors d'un DEPOT via StockService, le passif est créé avec:
-      // userId = ayantDroitId (débiteur) / creancierId = detentaireId
+      // 4. Diminuer le passif lié au dépôt
+      // Le passif a été créé au dépôt avec: userId=détenteur (débiteur), creancierId=ayant-droit (créancier)
       await this.passifsService.decreasePassifByCreditor(
-        ayantDroitId,
-        productId,
         detentaireId,
+        productId,
+        ayantDroitId,
         quantity,
       );
 
