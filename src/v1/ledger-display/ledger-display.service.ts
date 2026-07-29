@@ -879,7 +879,80 @@ export class LedgerDisplayService {
     const userIdObj = new Types.ObjectId(userId);
     const skip = (page - 1) * limit;
 
-    // Construire le filtre pour la recherche
+    // 1. Récupérer les PENDING DEPOT où l'utilisateur est le destinataire (actifs en attente d'arrivée)
+    const pendingDepots = await this.transactionModel
+      .find({
+        type: TransactionType.DEPOT,
+        status: TransactionStatus.PENDING,
+        recipientId: userIdObj,
+        isActive: true,
+      })
+      .sort({ createdAt: -1 })
+      .populate([
+        {
+          path: 'productId',
+          select: 'productName codeCPC productImage prixUnitaire productVolume',
+        },
+        {
+          path: 'siteDestinationId',
+          select: 'siteId siteName siteAddress location siteUserID',
+          populate: { path: 'siteUserID', select: 'userName userNickName' },
+        },
+        {
+          path: 'detentaire',
+          select: 'userName userNickName userPhone',
+        },
+        {
+          path: 'ayant_droit',
+          select: 'userName userNickName userPhone',
+        },
+      ])
+      .lean()
+      .exec() as any[];
+
+    // Formater les dépôts en attente en actifs
+    const pendingActifs = (pendingDepots || [])
+      .filter((tx: any) => {
+        if (!search) return true;
+        const searchLower = search.toLowerCase();
+        const productName = tx.productId?.productName?.toLowerCase() || '';
+        const txNumber = tx.transactionNumber?.toLowerCase() || '';
+        return (
+          productName.includes(searchLower) ||
+          txNumber.includes(searchLower)
+        );
+      })
+      .map((tx: any) => ({
+        id: tx._id,
+        transactionNumber: tx.transactionNumber,
+        type: 'DEPOT',
+        statut: TransactionStatus.PENDING,
+        productId: tx.productId?._id || 'N/A',
+        productName: tx.productId?.productName || 'N/A',
+        productCode: tx.productId?.codeCPC || 'N/A',
+        productImage: tx.productId?.productImage || null,
+        quantite: tx.quantite,
+        quantiteEnAttente: 0,
+        quantiteDisponible: 0,
+        prixUnitaire: tx.prixUnitaire,
+        valeurTotale: (tx.quantite || 0) * (tx.prixUnitaire || 0),
+        depotId: tx.siteDestinationId?._id || 'N/A',
+        depot: tx.siteDestinationId?.siteName || 'N/A',
+        depotAdresse: tx.siteDestinationId?.siteAddress || 'N/A',
+        detentaire: tx.detentaire
+          ? `${tx.detentaire.userNickName} ${tx.detentaire.userName}`
+          : 'N/A',
+        detentaireId: tx.detentaire?._id || null,
+        ayantDroit: tx.ayant_droit
+          ? `${tx.ayant_droit.userNickName} ${tx.ayant_droit.userName}`
+          : 'N/A',
+        ayantDroitId: tx.ayant_droit?._id || null,
+        dateCreation: tx.createdAt,
+        dateModification: tx.updatedAt,
+        isActive: true,
+      }));
+
+    // 2. Récupérer les actifs confirmés
     const filter: any = {
       userId: userIdObj,
       $or: [{ quantite: { $gt: 0 } }, { quantiteEnAttente: { $gt: 0 } }],
@@ -887,23 +960,18 @@ export class LedgerDisplayService {
     };
 
     if (search) {
-      // Si search fourni, chercher par productId partiellement ou par autres champs
       try {
-        // Essayer de chercher par ObjectId si c'est un ID valide
         const searchObjId = new Types.ObjectId(search);
         filter.$or = [{ productId: searchObjId }, { depotId: searchObjId }];
       } catch {
-        // Sinon, ignorer si c'est pas un ObjectId valide
+        // ignorer si pas un ObjectId valide
       }
     }
 
-    // Récupérer les actifs bruts avec pagination
-    const [actifs, total] = await Promise.all([
+    const [actifs] = await Promise.all([
       this.actifModel
         .find(filter)
         .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
         .populate([
           {
             path: 'productId',
@@ -929,16 +997,18 @@ export class LedgerDisplayService {
         ])
         .lean()
         .exec() as any,
-      this.actifModel.countDocuments(filter),
     ]);
 
-    // Formater les données pour une meilleure lisibilité
+    // Formater les actifs confirmés
     const formattedActifs = (actifs || []).map((actif: any) => {
       const quantiteReelle = actif.quantite || 0;
       const quantiteEnAttente = actif.quantiteEnAttente || 0;
       const quantiteDisponible = Math.max(0, quantiteReelle - quantiteEnAttente);
       return {
         id: actif._id,
+        transactionNumber: null,
+        type: 'ACTIF',
+        statut: TransactionStatus.APPROVED,
         productId: actif.productId?._id || 'N/A',
         productName: actif.productId?.productName || 'N/A',
         productCode: actif.productId?.codeCPC || 'N/A',
@@ -965,8 +1035,18 @@ export class LedgerDisplayService {
       };
     });
 
+    // 3. Fusionner, trier par date décroissante, paginer
+    const merged = [...pendingActifs, ...formattedActifs].sort(
+      (a, b) =>
+        new Date(b.dateCreation).getTime() -
+        new Date(a.dateCreation).getTime(),
+    );
+
+    const total = merged.length;
+    const data = merged.slice(skip, skip + limit);
+
     return {
-      data: formattedActifs,
+      data,
       total,
       page,
       limit,
@@ -994,12 +1074,13 @@ export class LedgerDisplayService {
     const userIdObj = new Types.ObjectId(userId);
     const skip = (page - 1) * limit;
 
-    // 1. Récupérer les PENDING DEPOT initiées par l'utilisateur (passifs en attente, l'envoyeur a réservé la quantité)
+    // 1. Récupérer les PENDING DEPOT où l'utilisateur est le destinataire (passifs en attente)
+    // Le passif est une dette du dépositaire (recipient) envers le déposant (initiator)
     const pendingDepots = await this.transactionModel
       .find({
         type: TransactionType.DEPOT,
         status: TransactionStatus.PENDING,
-        initiatorId: userIdObj,
+        recipientId: userIdObj,
         isActive: true,
       })
       .sort({ createdAt: -1 })
