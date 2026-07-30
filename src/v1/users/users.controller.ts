@@ -483,7 +483,7 @@ export class UsersController {
   }
 
   /**
-   * Récupérer tous les utilisateurs qui ont choisi l’utilisateur courant comme parrain
+   * Récupérer tous les utilisateurs qui ont choisi l'utilisateur courant comme parrain
    */
   @Get('me/referrals')
   @Auth()
@@ -529,6 +529,64 @@ export class UsersController {
 
     return this.usersService.findAllByFilsPaginated(
       req.user.userIdPartager,
+      Number(page),
+      Number(limit),
+      search,
+      sortBy,
+      order,
+      filter,
+    );
+  }
+
+  /**
+   * Récupérer tous les utilisateurs ayant un parrain spécifique
+   */
+  @Get('get-by-id-parrains/:parrainId')
+  @ApiOperation({
+    summary: 'Liste paginée des filleuls par ID de parrain',
+    description:
+      "Retourne les utilisateurs ayant choisi le parrain spécifié via son ID (code parrainage 8 carac.).",
+  })
+  @ApiParam({ name: 'parrainId', example: 'XJ8K2P9W' })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 10 })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Recherche par nom ou email',
+  })
+  @ApiQuery({ name: 'userType', required: false, enum: UserType })
+  @ApiQuery({ name: 'isActive', required: false, type: Boolean })
+  @ApiQuery({ name: 'isVerified', required: false, type: Boolean })
+  async getUsersByIdParrains(
+    @Param('parrainId') parrainId: string,
+    @Query() query: UsersQueryDto,
+  ) {
+    const {
+      page = '1',
+      limit = '10',
+      search,
+      sortBy = 'createdAt',
+      order = 'desc',
+      userType,
+      isActive,
+      isVerified,
+    } = query;
+
+    const filter = {
+      ...(userType && { userType }),
+      isActive:
+        isActive === undefined ? undefined : String(isActive) === 'true',
+      isVerified:
+        isVerified === undefined ? undefined : String(isVerified) === 'true',
+    };
+
+    Object.keys(filter).forEach(
+      (key) => filter[key] === undefined && delete filter[key],
+    );
+
+    return this.usersService.findAllByFilsPaginated(
+      parrainId,
       Number(page),
       Number(limit),
       search,
