@@ -896,15 +896,15 @@ export class LedgerDisplayService {
         {
           path: 'siteDestinationId',
           select: 'siteId siteName siteAddress location siteUserID',
-          populate: { path: 'siteUserID', select: 'userName userNickName' },
+          populate: { path: 'siteUserID', select: 'userName userFirstName userPhone' },
         },
         {
           path: 'detentaire',
-          select: 'userName userNickName userPhone',
+          select: 'userName userFirstName userPhone',
         },
         {
           path: 'ayant_droit',
-          select: 'userName userNickName userPhone',
+          select: 'userName userFirstName userPhone',
         },
       ])
       .lean()
@@ -940,11 +940,11 @@ export class LedgerDisplayService {
         depot: tx.siteDestinationId?.siteName || 'N/A',
         depotAdresse: tx.siteDestinationId?.siteAddress || 'N/A',
         detentaire: tx.detentaire
-          ? `${tx.detentaire.userNickName} ${tx.detentaire.userName}`
+          ? `${tx.detentaire.userName} ${tx.detentaire.userFirstName}`
           : 'N/A',
         detentaireId: tx.detentaire?._id || null,
         ayantDroit: tx.ayant_droit
-          ? `${tx.ayant_droit.userNickName} ${tx.ayant_droit.userName}`
+          ? `${tx.ayant_droit.userName} ${tx.ayant_droit.userFirstName}`
           : 'N/A',
         ayantDroitId: tx.ayant_droit?._id || null,
         dateCreation: tx.createdAt,
@@ -983,16 +983,16 @@ export class LedgerDisplayService {
             select: 'siteId siteName siteAddress location siteUserID',
             populate: {
               path: 'siteUserID',
-              select: 'userName userNickName',
+              select: 'userName userFirstName',
             },
           },
           {
             path: 'detentaire',
-            select: '_id userName userNickName userPhone',
+            select: '_id userName userFirstName userPhone',
           },
           {
             path: 'ayant_droit',
-            select: '_id userName userNickName userPhone',
+            select: '_id userName userFirstName userPhone',
           },
         ])
         .lean()
@@ -1022,11 +1022,11 @@ export class LedgerDisplayService {
         depot: actif.depotId?.siteName || 'N/A',
         depotAdresse: actif.depotId?.siteAddress || 'N/A',
         detentaire: actif.detentaire
-          ? `${actif.detentaire.userNickName} ${actif.detentaire.userName}`
+          ? `${actif.detentaire.userName} ${actif.detentaire.userFirstName}`
           : 'N/A',
         detentaireId: actif.detentaire?._id || null,
         ayantDroit: actif.ayant_droit
-          ? `${actif.ayant_droit.userNickName} ${actif.ayant_droit.userName}`
+          ? `${actif.ayant_droit.userName} ${actif.ayant_droit.userFirstName}`
           : 'N/A',
         ayantDroitId: actif.ayant_droit?._id || null,
         dateCreation: actif.createdAt,
@@ -1092,15 +1092,15 @@ export class LedgerDisplayService {
         {
           path: 'siteDestinationId',
           select: 'siteId siteName siteAddress location siteUserID',
-          populate: { path: 'siteUserID', select: 'userName userNickName' },
+          populate: { path: 'siteUserID', select: 'userName userFirstName' },
         },
         {
           path: 'detentaire',
-          select: 'userName userNickName userPhone',
+          select: 'userName userFirstName userPhone',
         },
         {
           path: 'ayant_droit',
-          select: 'userName userNickName userPhone',
+          select: 'userName userFirstName userPhone',
         },
       ])
       .lean()
@@ -1134,10 +1134,10 @@ export class LedgerDisplayService {
         depot: tx.siteDestinationId?.siteName || 'N/A',
         depotAdresse: tx.siteDestinationId?.siteAddress || 'N/A',
         detentaire: tx.detentaire
-          ? `${tx.detentaire.userNickName} ${tx.detentaire.userName}`
+          ? `${tx.detentaire.userName} ${tx.detentaire.userFirstName}`
           : 'N/A',
         ayantDroit: tx.ayant_droit
-          ? `${tx.ayant_droit.userNickName} ${tx.ayant_droit.userName}`
+          ? `${tx.ayant_droit.userName} ${tx.ayant_droit.userFirstName}`
           : 'N/A',
         detentaireId: tx.detentaire?._id || null,
         ayantDroitId: tx.ayant_droit?._id || null,
@@ -1176,16 +1176,16 @@ export class LedgerDisplayService {
             select: 'siteId siteName siteAddress location siteUserID',
             populate: {
               path: 'siteUserID',
-              select: 'userName userNickName',
+              select: 'userName userFirstName',
             },
           },
           {
             path: 'detentaire',
-            select: 'userName userNickName userPhone',
+            select: 'userName userFirstName userPhone',
           },
           {
             path: 'ayant_droit',
-            select: 'userName userNickName userPhone',
+            select: 'userName userFirstName userPhone',
           },
         ])
         .lean()
@@ -1208,10 +1208,10 @@ export class LedgerDisplayService {
       depot: passif.depotId?.siteName || 'N/A',
       depotAdresse: passif.depotId?.siteAddress || 'N/A',
       detentaire: passif.detentaire
-        ? `${passif.detentaire.userNickName} ${passif.detentaire.userName}`
+        ? `${passif.detentaire.userName} ${passif.detentaire.userFirstName}`
         : 'N/A',
       ayantDroit: passif.ayant_droit
-        ? `${passif.ayant_droit.userNickName} ${passif.ayant_droit.userName}`
+        ? `${passif.ayant_droit.userName} ${passif.ayant_droit.userFirstName}`
         : 'N/A',
       detentaireId: passif.detentaire?._id || null,
       ayantDroitId: passif.ayant_droit?._id || null,
