@@ -896,15 +896,15 @@ export class LedgerDisplayService {
         {
           path: 'siteDestinationId',
           select: 'siteId siteName siteAddress location siteUserID',
-          populate: { path: 'siteUserID', select: 'userName userFirstName userPhone' },
+          populate: { path: 'siteUserID', select: 'userName userFirstname userPhone' },
         },
         {
           path: 'detentaire',
-          select: 'userName userFirstName userPhone',
+          select: 'userName userFirstname userPhone',
         },
         {
           path: 'ayant_droit',
-          select: 'userName userFirstName userPhone',
+          select: 'userName userFirstname userPhone',
         },
       ])
       .lean()
@@ -940,11 +940,11 @@ export class LedgerDisplayService {
         depot: tx.siteDestinationId?.siteName || 'N/A',
         depotAdresse: tx.siteDestinationId?.siteAddress || 'N/A',
         detentaire: tx.detentaire
-          ? `${tx.detentaire.userName} ${tx.detentaire.userFirstName}`
+          ? `${tx.detentaire.userFirstname} ${tx.detentaire.userName}`
           : 'N/A',
         detentaireId: tx.detentaire?._id || null,
         ayantDroit: tx.ayant_droit
-          ? `${tx.ayant_droit.userName} ${tx.ayant_droit.userFirstName}`
+          ? `${tx.ayant_droit.userFirstname} ${tx.ayant_droit.userName}`
           : 'N/A',
         ayantDroitId: tx.ayant_droit?._id || null,
         dateCreation: tx.createdAt,
@@ -983,57 +983,81 @@ export class LedgerDisplayService {
             select: 'siteId siteName siteAddress location siteUserID',
             populate: {
               path: 'siteUserID',
-              select: 'userName userFirstName',
+              select: 'userName userFirstname',
             },
           },
           {
             path: 'detentaire',
-            select: '_id userName userFirstName userPhone',
+            select: '_id userName userFirstname userPhone',
           },
           {
             path: 'ayant_droit',
-            select: '_id userName userFirstName userPhone',
+            select: '_id userName userFirstname userPhone',
           },
         ])
         .lean()
         .exec() as any,
     ]);
 
-    // Formater les actifs confirmés
-    const formattedActifs = (actifs || []).map((actif: any) => {
-      const quantiteReelle = actif.quantite || 0;
-      const quantiteEnAttente = actif.quantiteEnAttente || 0;
-      const quantiteDisponible = Math.max(0, quantiteReelle - quantiteEnAttente);
-      return {
-        id: actif._id,
-        transactionNumber: null,
-        type: 'ACTIF',
-        statut: TransactionStatus.APPROVED,
-        productId: actif.productId?._id || 'N/A',
-        productName: actif.productId?.productName || 'N/A',
-        productCode: actif.productId?.codeCPC || 'N/A',
-        productImage: actif.productId?.productImage || null,
-        quantite: quantiteReelle,
-        quantiteEnAttente,
-        quantiteDisponible,
-        prixUnitaire: actif.prixUnitaire,
-        valeurTotale: quantiteDisponible * (actif.prixUnitaire || 1),
-        depotId: actif.depotId?._id || 'N/A',
-        depot: actif.depotId?.siteName || 'N/A',
-        depotAdresse: actif.depotId?.siteAddress || 'N/A',
-        detentaire: actif.detentaire
-          ? `${actif.detentaire.userName} ${actif.detentaire.userFirstName}`
-          : 'N/A',
-        detentaireId: actif.detentaire?._id || null,
-        ayantDroit: actif.ayant_droit
-          ? `${actif.ayant_droit.userName} ${actif.ayant_droit.userFirstName}`
-          : 'N/A',
-        ayantDroitId: actif.ayant_droit?._id || null,
-        dateCreation: actif.createdAt,
-        dateModification: actif.updatedAt,
-        isActive: actif.isActive,
-      };
-    });
+    // Regrouper les actifs confirmés par (productId + depotId) pour éviter les doublons
+    const actifMap = new Map<string, any>();
+    for (const actif of actifs || []) {
+      const key = `${actif.productId?._id || 'N/A'}|${actif.depotId?._id || 'N/A'}`;
+      const quantite = actif.quantite || 0;
+      const enAttente = actif.quantiteEnAttente || 0;
+
+      if (actifMap.has(key)) {
+        const existing = actifMap.get(key);
+        existing.quantite += quantite;
+        existing.quantiteEnAttente += enAttente;
+        existing.quantiteDisponible = Math.max(0, existing.quantite - existing.quantiteEnAttente);
+        existing.valeurTotale = existing.quantiteDisponible * (existing.prixUnitaire || 1);
+        if (actif.ayant_droit) {
+          const nom = `${actif.ayant_droit.userFirstname} ${actif.ayant_droit.userName}`;
+          if (!existing.ayantDroits.includes(nom)) {
+            existing.ayantDroits.push(nom);
+          }
+        }
+        if (actif.updatedAt && new Date(actif.updatedAt) > new Date(existing.dateModification)) {
+          existing.dateModification = actif.updatedAt;
+        }
+      } else {
+        const quantiteDisponible = Math.max(0, quantite - enAttente);
+        actifMap.set(key, {
+          id: actif._id,
+          transactionNumber: null,
+          type: 'ACTIF',
+          statut: TransactionStatus.APPROVED,
+          productId: actif.productId?._id || 'N/A',
+          productName: actif.productId?.productName || 'N/A',
+          productCode: actif.productId?.codeCPC || 'N/A',
+          productImage: actif.productId?.productImage || null,
+          quantite,
+          quantiteEnAttente: enAttente,
+          quantiteDisponible,
+          prixUnitaire: actif.prixUnitaire,
+          valeurTotale: quantiteDisponible * (actif.prixUnitaire || 1),
+          depotId: actif.depotId?._id || 'N/A',
+          depot: actif.depotId?.siteName || 'N/A',
+          depotAdresse: actif.depotId?.siteAddress || 'N/A',
+          detentaire: actif.detentaire
+            ? `${actif.detentaire.userFirstname} ${actif.detentaire.userName}`
+            : 'N/A',
+          detentaireId: actif.detentaire?._id || null,
+          ayantDroit: actif.ayant_droit
+            ? `${actif.ayant_droit.userFirstname} ${actif.ayant_droit.userName}`
+            : 'N/A',
+          ayantDroitId: actif.ayant_droit?._id || null,
+          ayantDroits: actif.ayant_droit
+            ? [`${actif.ayant_droit.userFirstname} ${actif.ayant_droit.userName}`]
+            : [],
+          dateCreation: actif.createdAt,
+          dateModification: actif.updatedAt,
+          isActive: actif.isActive,
+        });
+      }
+    }
+    const formattedActifs = Array.from(actifMap.values());
 
     // 3. Fusionner, trier par date décroissante, paginer
     const merged = [...pendingActifs, ...formattedActifs].sort(
@@ -1092,15 +1116,15 @@ export class LedgerDisplayService {
         {
           path: 'siteDestinationId',
           select: 'siteId siteName siteAddress location siteUserID',
-          populate: { path: 'siteUserID', select: 'userName userFirstName' },
+          populate: { path: 'siteUserID', select: 'userName userFirstname' },
         },
         {
           path: 'detentaire',
-          select: 'userName userFirstName userPhone',
+          select: 'userName userFirstname userPhone',
         },
         {
           path: 'ayant_droit',
-          select: 'userName userFirstName userPhone',
+          select: 'userName userFirstname userPhone',
         },
       ])
       .lean()
@@ -1134,10 +1158,10 @@ export class LedgerDisplayService {
         depot: tx.siteDestinationId?.siteName || 'N/A',
         depotAdresse: tx.siteDestinationId?.siteAddress || 'N/A',
         detentaire: tx.detentaire
-          ? `${tx.detentaire.userName} ${tx.detentaire.userFirstName}`
+          ? `${tx.detentaire.userName} ${tx.detentaire.userFirstname}`
           : 'N/A',
         ayantDroit: tx.ayant_droit
-          ? `${tx.ayant_droit.userName} ${tx.ayant_droit.userFirstName}`
+          ? `${tx.ayant_droit.userName} ${tx.ayant_droit.userFirstname}`
           : 'N/A',
         detentaireId: tx.detentaire?._id || null,
         ayantDroitId: tx.ayant_droit?._id || null,
@@ -1176,16 +1200,16 @@ export class LedgerDisplayService {
             select: 'siteId siteName siteAddress location siteUserID',
             populate: {
               path: 'siteUserID',
-              select: 'userName userFirstName',
+              select: 'userName userFirstname',
             },
           },
           {
             path: 'detentaire',
-            select: 'userName userFirstName userPhone',
+            select: 'userName userFirstname userPhone',
           },
           {
             path: 'ayant_droit',
-            select: 'userName userFirstName userPhone',
+            select: 'userName userFirstname userPhone',
           },
         ])
         .lean()
@@ -1208,10 +1232,10 @@ export class LedgerDisplayService {
       depot: passif.depotId?.siteName || 'N/A',
       depotAdresse: passif.depotId?.siteAddress || 'N/A',
       detentaire: passif.detentaire
-        ? `${passif.detentaire.userName} ${passif.detentaire.userFirstName}`
+        ? `${passif.detentaire.userFirstname} ${passif.detentaire.userName}`
         : 'N/A',
       ayantDroit: passif.ayant_droit
-        ? `${passif.ayant_droit.userName} ${passif.ayant_droit.userFirstName}`
+        ? `${passif.ayant_droit.userFirstname} ${passif.ayant_droit.userName}`
         : 'N/A',
       detentaireId: passif.detentaire?._id || null,
       ayantDroitId: passif.ayant_droit?._id || null,
