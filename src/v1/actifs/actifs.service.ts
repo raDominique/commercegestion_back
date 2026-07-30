@@ -360,6 +360,24 @@ export class ActifsService {
 
     return actif;
   }
+
+  async getActifsByIds(ids: string[]) {
+    const objectIds = ids
+      .filter((id) => Types.ObjectId.isValid(id))
+      .map((id) => new Types.ObjectId(id));
+
+    if (objectIds.length === 0) {
+      return [];
+    }
+
+    return this.actifModel
+      .find({ _id: { $in: objectIds } })
+      .populate('productId', 'productName codeCPC productImage prixUnitaire')
+      .populate('ayant_droit', 'userNickName userName userPhone')
+      .populate('detentaire', 'userNickName userName userPhone')
+      .populate('depotId', 'siteId siteName siteAddress location')
+      .exec();
+  }
   async getAvailableValidatedProducts(query: any) {
     const {
       page = 1,

@@ -1008,6 +1008,7 @@ export class LedgerDisplayService {
 
       if (actifMap.has(key)) {
         const existing = actifMap.get(key);
+        existing.ids.push(actif._id.toString());
         existing.quantite += quantite;
         existing.quantiteEnAttente += enAttente;
         existing.quantiteDisponible = Math.max(0, existing.quantite - existing.quantiteEnAttente);
@@ -1024,6 +1025,7 @@ export class LedgerDisplayService {
       } else {
         const quantiteDisponible = Math.max(0, quantite - enAttente);
         actifMap.set(key, {
+          ids: [actif._id.toString()],
           id: actif._id,
           transactionNumber: null,
           type: 'ACTIF',

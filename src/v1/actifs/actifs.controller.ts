@@ -16,6 +16,32 @@ import { Auth } from '../auth';
 export class ActifsController {
   constructor(private readonly actifsService: ActifsService) {}
 
+  @Get('get-by-ids')
+  @Auth()
+  @ApiOperation({
+    summary: "Détails de plusieurs actifs par IDs",
+    description: `Récupère les détails de plusieurs actifs en une seule requête.
+
+Utilisation: /get-by-ids?ids=id1,id2,id3
+
+Utile pour afficher le détail des actifs regroupés dans la vue liste (productId + depotId).`,
+  })
+  @ApiQuery({
+    name: 'ids',
+    required: true,
+    description: 'IDs MongoDB des actifs, séparés par des virgules',
+    example: '6a59c0fe9520706d1f14f1c2,6a59c1a49520706d1f14f25d',
+  })
+  @ApiResponse({ status: 200, description: 'Liste des actifs trouvés' })
+  @ApiResponse({ status: 400, description: 'Paramètre ids manquant' })
+  async findByIds(@Query('ids') ids: string) {
+    if (!ids?.trim()) {
+      throw new BadRequestException('Le paramètre ids est requis');
+    }
+    const idList = ids.split(',').map((id) => id.trim()).filter(Boolean);
+    return this.actifsService.getActifsByIds(idList);
+  }
+
   @Get('get-by-id/:id')
   @Auth()
   @ApiOperation({
