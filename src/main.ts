@@ -11,6 +11,7 @@ import { LoggerService } from './common/logger/logger.service';
 import { setupSwagger } from './config/swagger.config';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { runSeeders } from './seeders/seeds';
+import { MailDeliverabilityService } from './shared/mail/mail-deliverability.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -125,6 +126,23 @@ async function bootstrap() {
   logger.log('Bootstrap', `Application démarrée sur ${appUrl} (port ${port})`);
 
   logger.log('Bootstrap', `Swagger UI: ${appUrl}/swagger`);
+
+  /**
+   * ===============================
+   * DÉLIVRABILITÉ SMTP (SPF/DKIM/DMARC)
+   * ===============================
+   */
+  try {
+    const deliverability = app.get(MailDeliverabilityService);
+    await deliverability.logReport();
+  } catch (error) {
+    logger.error(
+      'Deliverability',
+      `Check de délivrabilité SMTP impossible: ${
+        error instanceof Error ? error.message : error
+      }`,
+    );
+  }
 }
 
 bootstrap();
