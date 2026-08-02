@@ -879,13 +879,14 @@ export class LedgerDisplayService {
     const userIdObj = new Types.ObjectId(userId);
     const skip = (page - 1) * limit;
 
-    // 1. Récupérer les PENDING DEPOT où l'utilisateur est le destinataire (actifs en attente d'arrivée)
+    // 1. Récupérer les PENDING DEPOT où l'utilisateur est le destinataire OU l'initiateur
+    //    (actifs en attente d'arrivée pour le destinataire, en attente de validation pour l'initiateur)
     const pendingDepots = await this.transactionModel
       .find({
         type: TransactionType.DEPOT,
         status: TransactionStatus.PENDING,
-        recipientId: userIdObj,
         isActive: true,
+        $or: [{ recipientId: userIdObj }, { initiatorId: userIdObj }],
       })
       .sort({ createdAt: -1 })
       .populate([
@@ -1013,6 +1014,12 @@ export class LedgerDisplayService {
         existing.quantiteEnAttente += enAttente;
         existing.quantiteDisponible = Math.max(0, existing.quantite - existing.quantiteEnAttente);
         existing.valeurTotale = existing.quantiteDisponible * (existing.prixUnitaire || 1);
+        existing.statut =
+          existing.quantite > 0 && existing.quantiteEnAttente > 0
+            ? [TransactionStatus.APPROVED, TransactionStatus.PENDING]
+            : existing.quantiteEnAttente > 0
+              ? TransactionStatus.PENDING
+              : TransactionStatus.APPROVED;
         if (actif.ayant_droit) {
           const nom = `${actif.ayant_droit.userFirstname} ${actif.ayant_droit.userName}`;
           if (!existing.ayantDroits.includes(nom)) {
@@ -1029,7 +1036,12 @@ export class LedgerDisplayService {
           id: actif._id,
           transactionNumber: null,
           type: 'ACTIF',
-          statut: TransactionStatus.APPROVED,
+          statut:
+            quantite > 0 && enAttente > 0
+              ? [TransactionStatus.APPROVED, TransactionStatus.PENDING]
+              : enAttente > 0
+                ? TransactionStatus.PENDING
+                : TransactionStatus.APPROVED,
           productId: actif.productId?._id || 'N/A',
           productName: actif.productId?.productName || 'N/A',
           productCode: actif.productId?.codeCPC || 'N/A',
