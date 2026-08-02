@@ -2,6 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Actif, ActifDocument } from './actifs.schema';
+import {
+  Transaction,
+  TransactionDocument,
+} from '../transactions/transactions.schema';
 import { ProductService } from '../products/products.service';
 import {
   ExportService,
@@ -12,6 +16,8 @@ import {
 export class ActifsService {
   constructor(
     @InjectModel(Actif.name) private readonly actifModel: Model<ActifDocument>,
+    @InjectModel(Transaction.name)
+    private readonly transactionModel: Model<TransactionDocument>,
     private readonly productService: ProductService,
     private readonly exportService: ExportService,
   ) {}
@@ -370,13 +376,48 @@ export class ActifsService {
       return [];
     }
 
-    return this.actifModel
+    const actifs = await this.actifModel
       .find({ _id: { $in: objectIds } })
       .populate('productId', 'productName codeCPC productImage prixUnitaire')
       .populate('ayant_droit', 'userNickName userName userPhone')
       .populate('detentaire', 'userNickName userName userPhone')
       .populate('depotId', 'siteId siteName siteAddress location')
+      .lean()
       .exec();
+
+    // S'il manque des identifiants (cas des PENDING qui sont en fait des Transactions)
+    if (actifs.length < objectIds.length) {
+      const foundActifIds = actifs.map((a) => a._id.toString());
+      const missingIds = objectIds.filter(
+        (id) => !foundActifIds.includes(id.toString()),
+      );
+
+      if (missingIds.length > 0) {
+        const txs = await this.transactionModel
+          .find({ _id: { $in: missingIds } })
+          .populate(
+            'productId',
+            'productName codeCPC productImage prixUnitaire',
+          )
+          .populate('ayant_droit', 'userNickName userName userPhone')
+          .populate('detentaire', 'userNickName userName userPhone')
+          .populate('siteDestinationId', 'siteId siteName siteAddress location')
+          .lean()
+          .exec();
+
+        const formattedTxs = txs.map((tx: any) => ({
+          ...tx,
+          // On simule la structure d'un actif pour l'affichage frontend
+          depotId: tx.siteDestinationId,
+          quantiteEnAttente: tx.quantite,
+          quantiteDisponible: 0,
+        }));
+
+        return [...actifs, ...formattedTxs];
+      }
+    }
+
+    return actifs;
   }
   async getAvailableValidatedProducts(query: any) {
     const {
