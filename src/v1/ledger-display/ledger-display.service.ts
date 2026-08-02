@@ -933,7 +933,7 @@ export class LedgerDisplayService {
         productCode: tx.productId?.codeCPC || 'N/A',
         productImage: tx.productId?.productImage || null,
         quantite: tx.quantite,
-        quantiteEnAttente: 0,
+        quantiteEnAttente: tx.quantite,
         quantiteDisponible: 0,
         prixUnitaire: tx.prixUnitaire,
         valeurTotale: (tx.quantite || 0) * (tx.prixUnitaire || 0),
