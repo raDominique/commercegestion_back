@@ -925,6 +925,7 @@ export class LedgerDisplayService {
       })
       .map((tx: any) => ({
         id: tx._id,
+        ids: [tx._id.toString()],
         transactionNumber: tx.transactionNumber,
         type: 'DEPOT',
         statut: TransactionStatus.PENDING,
