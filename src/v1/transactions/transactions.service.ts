@@ -606,21 +606,24 @@ export class TransactionsService {
   }
 
   /**
-   * Applique les mouvements pour un retour
-   * C'est l'inverse d'un dépôt:
-   * - L'initiator (qui retourne) perd l'actif
-   * - Le recipient (propriétaire) regagne l'actif
-   * - Le passif du recipient envers l'initiator est diminué/supprimé
+   * Applique les mouvements pour un retour (retrait)
+   * C'est l'inverse d'un dépôt : l'ayant-droit (propriétaire légal) récupère
+   * physiquement la marchandise qui était gardée par le détenteur.
+   * - L'ayant-droit sort sa créance du site d'origine
+   * - Le détenteur sort l'actif qu'il gardait
+   * - L'ayant-droit ré-entre la marchandise sur le site d'arrivée, MAINTENANT en
+   *   tant que détenteur (il la détient physiquement) : changement de détenteur visible
+   * - Le passif du détenteur envers l'ayant-droit est diminué/supprimé
+   *
+   * NB: quand le site d'arrivée = site d'origine (retrait non déplacé), l'entrée
+   * crée une NOUVELLE ligne d'actif (addOrIncreaseActif ne fusionne qu'avec les
+   * lignes actives) afin de ne pas ressusciter l'ancienne ligne archivée qui
+   * portait l'ancien détenteur.
    */
   private async applyReturnMovements(
     transaction: TransactionDocument,
   ): Promise<void> {
     try {
-      // Pour un RETRAIT (retour), on inverse le flux d'un DEPOT :
-      // - Le détenteur (qui gardait physiquement) sort le stock
-      // - L'ayant-droit (propriétaire légal) récupère le stock
-      // - Le passif créé au dépôt est diminué
-
       const detentaireId = transaction.detentaire.toString();
       const ayantDroitId = transaction.ayant_droit.toString();
       const productId = transaction.productId.toString();
@@ -645,15 +648,16 @@ export class TransactionsService {
         quantity,
       );
 
-      // 3. Entrée du stock chez l'ayant-droit (site de destination)
+      // 3. Entrée du stock chez l'ayant-droit sur le site d'arrivée
+      //    Il récupère physiquement la marchandise : détenteur = ayant-droit
       await this.actifsService.addOrIncreaseActif(
         ayantDroitId,
         destinationSiteId,
         productId,
         quantity,
         unitPrice,
-        ayantDroitId,
-        ayantDroitId,
+        ayantDroitId, // detentaireId: il détient désormais la marchandise
+        ayantDroitId, // ayantDroitId: il en reste propriétaire légal
       );
 
       // 4. Diminuer le passif lié au dépôt

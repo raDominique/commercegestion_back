@@ -35,12 +35,17 @@ export class ActifsService {
     detentaireId: string, // Qui garde le produit (Hangar ou User)
     ayantDroitId: string, // Qui possède le produit (User)
   ) {
-    // On cherche si un actif identique existe déjà (Même pro²priétaire, même site, même ayant-droit)
+    // On cherche si un actif identique et TOUJOURS ACTIF existe déjà
+    // (Même propriétaire, même site, même ayant-droit).
+    // Une ligne archivée (quantité épuisée) ne doit JAMAIS être ressuscitée :
+    // elle porte l'ancien détenteur/ayant-droit. On crée alors une ligne fraîche
+    // avec les acteurs actuels (ex: après un retrait, l'ayant-droit redevient détenteur).
     const existingActif = await this.actifModel.findOne({
       userId: new Types.ObjectId(userId),
       productId: new Types.ObjectId(productId),
       depotId: new Types.ObjectId(depotId),
       ayant_droit: new Types.ObjectId(ayantDroitId),
+      isActive: true,
     });
 
     if (existingActif) {
