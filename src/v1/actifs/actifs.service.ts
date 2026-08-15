@@ -390,7 +390,10 @@ export class ActifsService {
       .lean()
       .exec();
 
-    // S'il manque des identifiants (cas des PENDING qui sont en fait des Transactions)
+    // S'il manque des identifiants (cas des PENDING qui sont en fait des Transactions).
+    // La transaction est retournée dans sa structure native complète (transactionNumber,
+    // type, status, initiatorId, recipientId, siteOrigineId, siteDestinationId, etc.)
+    // tout en conservant les champs de compatibilité pour l'affichage type actif.
     if (actifs.length < objectIds.length) {
       const foundActifIds = actifs.map((a) => a._id.toString());
       const missingIds = objectIds.filter(
@@ -404,15 +407,18 @@ export class ActifsService {
             'productId',
             'productName codeCPC productImage prixUnitaire',
           )
+          .populate('initiatorId', 'userNickName userName userPhone')
+          .populate('recipientId', 'userNickName userName userPhone')
           .populate('ayant_droit', 'userNickName userName userPhone')
           .populate('detentaire', 'userNickName userName userPhone')
+          .populate('siteOrigineId', 'siteId siteName siteAddress location')
           .populate('siteDestinationId', 'siteId siteName siteAddress location')
           .lean()
           .exec();
 
         const formattedTxs = txs.map((tx: any) => ({
           ...tx,
-          // On simule la structure d'un actif pour l'affichage frontend
+          // Champs de compatibilité pour l'affichage type actif (en plus de la structure native)
           depotId: tx.siteDestinationId,
           quantiteEnAttente: tx.quantite,
           quantiteDisponible: 0,

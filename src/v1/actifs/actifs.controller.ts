@@ -24,15 +24,28 @@ export class ActifsController {
 
 Utilisation: /get-by-ids?ids=id1,id2,id3
 
-Utile pour afficher le détail des actifs regroupés dans la vue liste (productId + depotId).`,
+Utile pour afficher le détail des actifs regroupés dans la vue liste (productId + depotId).
+
+Comportement:
+- Si l'ID correspond à un actif (ACTIF), sa structure d'actif est retournée.
+- Si l'ID correspond à une transaction (ex: DÉPÔT PENDING qui apparaît dans la liste),
+  la transaction complète est retournée dans sa structure native
+  (transactionNumber, type, status, initiatorId, recipientId,
+  siteOrigineId, siteDestinationId, etc.) pour un affichage dédié.
+
+La réponse est une liste mixte: actifs et transactions.`,
   })
   @ApiQuery({
     name: 'ids',
     required: true,
-    description: 'IDs MongoDB des actifs, séparés par des virgules',
+    description:
+      'IDs MongoDB des actifs ou des transactions, séparés par des virgules',
     example: '6a59c0fe9520706d1f14f1c2,6a59c1a49520706d1f14f25d',
   })
-  @ApiResponse({ status: 200, description: 'Liste des actifs trouvés' })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des actifs et/ou transactions trouvés',
+  })
   @ApiResponse({ status: 400, description: 'Paramètre ids manquant' })
   async findByIds(@Query('ids') ids: string) {
     if (!ids?.trim()) {
