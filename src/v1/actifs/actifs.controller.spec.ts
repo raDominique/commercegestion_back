@@ -15,6 +15,7 @@ describe('ActifsController', () => {
             getActifDetails: jest.fn(),
             getAvailableValidatedProducts: jest.fn(),
             getAllActifsByIdSite: jest.fn(),
+            getDepositedActifsByDetenteur: jest.fn(),
           },
         },
       ],

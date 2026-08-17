@@ -600,6 +600,90 @@ export class ActifsService {
   }
 
   /**
+   * Liste les actifs déposés par l'utilisateur connecté (ayant_droit)
+   * chez un détenteur fournisseur/provider (detentaire).
+   *
+   * Si detenteurId est fourni, filtre sur ce détenteur spécifique.
+   * Sinon, liste tous les actifs déposés chez des détenteurs externes (différents du propriétaire).
+   */
+  async getDepositedActifsByDetenteur(
+    userId: string,
+    query: {
+      detenteurId?: string;
+      page?: string;
+      limit?: string;
+      search?: string;
+    },
+  ) {
+    const { detenteurId, page = '1', limit = '10', search } = query;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const filter: any = {
+      ayant_droit: new Types.ObjectId(userId),
+      isActive: true,
+      quantite: { $gt: 0 },
+    };
+
+    if (detenteurId) {
+      filter.detentaire = new Types.ObjectId(detenteurId);
+    } else {
+      filter.detentaire = { $ne: new Types.ObjectId(userId) };
+    }
+
+    const populate = [
+      {
+        path: 'productId',
+        select: 'productName codeCPC productImage prixUnitaire',
+      },
+      {
+        path: 'detentaire',
+        select: 'userNickName userName userPhone raisonSocial',
+      },
+      {
+        path: 'depotId',
+        select: 'siteId siteName siteAddress location',
+      },
+    ];
+
+    const [actifs, total] = await Promise.all([
+      this.actifModel
+        .find(filter)
+        .populate(populate)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .exec(),
+      this.actifModel.countDocuments(filter).exec(),
+    ]);
+
+    let data = actifs;
+
+    if (search) {
+      const regex = new RegExp(search, 'i');
+      data = actifs.filter((a: any) => {
+        const product = a.productId;
+        if (product) {
+          return (
+            regex.test(product.productName || '') ||
+            regex.test(product.codeCPC || '')
+          );
+        }
+        return false;
+      });
+    }
+
+    return {
+      status: 'success',
+      message: "Actifs déposés par l'utilisateur connecté chez le détenteur",
+      data,
+      total,
+      page: Number(page),
+      limit: Number(limit),
+    };
+  }
+
+  /**
    * Trouve un actif sans restriction de quantité ou isActive.
    * Utilisé pour récupérer le détenteur (detentaire) d'un actif même après diminution.
    */

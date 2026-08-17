@@ -19,7 +19,7 @@ export class ActifsController {
   @Get('get-by-ids')
   @Auth()
   @ApiOperation({
-    summary: "Détails de plusieurs actifs par IDs",
+    summary: 'Détails de plusieurs actifs par IDs',
     description: `Récupère les détails de plusieurs actifs en une seule requête.
 
 Utilisation: /get-by-ids?ids=id1,id2,id3
@@ -51,7 +51,10 @@ La réponse est une liste mixte: actifs et transactions.`,
     if (!ids?.trim()) {
       throw new BadRequestException('Le paramètre ids est requis');
     }
-    const idList = ids.split(',').map((id) => id.trim()).filter(Boolean);
+    const idList = ids
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
     return this.actifsService.getActifsByIds(idList);
   }
 
@@ -309,6 +312,119 @@ Conditions:
   @ApiResponse({ status: 404, description: 'Site non trouvé' })
   async getAllActifsByIdSite(@Param('siteId') siteId: string) {
     return this.actifsService.getAllActifsByIdSite(siteId);
+  }
+
+  @Get('my-deposits')
+  @Auth()
+  @ApiOperation({
+    summary:
+      "Liste des actifs déposés par l'utilisateur connecté chez un détenteur/fournisseur",
+    description: `Récupère les actifs où l'utilisateur connecté est le **ayant-droit** (propriétaire légal)
+et qui sont détenus physiquement par un **détenteur fournisseur** (detentaire).
+
+Critères de sélection:
+- L'utilisateur connecté est l'ayant-droit (propriétaire qui a déposé)
+- Le détenteur (detentaire) est un fournisseur/provider externe
+- Actifs actifs (isActive = true)
+- Quantité > 0
+
+Filtrage:
+- **detenteurId** (optionnel): Si fourni, ne liste que les actifs déposés chez ce détenteur/fournisseur spécifique.
+  Sinon, liste tous les actifs déposés chez des détenteurs externes.
+- **search** (optionnel): Recherche par nom de produit ou code CPC
+- **page**: Numéro de page (défaut: 1)
+- **limit**: Nombre d'actifs par page (défaut: 10)
+
+Contenu retourné:
+- Pour chaque actif: produit, détenteur (fournisseur), site de dépôt, quantité, prix unitaire
+- Pagination complète (total, page, limit)
+
+Cas d'usage:
+- "Qu'ai-je déposé chez tel fournisseur?"
+- Suivi de mes actifs déposés chez des tiers
+- Vérification des stocks externalisés
+- Audit des dépôts fournisseurs
+
+Erreurs possibles:
+- 401: Non authentifié`,
+  })
+  @ApiQuery({
+    name: 'detenteurId',
+    required: false,
+    type: String,
+    description: 'ID du détenteur/fournisseur pour filtrer les actifs déposés',
+    example: '6a59c0fe9520706d1f14f1c2',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Numéro de la page (défaut: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: "Nombre d'actifs par page (défaut: 10)",
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Recherche par nom de produit ou code CPC',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste paginée des actifs déposés',
+    schema: {
+      example: {
+        status: 'success',
+        message: "Actifs déposés par l'utilisateur connecté chez le détenteur",
+        data: [
+          {
+            _id: '507f1f77bcf86cd799439050',
+            productId: {
+              _id: '507f1f77bcf86cd799439030',
+              productName: 'Ciment Portland 42,5',
+              codeCPC: 'MAT-001',
+              prixUnitaire: 50,
+            },
+            detentaire: {
+              _id: '507f1f77bcf86cd799439002',
+              userName: 'Hangar Dupont',
+              userNickName: 'hangar-dupont',
+              raisonSocial: null,
+            },
+            depotId: {
+              siteName: 'Hangar Dupont',
+              siteAddress: '123 Rue du Commerce',
+            },
+            quantite: 500,
+            prixUnitaire: 50,
+            createdAt: '2026-06-15T10:30:45.000Z',
+            updatedAt: '2026-06-15T10:30:45.000Z',
+          },
+        ],
+        total: 1,
+        page: 1,
+        limit: 10,
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  async getMyDeposits(
+    @Req() req: Request & { user: { userId: string } },
+    @Query('detenteurId') detenteurId?: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('search') search?: string,
+  ) {
+    return this.actifsService.getDepositedActifsByDetenteur(req.user.userId, {
+      detenteurId,
+      page,
+      limit,
+      search,
+    });
   }
 
   @Get('export')
