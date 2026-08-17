@@ -610,12 +610,13 @@ export class ActifsService {
     userId: string,
     query: {
       detenteurId?: string;
+      siteId?: string;
       page?: string;
       limit?: string;
       search?: string;
     },
   ) {
-    const { detenteurId, page = '1', limit = '10', search } = query;
+    const { detenteurId, siteId, page = '1', limit = '10', search } = query;
 
     const skip = (Number(page) - 1) * Number(limit);
 
@@ -629,6 +630,10 @@ export class ActifsService {
       filter.detentaire = new Types.ObjectId(detenteurId);
     } else {
       filter.detentaire = { $ne: new Types.ObjectId(userId) };
+    }
+
+    if (siteId) {
+      filter.depotId = new Types.ObjectId(siteId);
     }
 
     const populate = [

@@ -331,6 +331,7 @@ Critères de sélection:
 Filtrage:
 - **detenteurId** (optionnel): Si fourni, ne liste que les actifs déposés chez ce détenteur/fournisseur spécifique.
   Sinon, liste tous les actifs déposés chez des détenteurs externes.
+- **siteId** (optionnel): Si fourni, ne liste que les actifs déposés sur ce site de dépôt spécifique.
 - **search** (optionnel): Recherche par nom de produit ou code CPC
 - **page**: Numéro de page (défaut: 1)
 - **limit**: Nombre d'actifs par page (défaut: 10)
@@ -354,6 +355,13 @@ Erreurs possibles:
     type: String,
     description: 'ID du détenteur/fournisseur pour filtrer les actifs déposés',
     example: '6a59c0fe9520706d1f14f1c2',
+  })
+  @ApiQuery({
+    name: 'siteId',
+    required: false,
+    type: String,
+    description: 'ID du site de dépôt pour filtrer les actifs déposés sur ce site',
+    example: '6a59c1a49520706d1f14f25d',
   })
   @ApiQuery({
     name: 'page',
@@ -415,12 +423,14 @@ Erreurs possibles:
   async getMyDeposits(
     @Req() req: Request & { user: { userId: string } },
     @Query('detenteurId') detenteurId?: string,
+    @Query('siteId') siteId?: string,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
     @Query('search') search?: string,
   ) {
     return this.actifsService.getDepositedActifsByDetenteur(req.user.userId, {
       detenteurId,
+      siteId,
       page,
       limit,
       search,
