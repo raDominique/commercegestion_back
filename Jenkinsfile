@@ -8,6 +8,9 @@ pipeline {
         DOCKER_TAG = "${BUILD_NUMBER}"
         DOCKER_CONTAINER_NAME = 'commercegestion-api'
 
+        // Requis pour que le Dockerfile utilise BuildKit (cache npm --mount=type=cache)
+        DOCKER_BUILDKIT = '1'
+
         MONGO_URI = credentials('MONGO_URI_ETOKISANA')
         NODE_ENV = 'development'
 
@@ -46,8 +49,6 @@ pipeline {
             steps {
                 sh """
                 docker build \
-                    --build-arg NODE_ENV=${NODE_ENV} \
-                    --build-arg PORT=${PORT} \
                     -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
                 """
             }
@@ -148,7 +149,9 @@ pipeline {
     post {
         always {
             sh """
-            docker image prune -f || true
+            # -a : supprime aussi les anciennes images taguées :${BUILD_NUMBER}
+            # qui ne sont plus utilisées par aucun conteneur (évite de saturer le disque)
+            docker image prune -a -f || true
             """
             cleanWs()
         }

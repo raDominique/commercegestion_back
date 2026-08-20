@@ -15,18 +15,16 @@ RUN apk add --no-cache \
 FROM base AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+  npm ci
 COPY . .
 RUN npm run build
+# Strip dev dependencies so only production modules ship in the final image.
+# This replaces a separate `prod-deps` stage: ONE npm ci + ONE native
+# compilation (bcrypt/sharp) instead of two, which halves the build time.
+RUN npm prune --omit=dev
 
-# Stage 3: Install only PRODUCTION dependencies
-# This stage is cached unless package.json or package-lock.json changes
-FROM base AS prod-deps
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
-
-# Stage 4: Final production image
+# Stage 3: Final production image
 FROM node:24-alpine
 RUN apk add --no-cache \
   cairo \
@@ -41,7 +39,7 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 WORKDIR /app
 
 # Copy only the necessary files from previous stages
-COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./
 
