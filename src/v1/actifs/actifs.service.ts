@@ -643,6 +643,11 @@ export class ActifsService {
    * Liste les actifs déposés par l'utilisateur connecté (ayant_droit)
    * chez un détenteur fournisseur/provider (detentaire).
    *
+   * Seules les lignes du BILAN de l'utilisateur connecté sont retournées
+   * (userId = ayant_droit = utilisateur). La ligne miroir du bilan du
+   * détenteur (userId = detenteur) est exclue pour éviter de compter deux
+   * fois le même dépôt.
+   *
    * Si detenteurId est fourni, filtre sur ce détenteur spécifique.
    * Sinon, liste tous les actifs déposés chez des détenteurs externes (différents du propriétaire).
    */
@@ -661,6 +666,11 @@ export class ActifsService {
     const skip = (Number(page) - 1) * Number(limit);
 
     const filter: any = {
+      // Bilan de l'utilisateur connecté UNIQUEMENT.
+      // Sans ce filtre, la ligne du bilan du détenteur (userId = detenteur,
+      // ayant_droit = utilisateur) matche aussi le filtre ayant_droit + detentaire
+      // et le même dépôt est compté deux fois.
+      userId: new Types.ObjectId(userId),
       ayant_droit: new Types.ObjectId(userId),
       isActive: true,
       quantite: { $gt: 0 },
@@ -676,18 +686,12 @@ export class ActifsService {
       filter.depotId = new Types.ObjectId(siteId);
     }
 
+    // On ne peuple que le produit. codeCPC est conservé pour la recherche
+    // puis retiré de la réponse finale.
     const populate = [
       {
         path: 'productId',
-        select: 'productName codeCPC productImage prixUnitaire',
-      },
-      {
-        path: 'detentaire',
-        select: 'userNickName userName userPhone raisonSocial',
-      },
-      {
-        path: 'depotId',
-        select: 'siteId siteName siteAddress location',
+        select: 'productName codeCPC',
       },
     ];
 
@@ -718,10 +722,21 @@ export class ActifsService {
       });
     }
 
+    // Réduire la réponse aux seuls champs utiles:
+    // _id, quantite, productId._id, productId.productName
+    const reduced = data.map((a: any) => ({
+      _id: a._id,
+      quantite: a.quantite,
+      productId: {
+        _id: a.productId?._id ?? null,
+        productName: a.productId?.productName ?? null,
+      },
+    }));
+
     return {
       status: 'success',
       message: "Actifs déposés par l'utilisateur connecté chez le détenteur",
-      data,
+      data: reduced,
       total,
       page: Number(page),
       limit: Number(limit),

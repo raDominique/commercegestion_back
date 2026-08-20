@@ -337,7 +337,7 @@ Filtrage:
 - **limit**: Nombre d'actifs par page (défaut: 10)
 
 Contenu retourné:
-- Pour chaque actif: produit, détenteur (fournisseur), site de dépôt, quantité, prix unitaire
+- Pour chaque actif: _id, quantite, productId._id, productId.productName
 - Pagination complète (total, page, limit)
 
 Cas d'usage:
@@ -391,26 +391,11 @@ Erreurs possibles:
         data: [
           {
             _id: '507f1f77bcf86cd799439050',
+            quantite: 500,
             productId: {
               _id: '507f1f77bcf86cd799439030',
               productName: 'Ciment Portland 42,5',
-              codeCPC: 'MAT-001',
-              prixUnitaire: 50,
             },
-            detentaire: {
-              _id: '507f1f77bcf86cd799439002',
-              userName: 'Hangar Dupont',
-              userNickName: 'hangar-dupont',
-              raisonSocial: null,
-            },
-            depotId: {
-              siteName: 'Hangar Dupont',
-              siteAddress: '123 Rue du Commerce',
-            },
-            quantite: 500,
-            prixUnitaire: 50,
-            createdAt: '2026-06-15T10:30:45.000Z',
-            updatedAt: '2026-06-15T10:30:45.000Z',
           },
         ],
         total: 1,
