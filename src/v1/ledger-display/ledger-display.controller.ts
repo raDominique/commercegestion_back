@@ -698,7 +698,7 @@ Comparaison avec PASSIFS:
 - Si Actifs < Passifs = risque d'insolvabilité
 - Ratio Actifs/Passifs = pouvoir de crédit
 
-Note: Retourne les actifs actuels avec pagination et recherche. Incluent les actifs créés par Stock Movement (ex: /depot) et Transactions.
+Note: Retourne les actifs actuels avec pagination et recherche. Incluent les actifs créés par Stock Movement (ex: /depot), les dépôts en attente (PENDING), les retraits en attente faits par l'utilisateur chez un détenteur (PENDING RETRAIT) et les Transactions.
 
 Erreurs possibles:
 - 401: Non authentifié

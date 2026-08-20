@@ -863,6 +863,9 @@ export class LedgerDisplayService {
    * Récupère les ACTIFS BRUTS (Stock Movement + Transaction) pour un utilisateur avec pagination et search
    * Ceci affiche les actifs créés par TOUS les mouvements (Stock Movement + Transaction)
    * C'est l'endpoint critique pour afficher les actifs du /stock/depot
+   *
+   * Inclut: dépôts en attente (PENDING), retraits en attente faits par l'utilisateur
+   * (PENDING RETRAIT chez un détenteur) et actifs confirmés.
    */
   async getActifsWithPagination(
     userId: string,
@@ -941,6 +944,85 @@ export class LedgerDisplayService {
         depotId: tx.siteDestinationId?._id || 'N/A',
         depot: tx.siteDestinationId?.siteName || 'N/A',
         depotAdresse: tx.siteDestinationId?.siteAddress || 'N/A',
+        detentaire: tx.detentaire
+          ? `${tx.detentaire.userFirstname} ${tx.detentaire.userName}`
+          : 'N/A',
+        detentaireId: tx.detentaire?._id || null,
+        ayantDroit: tx.ayant_droit
+          ? `${tx.ayant_droit.userFirstname} ${tx.ayant_droit.userName}`
+          : 'N/A',
+        ayantDroitId: tx.ayant_droit?._id || null,
+        dateCreation: tx.createdAt,
+        dateModification: tx.updatedAt,
+        isActive: true,
+      }));
+
+    // 1bis. Récupérer les PENDING RETRAIT où l'utilisateur est le retrayant
+    //    (X fait un retrait chez le détenteur Y: actifs en cours de retrait,
+    //    en attente de validation)
+    const pendingRetraits = await this.transactionModel
+      .find({
+        type: TransactionType.RETRAIT,
+        status: TransactionStatus.PENDING,
+        isActive: true,
+        $or: [{ initiatorId: userIdObj }, { ayant_droit: userIdObj }],
+      })
+      .sort({ createdAt: -1 })
+      .populate([
+        {
+          path: 'productId',
+          select: 'productName codeCPC productImage prixUnitaire productVolume',
+        },
+        {
+          path: 'siteOrigineId',
+          select: 'siteId siteName siteAddress location siteUserID',
+          populate: {
+            path: 'siteUserID',
+            select: 'userName userFirstname userPhone',
+          },
+        },
+        {
+          path: 'detentaire',
+          select: 'userName userFirstname userPhone',
+        },
+        {
+          path: 'ayant_droit',
+          select: 'userName userFirstname userPhone',
+        },
+      ])
+      .lean()
+      .exec() as any[];
+
+    // Formater les retraits en attente en actifs
+    const pendingRetraitActifs = (pendingRetraits || [])
+      .filter((tx: any) => {
+        if (!search) return true;
+        const searchLower = search.toLowerCase();
+        const productName = tx.productId?.productName?.toLowerCase() || '';
+        const txNumber = tx.transactionNumber?.toLowerCase() || '';
+        return (
+          productName.includes(searchLower) ||
+          txNumber.includes(searchLower)
+        );
+      })
+      .map((tx: any) => ({
+        id: tx._id,
+        ids: [tx._id.toString()],
+        transactionNumber: tx.transactionNumber,
+        type: 'RETRAIT',
+        statut: TransactionStatus.PENDING,
+        productId: tx.productId?._id || 'N/A',
+        productName: tx.productId?.productName || 'N/A',
+        productCode: tx.productId?.codeCPC || 'N/A',
+        productImage: tx.productId?.productImage || null,
+        quantite: tx.quantite,
+        quantiteEnAttente: tx.quantite,
+        quantiteDisponible: 0,
+        prixUnitaire: tx.prixUnitaire,
+        valeurTotale: (tx.quantite || 0) * (tx.prixUnitaire || 0),
+        depotId: tx.siteOrigineId?._id || 'N/A',
+        depot: tx.siteOrigineId?.siteName || 'N/A',
+        depotAdresse: tx.siteOrigineId?.siteAddress || 'N/A',
         detentaire: tx.detentaire
           ? `${tx.detentaire.userFirstname} ${tx.detentaire.userName}`
           : 'N/A',
@@ -1075,7 +1157,11 @@ export class LedgerDisplayService {
     const formattedActifs = Array.from(actifMap.values());
 
     // 3. Fusionner, trier par date décroissante, paginer
-    const merged = [...pendingActifs, ...formattedActifs].sort(
+    const merged = [
+      ...pendingActifs,
+      ...pendingRetraitActifs,
+      ...formattedActifs,
+    ].sort(
       (a, b) =>
         new Date(b.dateCreation).getTime() -
         new Date(a.dateCreation).getTime(),
