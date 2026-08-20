@@ -132,14 +132,21 @@ Erreurs possibles:
     description: `Crée une demande de retour d'actif au propriétaire original.
     
 Flux métier:
-1. Détenteur crée une demande de retour (statut PENDING)
-2. Email envoyé au propriétaire pour notification
+1. Ayant-droit (propriétaire) crée une demande de retrait auprès d'un détenteur (statut PENDING)
+2. Email envoyé au détenteur pour notification
 3. Admin/Manager approuve ou rejette
 4. Si approuvé: mouvements appliqués automatiquement
    - Actif détenteur: -quantité
    - Actif propriétaire: +quantité
-   - Passif réduit ou supprimé (propriétaire devait la marchandise au détenteur)
+   - Passif réduit ou supprimé (détenteur devait la marchandise au propriétaire)
 5. Email de confirmation envoyé au propriétaire
+
+Règles métier (validées à la création):
+- Le retrait doit être effectué par l'utilisateur connecté sur ses propres actifs (ayant_droit = utilisateur connecté)
+- Un dépôt approuvé doit avoir été effectué vers ce même détenteur avant tout retrait
+- Seuls les éléments déposés peuvent être retirés (produit & quantité):
+  la quantité retirée ne peut pas dépasser la quantité déposée et non encore retirée
+- La quantité à retirer doit être disponible dans les actifs de la personne qui effectue le retrait
 
 Utilisation:
 - Annuler un dépôt
@@ -147,7 +154,7 @@ Utilisation:
 - Restaurer le stock original
 
 Erreurs possibles:
-- 400: Données invalides
+- 400: Données invalides, retrait effectué sur des actifs d'autrui, ou conditions de retrait non remplies (aucun dépôt préalable, quantité non déposée, stock insuffisant dans vos actifs)
 - 401: Non authentifié`,
   })
   @ApiResponse({
@@ -176,12 +183,19 @@ Erreurs possibles:
   })
   @ApiResponse({
     status: 400,
-    description: 'Paramètres invalides ou champs manquants',
+    description:
+      'Paramètres invalides, retrait sur des actifs d\'autrui, ou conditions de retrait non remplies (aucun dépôt préalable vers ce membre, quantité supérieure au solde déposé, stock insuffisant dans les actifs du retrayant)',
   })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
   @ApiBody({ type: CreateReturnDto })
-  async createReturn(@Body() createReturnDto: CreateReturnDto) {
-    return this.transactionsService.createReturn(createReturnDto);
+  async createReturn(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() createReturnDto: CreateReturnDto,
+  ) {
+    return this.transactionsService.createReturn(
+      createReturnDto,
+      req.user.userId,
+    );
   }
 
   /**

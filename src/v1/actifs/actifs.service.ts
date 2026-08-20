@@ -297,6 +297,46 @@ export class ActifsService {
   }
 
   /**
+   * Retrouve un actif du BILAN de l'utilisateur (userId) qui est détenu
+   * physiquement par un détenteur précis (detentaireId).
+   *
+   * Différence avec findDepositedActif:
+   * - findDepositedActif cherche dans le bilan du DÉTENTEUR (userId = detentaireId)
+   * - findOwnActifHeldByDetentaire cherche dans le bilan de l'UTILISATEUR lui-même
+   *
+   * Utilisé pour vérifier qu'un retrait est couvert par les actifs de la
+   * personne qui effectue le retrait (règle métier: la quantité à retirer doit
+   * être disponible dans les actifs de la personne qui retire).
+   */
+  async findOwnActifHeldByDetentaire(params: {
+    userId: string;
+    detentaireId: string;
+    productId: string;
+    depotId?: string;
+    minQuantite?: number;
+  }) {
+    const {
+      userId,
+      detentaireId,
+      productId,
+      depotId,
+      minQuantite = 0,
+    } = params;
+
+    const filter: any = {
+      userId: new Types.ObjectId(userId),
+      detentaire: new Types.ObjectId(detentaireId),
+      productId: new Types.ObjectId(productId),
+      ayant_droit: new Types.ObjectId(userId),
+      isActive: true,
+    };
+    if (depotId) filter.depotId = new Types.ObjectId(depotId);
+    if (minQuantite > 0) filter.quantite = { $gte: minQuantite };
+
+    return this.actifModel.findOne(filter);
+  }
+
+  /**
    * Met à jour la propriété (Ayant-droit) sans mouvement physique.
    * Correspond à l'étape 4c (Virement de marchandise).
    */

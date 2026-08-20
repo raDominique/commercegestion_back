@@ -140,14 +140,29 @@ export class TransactionsService {
    */
   async createReturn(
     createReturnDto: CreateReturnDto,
+    retrayantId: string,
   ): Promise<PaginationResult<TransactionDocument>> {
+    // La quantité à retirer doit être disponible dans les actifs de la personne
+    // qui effectue le retrait: on ne peut retirer que depuis ses propres actifs.
+    if (retrayantId !== createReturnDto.ayant_droit) {
+      throw new BadRequestException(
+        'Retrait impossible: la quantité à retirer doit être disponible dans les actifs de la personne qui effectue le retrait (ayant_droit = utilisateur connecté).',
+      );
+    }
+
+    // Validation métier préalable à tout retrait:
+    // 1. Un dépôt approuvé doit exister vers le même membre (detentaire)
+    // 2. Seuls les éléments déposés (produit & quantité) peuvent être retirés
+    // 3. La quantité à retirer doit être disponible dans les actifs du retrayant
+    await this.assertWithdrawalEligibility(createReturnDto, retrayantId);
+
     const transactionNumber = this.generateTransactionNumber();
 
     const transaction = new this.transactionModel({
       transactionNumber,
       type: TransactionType.RETRAIT,
       status: TransactionStatus.PENDING,
-      initiatorId: new Types.ObjectId(createReturnDto.ayant_droit),
+      initiatorId: new Types.ObjectId(retrayantId),
       recipientId: new Types.ObjectId(createReturnDto.detentaire),
       productId: new Types.ObjectId(createReturnDto.productId),
       siteOrigineId: new Types.ObjectId(createReturnDto.siteOrigineId),
@@ -174,6 +189,98 @@ export class TransactionsService {
       data: [savedTransaction],
       total: 1,
     };
+  }
+
+  /**
+   * Valide les conditions préalables à un retrait (RETRAIT) auprès d'un membre X.
+   *
+   * Règles métier:
+   * 1. Un dépôt approuvé doit avoir été effectué vers le même membre (detentaire X):
+   *    "Il faut effectuer un dépôt vers un membre X pour pouvoir faire un retrait
+   *    auprès de ce même membre X."
+   * 2. Seuls les éléments déposés peuvent faire l'objet d'un retrait:
+   *    la quantité cumulée retirée ne peut pas dépasser la quantité cumulée déposée
+   *    (produit & quantité).
+   * 3. La quantité à retirer doit être disponible dans les actifs de la personne
+   *    qui effectue le retrait (l'ayant-droit).
+   */
+  private async assertWithdrawalEligibility(
+    dto: CreateReturnDto,
+    retrayantId: string,
+  ): Promise<void> {
+    const { detentaire, productId, siteOrigineId, quantite } = dto;
+    const ayant_droit = retrayantId;
+
+    // --- Règles 1 & 2: dépôt préalable + plafond "déposé non retiré" ---
+    // Pour un retrait, les marchandises sont prélevées du site d'origine
+    // (siteOrigineId), qui correspond au site de dépôt (siteDestinationId
+    // de la transaction DÉPÔT qui a créé l'actif).
+    const [depots, retraits] = await Promise.all([
+      this.transactionModel
+        .find({
+          type: TransactionType.DEPOT,
+          status: TransactionStatus.APPROVED,
+          ayant_droit: new Types.ObjectId(ayant_droit),
+          detentaire: new Types.ObjectId(detentaire),
+          productId: new Types.ObjectId(productId),
+          siteDestinationId: new Types.ObjectId(siteOrigineId),
+          isActive: true,
+        })
+        .select('quantite')
+        .lean()
+        .exec(),
+      this.transactionModel
+        .find({
+          type: TransactionType.RETRAIT,
+          status: TransactionStatus.APPROVED,
+          ayant_droit: new Types.ObjectId(ayant_droit),
+          detentaire: new Types.ObjectId(detentaire),
+          productId: new Types.ObjectId(productId),
+          siteOrigineId: new Types.ObjectId(siteOrigineId),
+          isActive: true,
+        })
+        .select('quantite')
+        .lean()
+        .exec(),
+    ]);
+
+    const totalDepose = depots.reduce((sum, d) => sum + (d.quantite || 0), 0);
+    const totalRetire = retraits.reduce((sum, r) => sum + (r.quantite || 0), 0);
+    const soldeDepose = totalDepose - totalRetire;
+
+    if (totalDepose <= 0) {
+      throw new BadRequestException(
+        `Retrait impossible: aucun dépôt approuvé de ce produit vers le membre ${detentaire} sur ce site. Un dépôt préalable vers ce membre est requis avant tout retrait.`,
+      );
+    }
+
+    if (quantite > soldeDepose) {
+      throw new BadRequestException(
+        `Quantité à retirer (${quantite}) supérieure au solde déposé et non encore retiré (${soldeDepose}). Seuls les éléments déposés (produit & quantité) peuvent faire l'objet d'un retrait.`,
+      );
+    }
+
+    // --- Règle 3: disponibilité dans les actifs de la personne qui retire ---
+    const actifDisponible =
+      await this.actifsService.findOwnActifHeldByDetentaire({
+        userId: ayant_droit,
+        detentaireId: detentaire,
+        productId,
+        depotId: siteOrigineId,
+        minQuantite: quantite,
+      });
+
+    if (!actifDisponible) {
+      const actif = await this.actifsService.findOwnActifHeldByDetentaire({
+        userId: ayant_droit,
+        detentaireId: detentaire,
+        productId,
+        depotId: siteOrigineId,
+      });
+      throw new BadRequestException(
+        `Quantité insuffisante dans vos actifs auprès de ce membre. Disponible: ${actif?.quantite ?? 0}, Demandé: ${quantite}.`,
+      );
+    }
   }
 
   /**
