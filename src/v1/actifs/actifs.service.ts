@@ -172,6 +172,42 @@ export class ActifsService {
   }
 
   /**
+   * Ajoute/augmente la quantité EN ATTENTE sur un actif (sans toucher au stock réel).
+   * Utilisé pour créer la ligne "en attente" du retrayant au site de destination.
+   */
+  async addOrIncreaseActifEnAttente(
+    userId: string,
+    depotId: string,
+    productId: string,
+    quantiteEnAttente: number,
+    prixUnitaire: number,
+    detentaireId: string,
+    ayantDroitId: string,
+  ) {
+    const filter = {
+      userId: new Types.ObjectId(userId),
+      depotId: new Types.ObjectId(depotId),
+      productId: new Types.ObjectId(productId),
+      detentaire: new Types.ObjectId(detentaireId),
+      ayant_droit: new Types.ObjectId(ayantDroitId),
+      isActive: true,
+    };
+    let actif = await this.actifModel.findOne(filter);
+    if (!actif) {
+      actif = new this.actifModel({
+        ...filter,
+        quantite: 0,
+        quantiteEnAttente,
+        prixUnitaire,
+        isActive: true,
+      });
+    } else {
+      actif.quantiteEnAttente += quantiteEnAttente;
+    }
+    return await actif.save();
+  }
+
+  /**
    * Confirme une réservation : retire du en-attente et diminue le stock réel.
    * Utilisé quand une transaction en attente est approuvée.
    */

@@ -35,6 +35,9 @@ export class Passif {
   @Prop({ required: true })
   quantite: number;
 
+  @Prop({ required: true, default: 0 })
+  quantiteEnAttente: number;
+
   @Prop({ type: Number, default: null })
   prixUnitaire: number; // Prix unitaire du produit au moment du dépôt
 

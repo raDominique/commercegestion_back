@@ -156,6 +156,33 @@ export class TransactionsService {
     // 3. La quantité à retirer doit être disponible dans les actifs du retrayant
     await this.assertWithdrawalEligibility(createReturnDto, retrayantId);
 
+    // Réservation PENDING pour le retrait:
+    // - Retrayant: réserve sa créance chez le détenteur (site origine)
+    // - Détenteur: réserve son stock détenu (site origine) + son passif
+    // - Retrayant: crée ligne "en attente" au site destination (il va détenir)
+    const { detentaire, productId, siteOrigineId, siteDestinationId, quantite, prixUnitaire } = createReturnDto;
+
+    // 1. Réserve sur l'actif du retrayant chez le détenteur (siteOrigineId)
+    await this.actifsService.reserveActif(retrayantId, siteOrigineId, productId, quantite);
+
+    // 2. Réserve sur l'actif du détenteur (siteOrigineId)
+    await this.actifsService.reserveActif(detentaire, siteOrigineId, productId, quantite);
+
+    // 3. Réserve sur le passif du détenteur envers le retrayant
+    await this.passifsService.reservePassif(detentaire, productId, retrayantId, quantite);
+
+    // 4. Crée/augmente l'actif "en attente" du retrayant au site de destination
+    //    (il va physiquement détenir la marchandise après approbation)
+    await this.actifsService.addOrIncreaseActifEnAttente(
+      retrayantId,
+      siteDestinationId,
+      productId,
+      quantite,
+      prixUnitaire || 0,
+      retrayantId, // detentaire = lui-même après retrait
+      retrayantId, // ayant_droit = lui-même
+    );
+
     const transactionNumber = this.generateTransactionNumber();
 
     const transaction = new this.transactionModel({
@@ -589,6 +616,32 @@ export class TransactionsService {
         transaction.productId.toString(),
         transaction.quantite,
       );
+    } else if (transaction.type === TransactionType.RETRAIT) {
+      // Libérer les réservations PENDING du retrait
+      const detentaireId = transaction.detentaire.toString();
+      const ayantDroitId = transaction.ayant_droit.toString();
+      const productId = transaction.productId.toString();
+      const siteOrigineId = transaction.siteOrigineId.toString();
+      const siteDestinationId = transaction.siteDestinationId.toString();
+      const quantite = transaction.quantite;
+
+      // 1. Libérer réservation sur l'actif du retrayant chez le détenteur
+      await this.actifsService.releasePendingActif(ayantDroitId, siteOrigineId, productId, quantite);
+
+      // 2. Libérer réservation sur l'actif du détenteur
+      await this.actifsService.releasePendingActif(detentaireId, siteOrigineId, productId, quantite);
+
+      // 3. Libérer réservation sur le passif du détenteur
+      await this.passifsService.releasePendingPassif(detentaireId, productId, ayantDroitId, quantite);
+
+      // 4. Libérer l'actif "en attente" du retrayant au site destination
+      //    (diminuer quantiteEnAttente, si tombe à 0 et quantite=0 -> archiver)
+      try {
+        await this.actifsService.releasePendingActif(ayantDroitId, siteDestinationId, productId, quantite);
+      } catch (err) {
+        // Ignorer si l'actif n'existe pas encore
+        console.warn(`[rejectTransaction] Impossible de libérer actif en attente destination: ${err.message}`);
+      }
     } else if (transaction.type === TransactionType.VENTE) {
       // Restaurer la quantite du produit chez le vendeur
       await this.actifsService.addOrIncreaseActif(
@@ -739,40 +792,37 @@ export class TransactionsService {
       const quantity = transaction.quantite;
       const unitPrice = transaction.prixUnitaire || 0;
 
-      // 1. Sortie du stock chez l'ayant-droit (site d'origine = sa créance)
-      await this.actifsService.decreaseActif(
+      // 1. Confirmer la réservation sur l'actif du retrayant chez le détenteur (site origine)
+      //    Décrémente quantiteEnAttente ET quantite
+      await this.actifsService.confirmPendingActif(
         ayantDroitId,
         originSiteId,
         productId,
         quantity,
       );
 
-      // 2. Sortie du stock chez le détenteur (site d'origine)
-      await this.actifsService.decreaseActif(
+      // 2. Confirmer la réservation sur l'actif du détenteur (site origine)
+      await this.actifsService.confirmPendingActif(
         detentaireId,
         originSiteId,
         productId,
         quantity,
       );
 
-      // 3. Entrée du stock chez l'ayant-droit sur le site d'arrivée
-      //    Il récupère physiquement la marchandise : détenteur = ayant-droit
-      await this.actifsService.addOrIncreaseActif(
+      // 3. Confirmer la réservation sur le passif du détenteur
+      await this.passifsService.confirmPendingPassif(
+        detentaireId,
+        productId,
+        ayantDroitId,
+        quantity,
+      );
+
+      // 4. Confirmer l'actif "en attente" du retrayant au site destination
+      //    Convertit quantiteEnAttente -> quantite
+      await this.actifsService.confirmPendingActif(
         ayantDroitId,
         destinationSiteId,
         productId,
-        quantity,
-        unitPrice,
-        ayantDroitId, // detentaireId: il détient désormais la marchandise
-        ayantDroitId, // ayantDroitId: il en reste propriétaire légal
-      );
-
-      // 4. Diminuer le passif lié au dépôt
-      // Le passif a été créé au dépôt avec: userId=détenteur (débiteur), creancierId=ayant-droit (créancier)
-      await this.passifsService.decreasePassifByCreditor(
-        detentaireId,
-        productId,
-        ayantDroitId,
         quantity,
       );
 

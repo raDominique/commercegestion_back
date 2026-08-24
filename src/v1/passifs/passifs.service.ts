@@ -124,6 +124,97 @@ export class PassifsService {
   }
 
   /**
+   * Réserve une quantité sur un passif (met en attente).
+   * Utilisé pour un retrait PENDING: la dette est marquée comme en cours de règlement.
+   */
+  async reservePassif(
+    detentaireId: string,
+    productId: string,
+    creancierId: string,
+    quantite: number,
+  ) {
+    const passif = await this.passifModel.findOne({
+      userId: new Types.ObjectId(detentaireId),
+      productId: new Types.ObjectId(productId),
+      creancierId: new Types.ObjectId(creancierId),
+      isActive: true,
+    });
+
+    if (!passif || passif.quantite - passif.quantiteEnAttente < quantite) {
+      throw new NotFoundException(
+        `Passif disponible insuffisant pour réservation. (Disponible: ${passif ? passif.quantite - passif.quantiteEnAttente : 0}, Demandé: ${quantite})`,
+      );
+    }
+
+    passif.quantiteEnAttente += quantite;
+    return await passif.save();
+  }
+
+  /**
+   * Libère une quantité précédemment réservée sur un passif.
+   * Utilisé quand un retrait PENDING est rejeté/annulé.
+   */
+  async releasePendingPassif(
+    detentaireId: string,
+    productId: string,
+    creancierId: string,
+    quantite: number,
+  ) {
+    const passif = await this.passifModel.findOne({
+      userId: new Types.ObjectId(detentaireId),
+      productId: new Types.ObjectId(productId),
+      creancierId: new Types.ObjectId(creancierId),
+      isActive: true,
+    });
+
+    if (!passif || passif.quantiteEnAttente < quantite) {
+      console.warn(
+        `Aucune réservation passif trouvée ou insuffisante pour libérer ${quantite} (en attente: ${passif?.quantiteEnAttente || 0})`,
+      );
+      return;
+    }
+
+    passif.quantiteEnAttente -= quantite;
+    return await passif.save();
+  }
+
+  /**
+   * Confirme une réservation passif : retire du en-attente et diminue la dette réelle.
+   * Utilisé quand un retrait PENDING est approuvé.
+   */
+  async confirmPendingPassif(
+    detentaireId: string,
+    productId: string,
+    creancierId: string,
+    quantite: number,
+  ) {
+    const passif = await this.passifModel.findOne({
+      userId: new Types.ObjectId(detentaireId),
+      productId: new Types.ObjectId(productId),
+      creancierId: new Types.ObjectId(creancierId),
+      isActive: true,
+    });
+
+    if (!passif || passif.quantite < quantite) {
+      throw new NotFoundException(
+        `Passif insuffisant pour confirmer la réservation. (Dette: ${passif?.quantite || 0}, Demandé: ${quantite})`,
+      );
+    }
+
+    // Retirer du en-attente
+    passif.quantiteEnAttente = Math.max(0, passif.quantiteEnAttente - quantite);
+    // Diminuer la dette réelle
+    passif.quantite -= quantite;
+
+    if (passif.quantite === 0) {
+      passif.isActive = false;
+      passif.archivedAt = new Date();
+    }
+
+    return await passif.save();
+  }
+
+  /**
    * Transfère une dette (passif) d'un débiteur vers un autre, pour un créancier donné.
    * Utile lors d'un virement de droit: ancien ayant-droit -> bénéficiaire, détenteur (créancier) inchangé.
    */
