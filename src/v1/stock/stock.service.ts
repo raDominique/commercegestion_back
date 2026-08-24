@@ -147,6 +147,26 @@ export class StockService {
     const detentaireId = dto.detentaire || siteDestOwnerId;
     const ayantDroitId = dto.ayant_droit || userId;
 
+    // 0. Libérer la réservation à l'origine (stock interne)
+    // Le dépôt PENDING a réservé via quantiteEnAttente au siteOrigineId.
+    // À l'approbation, on confirme : on sort du en-attente ET on diminue le stock réel.
+    if (dto.siteOrigineId) {
+      try {
+        await this.actifsService.confirmPendingActif(
+          ayantDroitId,
+          dto.siteOrigineId,
+          dto.productId,
+          dto.quantite,
+        );
+      } catch (err) {
+        // Stock externe (aucun actif à l'origine) : la réservation n'existait pas
+        this.loggerService.warn(
+          'processDepot',
+          `Pas d'actif à libérer à l'origine (stock externe): ${err.message}`,
+        );
+      }
+    }
+
     // 1. Actif pour le propriétaire (ayant_droit) : ses biens détenus physiquement par le détenteur
     await this.actifsService.addOrIncreaseActif(
       ayantDroitId, // userId (bilan du propriétaire)
