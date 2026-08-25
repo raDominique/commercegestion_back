@@ -546,24 +546,8 @@ export class TransactionsService {
 
     const updatedTransaction = await transaction.save();
 
-    // Pour un DEPOT : confirmer la réservation (en attente -> stock réel)
-    if (transaction.type === TransactionType.DEPOT) {
-      try {
-        await this.actifsService.confirmPendingActif(
-          transaction.ayant_droit.toString(),
-          transaction.siteOrigineId.toString(),
-          transaction.productId.toString(),
-          transaction.quantite,
-        );
-      } catch (error) {
-        console.error(
-          `[confirmPendingActif] Erreur lors de la confirmation du dépôt #${transaction.transactionNumber}:`,
-          error,
-        );
-      }
-    }
-
     // Appliquer les mouvements d'actifs/passifs selon le type
+    // (processDepot gère déjà confirmPendingActif pour les dépôts)
     await this.applyTransactionMovements(updatedTransaction);
 
     // Envoyer la notification d'approbation (fire-and-forget)
