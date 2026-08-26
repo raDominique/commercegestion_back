@@ -1156,12 +1156,82 @@ export class LedgerDisplayService {
     }
     const formattedActifs = Array.from(actifMap.values());
 
-    // 3. Fusionner, trier par date décroissante, paginer
-    const merged = [
-      ...pendingActifs,
-      ...pendingRetraitActifs,
-      ...formattedActifs,
-    ].sort(
+    // Grouper aussi les PENDING par (productId + depotId) pour les fusionner
+    // avec les confirmés au lieu de les concaténer
+    const pendingMap = new Map<string, any>();
+
+    const groupPending = (pending: any[]) => {
+      for (const p of pending || []) {
+        const key = `${p.productId}|${p.depotId}`;
+        const q = p.quantite || 0;
+        const qAtt = p.quantiteEnAttente || 0;
+
+        if (pendingMap.has(key)) {
+          const existing = pendingMap.get(key);
+          existing.ids.push(p.id?.toString() || p._id?.toString());
+          existing.quantite += q;
+          existing.quantiteEnAttente += qAtt;
+          existing.quantiteDisponible = Math.max(0, existing.quantite - existing.quantiteEnAttente);
+          existing.valeurTotale = existing.quantiteDisponible * (existing.prixUnitaire || 1);
+          existing.statut = [
+            ...new Set([...(Array.isArray(existing.statut) ? existing.statut : [existing.statut]), ...(Array.isArray(p.statut) ? p.statut : [p.statut])]),
+          ];
+        } else {
+          pendingMap.set(key, {
+            ids: [p.id?.toString() || p._id?.toString()],
+            id: p.id || p._id,
+            transactionNumber: p.transactionNumber,
+            type: p.type,
+            statut: p.statut,
+            productId: p.productId,
+            productName: p.productName,
+            productCode: p.productCode,
+            productImage: p.productImage,
+            quantite: q,
+            quantiteEnAttente: qAtt,
+            quantiteDisponible: Math.max(0, q - qAtt),
+            prixUnitaire: p.prixUnitaire,
+            valeurTotale: Math.max(0, q - qAtt) * (p.prixUnitaire || 1),
+            depotId: p.depotId,
+            depot: p.depot,
+            depotAdresse: p.depotAdresse,
+            detentaire: p.detentaire,
+            detentaireId: p.detentaireId,
+            ayantDroit: p.ayantDroit,
+            ayantDroitId: p.ayantDroitId,
+            dateCreation: p.dateCreation,
+            dateModification: p.dateModification,
+            isActive: p.isActive,
+          });
+        }
+      }
+    };
+
+    groupPending(pendingActifs);
+    groupPending(pendingRetraitActifs);
+
+    // Fusionner pendingMap dans actifMap
+    for (const [key, pending] of pendingMap) {
+      if (actifMap.has(key)) {
+        const confirmed = actifMap.get(key);
+        confirmed.ids.push(...pending.ids);
+        confirmed.quantite += pending.quantite;
+        confirmed.quantiteEnAttente += pending.quantiteEnAttente;
+        confirmed.quantiteDisponible = Math.max(0, confirmed.quantite - confirmed.quantiteEnAttente);
+        confirmed.valeurTotale = confirmed.quantiteDisponible * (confirmed.prixUnitaire || 1);
+        confirmed.statut = [
+          ...new Set([...(Array.isArray(confirmed.statut) ? confirmed.statut : [confirmed.statut]), ...(Array.isArray(pending.statut) ? pending.statut : [pending.statut])]),
+        ];
+        if (pending.dateCreation && new Date(pending.dateCreation) > new Date(confirmed.dateModification)) {
+          confirmed.dateModification = pending.dateCreation;
+        }
+      } else {
+        actifMap.set(key, pending);
+      }
+    }
+
+    // 3. Tri final et pagination
+    const merged = Array.from(actifMap.values()).sort(
       (a, b) =>
         new Date(b.dateCreation).getTime() -
         new Date(a.dateCreation).getTime(),
