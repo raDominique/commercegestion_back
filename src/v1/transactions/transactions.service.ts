@@ -36,6 +36,7 @@ import {
   ExportService,
   ExportResult,
 } from '../../shared/export/export.service';
+import { NotificationsService } from '../../shared/notifications/notifications.service';
 
 @Injectable()
 export class TransactionsService {
@@ -52,6 +53,7 @@ export class TransactionsService {
     private readonly siteService: SiteService,
     private readonly loggers: LoggerService,
     private readonly exportService: ExportService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -1328,6 +1330,17 @@ export class TransactionsService {
       console.log(
         `Approval notification sent for transaction (destinataire): ${transaction.transactionNumber} type: ${recipientType}`,
       );
+      // WebSocket to recipient
+      const recipientId = transaction.recipientId?.toString();
+      if (recipientId) {
+        this.notificationsService
+          .notifyUser(
+            recipientId,
+            `${recipientType} approuvé`,
+            `Votre ${recipientType.toLowerCase()} de ${transaction.quantite} ${productName} a été approuvé par ${approverName} (${transaction.transactionNumber})`,
+          )
+          .catch((e) => console.error('WS notify approval recipient failed:', e));
+      }
 
       // Envoyer aussi la notification au déposant/initiator que sa transaction a été approuvée
       const initiatorUser = await this.usersService.getById(
@@ -1350,6 +1363,17 @@ export class TransactionsService {
       console.log(
         `Approval notification sent to initiator for transaction: ${transaction.transactionNumber} type: ${initiatorType}`,
       );
+      // WebSocket to initiator
+      const initiatorId = transaction.initiatorId?.toString();
+      if (initiatorId) {
+        this.notificationsService
+          .notifyUser(
+            initiatorId,
+            `Votre ${initiatorType} approuvé`,
+            `Votre ${initiatorType.toLowerCase()} de ${transaction.quantite} ${productName} a été approuvé par ${approverName} (${transaction.transactionNumber})`,
+          )
+          .catch((e) => console.error('WS notify approval initiator failed:', e));
+      }
     } catch (error) {
       console.error(
         `Failed to send approval notification: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -1403,6 +1427,17 @@ export class TransactionsService {
       console.log(
         `Rejection notification sent for transaction: ${transaction.transactionNumber} type: ${recipientType}`,
       );
+      // WebSocket to recipient
+      const recipientId = transaction.recipientId?.toString();
+      if (recipientId) {
+        this.notificationsService
+          .notifyUser(
+            recipientId,
+            `${recipientType} rejeté`,
+            `Votre ${recipientType.toLowerCase()} de ${transaction.quantite} ${productName} a été rejeté par ${approverName} : ${rejectionReason} (${transaction.transactionNumber})`,
+          )
+          .catch((e) => console.error('WS notify rejection recipient failed:', e));
+      }
 
       // Envoyer aussi la notification au déposant/initiator que sa transaction a été rejetée
       const initiatorUser = await this.usersService.getById(
@@ -1426,6 +1461,17 @@ export class TransactionsService {
       console.log(
         `Rejection notification sent to initiator for transaction: ${transaction.transactionNumber}`,
       );
+      // WebSocket to initiator
+      const initiatorId = transaction.initiatorId?.toString();
+      if (initiatorId) {
+        this.notificationsService
+          .notifyUser(
+            initiatorId,
+            `Votre ${initiatorType} rejeté`,
+            `Votre ${initiatorType.toLowerCase()} de ${transaction.quantite} ${productName} a été rejeté par ${approverName} : ${rejectionReason} (${transaction.transactionNumber})`,
+          )
+          .catch((e) => console.error('WS notify rejection initiator failed:', e));
+      }
     } catch (error) {
       console.error(
         `Failed to send rejection notification: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -1534,6 +1580,14 @@ export class TransactionsService {
           console.log(
             `[Mail OK] Destinataire (${recipientUser.userName} → ${recipientUser.userEmail}) type: ${recipientType}`,
           );
+          // WebSocket notification to recipient
+          this.notificationsService
+            .notifyUser(
+              recipientId!,
+              `Nouveau ${recipientType}`,
+              `Vous avez reçu un ${recipientType.toLowerCase()} de ${transaction.quantite} ${productName} (${transaction.transactionNumber})`,
+            )
+            .catch((e) => console.error('WS notify recipient failed:', e));
         } catch (error: unknown) {
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';
@@ -1566,6 +1620,17 @@ export class TransactionsService {
           console.log(
             `[Mail OK] Initiateur (${initiatorUser.userName} → ${initiatorUser.userEmail}) type: ${initiatorType}`,
           );
+          // WebSocket notification to initiator
+          const initiatorId = transaction.initiatorId?.toString();
+          if (initiatorId) {
+            this.notificationsService
+              .notifyUser(
+                initiatorId,
+                `Votre ${initiatorType} créé`,
+                `Votre ${initiatorType.toLowerCase()} de ${transaction.quantite} ${productName} a été envoyé (${transaction.transactionNumber})`,
+              )
+              .catch((e) => console.error('WS notify initiator failed:', e));
+          }
         } catch (error: unknown) {
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';

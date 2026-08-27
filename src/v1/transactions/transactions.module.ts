@@ -11,6 +11,7 @@ import { UsersModule } from '../users/users.module';
 import { SiteModule } from '../sites/sites.module';
 import { LoggerModule } from 'src/common/logger/logger.module';
 import { MailModule } from 'src/shared/mail/mail.module';
+import { NotificationsModule } from 'src/shared/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { MailModule } from 'src/shared/mail/mail.module';
     UsersModule,
     SiteModule,
     LoggerModule,
+    NotificationsModule,
   ],
   controllers: [TransactionsController],
   providers: [TransactionsService],
