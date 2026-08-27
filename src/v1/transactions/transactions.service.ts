@@ -802,8 +802,8 @@ export class TransactionsService {
       );
 
       // 4. Confirmer l'actif "en attente" du retrayant au site destination
-      //    Convertit quantiteEnAttente -> quantite
-      await this.actifsService.confirmPendingActif(
+      //    Convertit quantiteEnAttente -> quantite (AJOUTE au stock réel)
+      await this.actifsService.confirmPendingActifAtDestination(
         ayantDroitId,
         destinationSiteId,
         productId,

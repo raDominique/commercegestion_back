@@ -59,13 +59,14 @@ async function bootstrap() {
   logger.log('Bootstrap', `CORS allowlist chargée: ${allowlist.join(', ')}`);
 
   app.enableCors({
-    origin: (origin, callback) => {
-      // Requêtes server-to-server (curl, Postman, cron, etc.)
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
       if (!origin) {
         return callback(null, true);
       }
 
-      // Autorise les origines listées ou l’URL de l’API elle-même (Swagger)
       if (allowlist.includes(origin) || origin === appUrl) {
         return callback(null, true);
       }
@@ -145,4 +146,4 @@ async function bootstrap() {
   }
 }
 
-bootstrap();
+void bootstrap();

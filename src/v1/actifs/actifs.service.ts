@@ -244,6 +244,36 @@ export class ActifsService {
   }
 
   /**
+   * Confirme une ligne "en attente" à la DESTINATION : convertit quantiteEnAttente -> quantite.
+   * Utilisé pour le retrait approuvé : la ligne créée au site destination passe de pending à réel.
+   */
+  async confirmPendingActifAtDestination(
+    userId: string,
+    depotId: string,
+    productId: string,
+    quantite: number,
+  ) {
+    const actif = await this.actifModel.findOne({
+      userId: new Types.ObjectId(userId),
+      depotId: new Types.ObjectId(depotId),
+      productId: new Types.ObjectId(productId),
+      isActive: true,
+    });
+
+    if (!actif || actif.quantiteEnAttente < quantite) {
+      throw new NotFoundException(
+        `Ligne en attente insuffisante pour confirmer. (En attente: ${actif?.quantiteEnAttente || 0}, Demandé: ${quantite})`,
+      );
+    }
+
+    // Convertir en-attente -> réel
+    actif.quantiteEnAttente = Math.max(0, actif.quantiteEnAttente - quantite);
+    actif.quantite += quantite;
+
+    return await actif.save();
+  }
+
+  /**
    * Transfère un droit de propriété (ayant_droit) sur un actif stocké chez un détenteur.
    * Cas d'usage: dépôt chez un tiers + virement de droit (propriétaire X -> bénéficiaire Z)
    *
