@@ -524,7 +524,6 @@ export class ActifsService {
 
         const formattedTxs = txs.map((tx: any) => ({
           ...tx,
-          // Champs de compatibilité pour l'affichage type actif (en plus de la structure native)
           depotId: tx.siteDestinationId,
           quantiteEnAttente: tx.quantite,
           quantiteDisponible: 0,
@@ -536,6 +535,7 @@ export class ActifsService {
 
     return actifs;
   }
+  
   async getAvailableValidatedProducts(query: any) {
     const {
       page = 1,
@@ -645,7 +645,7 @@ export class ActifsService {
       .exec()
       .then((actifs) =>
         actifs.map((a) => ({
-          quantite: a.quantite,
+quantite: a.quantite - a.quantiteEnAttente,
           productId: (a.productId as any)?._id,
           productName: (a.productId as any)?.productName,
         })),
@@ -731,7 +731,11 @@ export class ActifsService {
 
     const skip = (Number(page) - 1) * Number(limit);
 
-    const filter: any = {
+    const detentaireFilter = detenteurId
+      ? { detentaire: new Types.ObjectId(detenteurId) }
+      : { detentaire: { $ne: new Types.ObjectId(userId) } };
+
+    const filter = {
       // Bilan de l'utilisateur connecté UNIQUEMENT.
       // Sans ce filtre, la ligne du bilan du détenteur (userId = detenteur,
       // ayant_droit = utilisateur) matche aussi le filtre ayant_droit + detentaire
@@ -739,19 +743,18 @@ export class ActifsService {
       userId: new Types.ObjectId(userId),
       ayant_droit: new Types.ObjectId(userId),
       isActive: true,
-      quantite: { $gt: 0 },
-      quantiteEnAttente: 0, // Exclure les actifs en attente (non approuvés)
+      // Ne retourner que la quantité réellement disponible : les quantités
+      // réservées par des transactions PENDING ne sont pas détenues comme
+      // disponible chez le détenteur.
+      $expr: {
+        $gt: [
+          { $subtract: ['$quantite', { $ifNull: ['$quantiteEnAttente', 0] }] },
+          0,
+        ],
+      },
+      ...detentaireFilter,
+      ...(siteId ? { depotId: new Types.ObjectId(siteId) } : {}),
     };
-
-    if (detenteurId) {
-      filter.detentaire = new Types.ObjectId(detenteurId);
-    } else {
-      filter.detentaire = { $ne: new Types.ObjectId(userId) };
-    }
-
-    if (siteId) {
-      filter.depotId = new Types.ObjectId(siteId);
-    }
 
     // On ne peuple que le produit. codeCPC est conservé pour la recherche
     // puis retiré de la réponse finale.
@@ -790,10 +793,10 @@ export class ActifsService {
     }
 
     // Réduire la réponse aux seuls champs utiles:
-    // _id, quantite, productId._id, productId.productName
+    // _id, quantite disponible, productId._id, productId.productName
     const reduced = data.map((a: any) => ({
       _id: a._id,
-      quantite: a.quantite,
+      quantite: Math.max(0, a.quantite - (a.quantiteEnAttente ?? 0)),
       productId: {
         _id: a.productId?._id ?? null,
         productName: a.productId?.productName ?? null,
