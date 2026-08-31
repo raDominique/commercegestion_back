@@ -1097,12 +1097,8 @@ export class LedgerDisplayService {
         existing.quantiteEnAttente += enAttente;
         existing.quantiteDisponible = Math.max(0, existing.quantite - existing.quantiteEnAttente);
         existing.valeurTotale = existing.quantiteDisponible * (existing.prixUnitaire || 1);
-        existing.statut =
-          existing.quantite > 0 && existing.quantiteEnAttente > 0
-            ? [TransactionStatus.APPROVED, TransactionStatus.PENDING]
-            : existing.quantiteEnAttente > 0
-              ? TransactionStatus.PENDING
-              : TransactionStatus.APPROVED;
+        // Statut = le plus avancé des deux (APPROVED > PENDING)
+        existing.statut = TransactionStatus.APPROVED;
         if (actif.ayant_droit) {
           const nom = `${actif.ayant_droit.userFirstname} ${actif.ayant_droit.userName}`;
           if (!existing.ayantDroits.includes(nom)) {
@@ -1119,12 +1115,7 @@ export class LedgerDisplayService {
           id: actif._id,
           transactionNumber: null,
           type: 'ACTIF',
-          statut:
-            quantite > 0 && enAttente > 0
-              ? [TransactionStatus.APPROVED, TransactionStatus.PENDING]
-              : enAttente > 0
-                ? TransactionStatus.PENDING
-                : TransactionStatus.APPROVED,
+          statut: TransactionStatus.APPROVED,
           productId: actif.productId?._id || 'N/A',
           productName: actif.productId?.productName || 'N/A',
           productCode: actif.productId?.codeCPC || 'N/A',

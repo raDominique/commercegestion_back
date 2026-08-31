@@ -740,6 +740,7 @@ export class ActifsService {
       ayant_droit: new Types.ObjectId(userId),
       isActive: true,
       quantite: { $gt: 0 },
+      quantiteEnAttente: 0, // Exclure les actifs en attente (non approuvés)
     };
 
     if (detenteurId) {
