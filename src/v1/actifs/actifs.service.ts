@@ -641,15 +641,24 @@ export class ActifsService {
         quantite: { $gt: 0 },
       })
       .populate('productId', 'productName _id')
-      .select('quantite productId')
+      .select('quantite quantiteEnAttente productId')
       .exec()
-      .then((actifs) =>
-        actifs.map((a) => ({
-quantite: a.quantite - a.quantiteEnAttente,
-          productId: (a.productId as any)?._id,
-          productName: (a.productId as any)?.productName,
-        })),
-      );
+      .then((actifs) => {
+        type PopulatedProduct = {
+          _id: Types.ObjectId;
+          productName: string;
+        };
+
+        return actifs.map((a) => {
+          const product = a.productId as unknown as PopulatedProduct | null;
+
+          return {
+            quantite: Math.max(0, a.quantite - (a.quantiteEnAttente ?? 0)),
+            productId: product?._id,
+            productName: product?.productName,
+          };
+        });
+      });
   }
 
   async exportAll(
