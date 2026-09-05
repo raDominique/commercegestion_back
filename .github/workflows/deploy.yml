@@ -29,9 +29,12 @@ env:
 jobs:
   deploy:
     name: Build and deploy
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     env:
       DOCKER_TAG: ${{ github.run_number }}
+      DOCKER_IMAGE: ghcr.io/${{ github.repository_owner }}/commercegestion-api
+      GHCR_USERNAME: ${{ github.actor }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
       MONGO_URI: ${{ secrets.MONGO_URI_ETOKISANA }}
       JWT_SECRET: ${{ secrets.JWT_SECRET_E_TAKALO }}
       JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET_E_TAKALO }}
@@ -47,68 +50,116 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: docker build -t "$DOCKER_IMAGE:$DOCKER_TAG" .
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Deploy with rollback
-        shell: bash
-        run: |
-          if docker ps -a --format '{{.Names}}' | grep -qx "$DOCKER_CONTAINER_NAME"; then
-            docker rm -f "${DOCKER_CONTAINER_NAME}_backup" 2>/dev/null || true
-            docker stop "$DOCKER_CONTAINER_NAME" || true
-            docker rename "$DOCKER_CONTAINER_NAME" "${DOCKER_CONTAINER_NAME}_backup"
-          fi
+      - name: Build and publish Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
 
-          docker volume create "${DOCKER_CONTAINER_NAME}_upload" >/dev/null
+      - name: Deploy on server with rollback
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          PORT: ${{ env.PORT }}
+          DOCKER_IMAGE: ${{ env.DOCKER_IMAGE }}
+          DOCKER_TAG: ${{ env.DOCKER_TAG }}
+          DOCKER_CONTAINER_NAME: ${{ env.DOCKER_CONTAINER_NAME }}
+          GHCR_USERNAME: ${{ env.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ env.GHCR_TOKEN }}
+          NODE_ENV: ${{ env.NODE_ENV }}
+          JWT_EXPIRES_IN: ${{ env.JWT_EXPIRES_IN }}
+          JWT_REFRESH_EXPIRES_IN: ${{ env.JWT_REFRESH_EXPIRES_IN }}
+          SMTP_SECURE: ${{ env.SMTP_SECURE }}
+          SMTP_FROM_NAME: ${{ env.SMTP_FROM_NAME }}
+          MAIL_SEND_DELAY_MS: ${{ env.MAIL_SEND_DELAY_MS }}
+          MAIL_MAX_RETRIES: ${{ env.MAIL_MAX_RETRIES }}
+          APP_NAME: ${{ env.APP_NAME }}
+          APP_URL: ${{ env.APP_URL }}
+          CORS_ALLOWLIST: ${{ env.CORS_ALLOWLIST }}
+          FRONTEND_URL: ${{ env.FRONTEND_URL }}
+          FRONT_URL: ${{ env.FRONT_URL }}
+          MONGO_URI: ${{ env.MONGO_URI }}
+          JWT_SECRET: ${{ env.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ env.JWT_REFRESH_SECRET }}
+          SMTP_HOST: ${{ env.SMTP_HOST }}
+          SMTP_PORT: ${{ env.SMTP_PORT }}
+          SMTP_USER: ${{ env.SMTP_USER }}
+          SMTP_PASS: ${{ env.SMTP_PASS }}
+          ADMIN_EMAIL: ${{ env.ADMIN_EMAIL }}
+          SUPERADMIN_EMAIL: ${{ env.SUPERADMIN_EMAIL }}
+          SUPERADMIN_PASSWORD: ${{ env.SUPERADMIN_PASSWORD }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: PORT,DOCKER_IMAGE,DOCKER_TAG,DOCKER_CONTAINER_NAME,GHCR_USERNAME,GHCR_TOKEN,NODE_ENV,JWT_EXPIRES_IN,JWT_REFRESH_EXPIRES_IN,SMTP_SECURE,SMTP_FROM_NAME,MAIL_SEND_DELAY_MS,MAIL_MAX_RETRIES,APP_NAME,APP_URL,CORS_ALLOWLIST,FRONTEND_URL,FRONT_URL,MONGO_URI,JWT_SECRET,JWT_REFRESH_SECRET,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,ADMIN_EMAIL,SUPERADMIN_EMAIL,SUPERADMIN_PASSWORD
+          script: |
+            set -e
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+            docker pull "$DOCKER_IMAGE:$DOCKER_TAG"
 
-          docker run -d \
-            --name "$DOCKER_CONTAINER_NAME" \
-            --restart unless-stopped \
-            --memory=4g \
-            --memory-reservation=2g \
-            --cpus=4 \
-            --pids-limit=200 \
-            -p "$PORT:$PORT" \
-            -e PORT \
-            -e MONGO_URI \
-            -e NODE_ENV \
-            -e JWT_SECRET \
-            -e JWT_EXPIRES_IN \
-            -e JWT_REFRESH_SECRET \
-            -e JWT_REFRESH_EXPIRES_IN \
-            -e SMTP_HOST \
-            -e SMTP_PORT \
-            -e SMTP_USER \
-            -e SMTP_PASS \
-            -e SMTP_FROM="$SMTP_USER" \
-            -e SMTP_SECURE \
-            -e SMTP_FROM_NAME \
-            -e MAIL_SEND_DELAY_MS \
-            -e MAIL_MAX_RETRIES \
-            -e APP_NAME \
-            -e APP_URL \
-            -e ADMIN_EMAIL \
-            -e CORS_ALLOWLIST \
-            -e FRONTEND_URL \
-            -e FRONT_URL \
-            -e SUPERADMIN_EMAIL \
-            -e SUPERADMIN_PASSWORD \
-            -v "${DOCKER_CONTAINER_NAME}_upload:/app/upload" \
-            "$DOCKER_IMAGE:$DOCKER_TAG"
-
-          sleep 15
-
-          if docker ps --format '{{.Names}}' | grep -qx "$DOCKER_CONTAINER_NAME"; then
-            docker rm -f "${DOCKER_CONTAINER_NAME}_backup" 2>/dev/null || true
-          else
-            docker rm -f "$DOCKER_CONTAINER_NAME" 2>/dev/null || true
-            if docker ps -a --format '{{.Names}}' | grep -qx "${DOCKER_CONTAINER_NAME}_backup"; then
-              docker rename "${DOCKER_CONTAINER_NAME}_backup" "$DOCKER_CONTAINER_NAME"
-              docker start "$DOCKER_CONTAINER_NAME"
+            if docker ps -a --format '{{.Names}}' | grep -qx "$DOCKER_CONTAINER_NAME"; then
+              docker rm -f "${DOCKER_CONTAINER_NAME}_backup" 2>/dev/null || true
+              docker stop "$DOCKER_CONTAINER_NAME" || true
+              docker rename "$DOCKER_CONTAINER_NAME" "${DOCKER_CONTAINER_NAME}_backup"
             fi
-            exit 1
-          fi
 
-      - name: Remove unused Docker images
-        if: always()
-        run: docker image prune -a -f || true
+            docker volume create "${DOCKER_CONTAINER_NAME}_upload" >/dev/null
+
+            docker run -d \
+              --name "$DOCKER_CONTAINER_NAME" \
+              --restart unless-stopped \
+              --memory=4g \
+              --memory-reservation=2g \
+              --cpus=4 \
+              --pids-limit=200 \
+              -p "$PORT:$PORT" \
+              -e PORT \
+              -e MONGO_URI \
+              -e NODE_ENV \
+              -e JWT_SECRET \
+              -e JWT_EXPIRES_IN \
+              -e JWT_REFRESH_SECRET \
+              -e JWT_REFRESH_EXPIRES_IN \
+              -e SMTP_HOST \
+              -e SMTP_PORT \
+              -e SMTP_USER \
+              -e SMTP_PASS \
+              -e SMTP_FROM="$SMTP_USER" \
+              -e SMTP_SECURE \
+              -e SMTP_FROM_NAME \
+              -e MAIL_SEND_DELAY_MS \
+              -e MAIL_MAX_RETRIES \
+              -e APP_NAME \
+              -e APP_URL \
+              -e ADMIN_EMAIL \
+              -e CORS_ALLOWLIST \
+              -e FRONTEND_URL \
+              -e FRONT_URL \
+              -e SUPERADMIN_EMAIL \
+              -e SUPERADMIN_PASSWORD \
+              -v "${DOCKER_CONTAINER_NAME}_upload:/app/upload" \
+              "$DOCKER_IMAGE:$DOCKER_TAG"
+
+            sleep 15
+
+            if docker ps --format '{{.Names}}' | grep -qx "$DOCKER_CONTAINER_NAME"; then
+              docker rm -f "${DOCKER_CONTAINER_NAME}_backup" 2>/dev/null || true
+            else
+              docker rm -f "$DOCKER_CONTAINER_NAME" 2>/dev/null || true
+              if docker ps -a --format '{{.Names}}' | grep -qx "${DOCKER_CONTAINER_NAME}_backup"; then
+                docker rename "${DOCKER_CONTAINER_NAME}_backup" "$DOCKER_CONTAINER_NAME"
+                docker start "$DOCKER_CONTAINER_NAME"
+              fi
+              exit 1
+            fi
+
+            docker image prune -a -f || true
