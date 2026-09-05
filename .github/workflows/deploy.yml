@@ -32,7 +32,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DOCKER_TAG: ${{ github.run_number }}
-      DOCKER_IMAGE: ghcr.io/${{ github.repository_owner }}/commercegestion-api
+      # Docker/GHCR image names must be entirely lowercase.
+      DOCKER_IMAGE: ghcr.io/radominique/commercegestion-api
       GHCR_USERNAME: ${{ github.actor }}
       GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
       MONGO_URI: ${{ secrets.MONGO_URI_ETOKISANA }}
@@ -48,17 +49,17 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Build and publish Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
