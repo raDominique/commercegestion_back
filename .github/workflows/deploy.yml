@@ -32,10 +32,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DOCKER_TAG: ${{ github.run_number }}
-      # Docker/GHCR image names must be entirely lowercase.
-      DOCKER_IMAGE: ghcr.io/radominique/commercegestion-api
-      GHCR_USERNAME: ${{ github.actor }}
-      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
       MONGO_URI: ${{ secrets.MONGO_URI_ETOKISANA }}
       JWT_SECRET: ${{ secrets.JWT_SECRET_E_TAKALO }}
       JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET_E_TAKALO }}
@@ -48,23 +44,6 @@ jobs:
       SUPERADMIN_PASSWORD: ${{ secrets.SUPERADMIN_PASSWORD_E_TAKALO }}
 
     steps:
-      - name: Check out source
-        uses: actions/checkout@v5
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
-
-      - name: Build and publish Docker image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: true
-          tags: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
-
       - name: Deploy on server with rollback
         uses: appleboy/ssh-action@v1.0.3
         env:
@@ -72,8 +51,6 @@ jobs:
           DOCKER_IMAGE: ${{ env.DOCKER_IMAGE }}
           DOCKER_TAG: ${{ env.DOCKER_TAG }}
           DOCKER_CONTAINER_NAME: ${{ env.DOCKER_CONTAINER_NAME }}
-          GHCR_USERNAME: ${{ env.GHCR_USERNAME }}
-          GHCR_TOKEN: ${{ env.GHCR_TOKEN }}
           NODE_ENV: ${{ env.NODE_ENV }}
           JWT_EXPIRES_IN: ${{ env.JWT_EXPIRES_IN }}
           JWT_REFRESH_EXPIRES_IN: ${{ env.JWT_REFRESH_EXPIRES_IN }}
@@ -101,11 +78,12 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: PORT,DOCKER_IMAGE,DOCKER_TAG,DOCKER_CONTAINER_NAME,GHCR_USERNAME,GHCR_TOKEN,NODE_ENV,JWT_EXPIRES_IN,JWT_REFRESH_EXPIRES_IN,SMTP_SECURE,SMTP_FROM_NAME,MAIL_SEND_DELAY_MS,MAIL_MAX_RETRIES,APP_NAME,APP_URL,CORS_ALLOWLIST,FRONTEND_URL,FRONT_URL,MONGO_URI,JWT_SECRET,JWT_REFRESH_SECRET,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,ADMIN_EMAIL,SUPERADMIN_EMAIL,SUPERADMIN_PASSWORD
+          envs: PORT,DOCKER_IMAGE,DOCKER_TAG,DOCKER_CONTAINER_NAME,NODE_ENV,JWT_EXPIRES_IN,JWT_REFRESH_EXPIRES_IN,SMTP_SECURE,SMTP_FROM_NAME,MAIL_SEND_DELAY_MS,MAIL_MAX_RETRIES,APP_NAME,APP_URL,CORS_ALLOWLIST,FRONTEND_URL,FRONT_URL,MONGO_URI,JWT_SECRET,JWT_REFRESH_SECRET,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,ADMIN_EMAIL,SUPERADMIN_EMAIL,SUPERADMIN_PASSWORD
           script: |
             set -e
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
-            docker pull "$DOCKER_IMAGE:$DOCKER_TAG"
+            cd /opt/etokisana
+            git pull --ff-only origin main
+            docker build -t "$DOCKER_IMAGE:$DOCKER_TAG" .
 
             if docker ps -a --format '{{.Names}}' | grep -qx "$DOCKER_CONTAINER_NAME"; then
               docker rm -f "${DOCKER_CONTAINER_NAME}_backup" 2>/dev/null || true
