@@ -32,6 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DOCKER_TAG: ${{ github.run_number }}
+      REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}.git
       MONGO_URI: ${{ secrets.MONGO_URI_ETOKISANA }}
       JWT_SECRET: ${{ secrets.JWT_SECRET_E_TAKALO }}
       JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET_E_TAKALO }}
@@ -51,6 +52,7 @@ jobs:
           DOCKER_IMAGE: ${{ env.DOCKER_IMAGE }}
           DOCKER_TAG: ${{ env.DOCKER_TAG }}
           DOCKER_CONTAINER_NAME: ${{ env.DOCKER_CONTAINER_NAME }}
+          REPOSITORY_URL: ${{ env.REPOSITORY_URL }}
           NODE_ENV: ${{ env.NODE_ENV }}
           JWT_EXPIRES_IN: ${{ env.JWT_EXPIRES_IN }}
           JWT_REFRESH_EXPIRES_IN: ${{ env.JWT_REFRESH_EXPIRES_IN }}
@@ -78,11 +80,16 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: PORT,DOCKER_IMAGE,DOCKER_TAG,DOCKER_CONTAINER_NAME,NODE_ENV,JWT_EXPIRES_IN,JWT_REFRESH_EXPIRES_IN,SMTP_SECURE,SMTP_FROM_NAME,MAIL_SEND_DELAY_MS,MAIL_MAX_RETRIES,APP_NAME,APP_URL,CORS_ALLOWLIST,FRONTEND_URL,FRONT_URL,MONGO_URI,JWT_SECRET,JWT_REFRESH_SECRET,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,ADMIN_EMAIL,SUPERADMIN_EMAIL,SUPERADMIN_PASSWORD
+          envs: PORT,DOCKER_IMAGE,DOCKER_TAG,DOCKER_CONTAINER_NAME,REPOSITORY_URL,NODE_ENV,JWT_EXPIRES_IN,JWT_REFRESH_EXPIRES_IN,SMTP_SECURE,SMTP_FROM_NAME,MAIL_SEND_DELAY_MS,MAIL_MAX_RETRIES,APP_NAME,APP_URL,CORS_ALLOWLIST,FRONTEND_URL,FRONT_URL,MONGO_URI,JWT_SECRET,JWT_REFRESH_SECRET,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,ADMIN_EMAIL,SUPERADMIN_EMAIL,SUPERADMIN_PASSWORD
           script: |
             set -e
-            cd /home/${{ secrets.SSH_USER }}/commercegestion
-            git pull --ff-only origin main
+            APP_DIR=/home/${{ secrets.SSH_USER }}/commercegestion
+            if [ -d "$APP_DIR/.git" ]; then
+              git -C "$APP_DIR" pull --ff-only origin main
+            else
+              git clone --branch main --single-branch "$REPOSITORY_URL" "$APP_DIR"
+            fi
+            cd "$APP_DIR"
             docker build -t "$DOCKER_IMAGE:$DOCKER_TAG" .
 
             if docker ps -a --format '{{.Names}}' | grep -qx "$DOCKER_CONTAINER_NAME"; then
