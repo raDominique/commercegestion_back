@@ -38,6 +38,7 @@
     "csv-parser": "^3.2.0",
     "joi": "^18.0.2",
     "json2csv": "^6.0.0-alpha.2",
+    "minio": "^8.0.7",
     "mongoose": "^9.1.5",
     "multer": "^2.0.2",
     "multer-s3": "^3.0.1",

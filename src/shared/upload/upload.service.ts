@@ -1,18 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import sharp from 'sharp';
-import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
+import { MinioStorageService } from './minio-storage.service';
 
 @Injectable()
 export class UploadService {
   private readonly logger = new Logger('UploadService');
 
-  private readonly publicPath = path.join(process.cwd(), 'upload');
   private readonly baseUrl: string;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private readonly storage: MinioStorageService,
+  ) {
     this.baseUrl =
       this.configService.get<string>('APP_URL') || 'http://localhost:3000';
   }
@@ -22,18 +24,9 @@ export class UploadService {
     destFolder = 'uploads',
   ): Promise<string> {
     try {
-      const folderPath = path.join(this.publicPath, destFolder);
-      if (!fs.existsSync(folderPath))
-        fs.mkdirSync(folderPath, { recursive: true });
-
+      const safeDestFolder = this.validateDestFolder(destFolder);
       const fileExt = path.extname(file.originalname);
-      let safeName: string;
-      let filePath: string;
-      do {
-        const hash = crypto.randomBytes(16).toString('hex');
-        safeName = `${hash}${fileExt}`;
-        filePath = path.join(folderPath, safeName);
-      } while (fs.existsSync(filePath));
+      const safeName = `${crypto.randomBytes(16).toString('hex')}${fileExt}`;
 
       let buffer = file.buffer;
       if (file.mimetype === 'text/csv') {
@@ -42,19 +35,24 @@ export class UploadService {
       }
 
       if (file.mimetype.startsWith('image/')) {
-        await sharp(file.buffer)
+        buffer = await sharp(file.buffer)
           .resize({ width: 1024 })
           .jpeg({ quality: 80 })
-          .toFile(filePath);
-      } else {
-        fs.writeFileSync(filePath, buffer);
+          .toBuffer();
       }
 
-      this.logger.log(`File saved: ${filePath}`);
+      await this.storage.store(
+        `${safeDestFolder}/${safeName}`,
+        buffer,
+        file.mimetype,
+      );
 
-      return `${this.baseUrl}/upload/${destFolder}/${safeName}`;
+      return `${this.baseUrl}/upload/${safeDestFolder}/${safeName}`;
     } catch (err) {
-      this.logger.error('Failed to save file', err.stack);
+      this.logger.error(
+        'Failed to save file',
+        err instanceof Error ? err.stack : undefined,
+      );
       throw err;
     }
   }
@@ -63,6 +61,7 @@ export class UploadService {
     imageUrl: string,
     destFolder = 'products',
   ): Promise<string> {
+    const safeDestFolder = this.validateDestFolder(destFolder);
     const response = await fetch(imageUrl);
     if (!response.ok) {
       throw new Error(
@@ -73,33 +72,42 @@ export class UploadService {
     const buffer = Buffer.from(await response.arrayBuffer());
     const contentType = response.headers.get('content-type') || '';
 
-    const folderPath = path.join(this.publicPath, destFolder);
-    if (!fs.existsSync(folderPath))
-      fs.mkdirSync(folderPath, { recursive: true });
-
     let ext = '.jpg';
     if (contentType.includes('png')) ext = '.png';
     else if (contentType.includes('gif')) ext = '.gif';
     else if (contentType.includes('webp')) ext = '.webp';
 
-    let safeName: string;
-    let filePath: string;
-    do {
-      const hash = crypto.randomBytes(16).toString('hex');
-      safeName = `${hash}${ext}`;
-      filePath = path.join(folderPath, safeName);
-    } while (fs.existsSync(filePath));
+    const safeName = `${crypto.randomBytes(16).toString('hex')}${ext}`;
 
     if (contentType.startsWith('image/')) {
-      await sharp(buffer)
+      const optimized = await sharp(buffer)
         .resize({ width: 1024 })
         .jpeg({ quality: 80 })
-        .toFile(filePath);
+        .toBuffer();
+      await this.storage.store(
+        `${safeDestFolder}/${safeName}`,
+        optimized,
+        contentType,
+      );
     } else {
-      fs.writeFileSync(filePath, buffer);
+      await this.storage.store(
+        `${safeDestFolder}/${safeName}`,
+        buffer,
+        contentType,
+      );
     }
 
-    this.logger.log(`File saved from URL: ${filePath}`);
-    return `${this.baseUrl}/upload/${destFolder}/${safeName}`;
+    return `${this.baseUrl}/upload/${safeDestFolder}/${safeName}`;
+  }
+
+  private validateDestFolder(folder: string): string {
+    const normalized = folder.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    if (
+      !normalized ||
+      normalized.split('/').some((part) => part === '.' || part === '..')
+    ) {
+      throw new Error('Dossier de destination invalide');
+    }
+    return normalized;
   }
 }

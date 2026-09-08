@@ -1,4 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { Readable } from 'node:stream';
+import { MinioStorageService } from './minio-storage.service';
 import { UploadService } from './upload.service';
 
 describe('UploadService', () => {
@@ -6,7 +11,14 @@ describe('UploadService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [UploadService],
+      providers: [
+        UploadService,
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue(undefined) },
+        },
+        MinioStorageService,
+      ],
     }).compile();
 
     service = module.get<UploadService>(UploadService);
@@ -28,18 +40,21 @@ describe('UploadService', () => {
       destination: '',
       filename: '',
       path: '',
-      stream: undefined as any,
+      stream: Readable.from([]),
     };
 
     const fileUrl = await service.saveFile(mockFile, destFolder);
     expect(fileUrl).toContain('upload');
     expect(fileUrl).toContain(destFolder);
-    const fs = require('fs');
-    const path = require('path');
-    const filePath = path.join(process.cwd(), fileUrl);
+    const filePath = path.join(
+      process.cwd(),
+      'upload',
+      destFolder,
+      fileUrl.split('/').pop() as string,
+    );
     expect(fs.existsSync(filePath)).toBe(true);
     // Nettoyage
     fs.unlinkSync(filePath);
-    fs.rmdirSync(path.dirname(filePath), { recursive: true });
+    fs.rmSync(path.dirname(filePath), { recursive: true, force: true });
   });
 });

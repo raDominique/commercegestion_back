@@ -9,17 +9,22 @@ permissions:
   contents: read
 
 env:
-  PORT: "4243"
+  PORT: '4243'
   DOCKER_IMAGE: commercegestion-api
   DOCKER_CONTAINER_NAME: commercegestion-api
-  DOCKER_BUILDKIT: "1"
+  MINIO_CONTAINER_NAME: minio
+  MINIO_NETWORK: commercegestion
+  MINIO_ENDPOINT: minio
+  MINIO_PORT: '9190'
+  MINIO_SSL: 'false'
+  DOCKER_BUILDKIT: '1'
   NODE_ENV: development
   JWT_EXPIRES_IN: 15m
   JWT_REFRESH_EXPIRES_IN: 7d
-  SMTP_SECURE: "true"
+  SMTP_SECURE: 'true'
   SMTP_FROM_NAME: Etokisana
-  MAIL_SEND_DELAY_MS: "300"
-  MAIL_MAX_RETRIES: "3"
+  MAIL_SEND_DELAY_MS: '300'
+  MAIL_MAX_RETRIES: '3'
   APP_NAME: Etokisana
   APP_URL: http://api.commercegestion.online
   CORS_ALLOWLIST: http://localhost:3000,https://commercegestion.com,https://www.commercegestion.com,http://api.commercegestion.online,http://commercegestion.online
@@ -43,6 +48,9 @@ jobs:
       ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL_E_TAKALO }}
       SUPERADMIN_EMAIL: ${{ secrets.SUPERADMIN_EMAIL_E_TAKALO }}
       SUPERADMIN_PASSWORD: ${{ secrets.SUPERADMIN_PASSWORD_E_TAKALO }}
+      MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
+      MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+      MINIO_BUCKET: commercegestion-uploads
 
     steps:
       - name: Deploy on server with rollback
@@ -52,6 +60,11 @@ jobs:
           DOCKER_IMAGE: ${{ env.DOCKER_IMAGE }}
           DOCKER_TAG: ${{ env.DOCKER_TAG }}
           DOCKER_CONTAINER_NAME: ${{ env.DOCKER_CONTAINER_NAME }}
+          MINIO_CONTAINER_NAME: ${{ env.MINIO_CONTAINER_NAME }}
+          MINIO_NETWORK: ${{ env.MINIO_NETWORK }}
+          MINIO_ENDPOINT: ${{ env.MINIO_ENDPOINT }}
+          MINIO_PORT: ${{ env.MINIO_PORT }}
+          MINIO_SSL: ${{ env.MINIO_SSL }}
           REPOSITORY_URL: ${{ env.REPOSITORY_URL }}
           NODE_ENV: ${{ env.NODE_ENV }}
           JWT_EXPIRES_IN: ${{ env.JWT_EXPIRES_IN }}
@@ -75,12 +88,15 @@ jobs:
           ADMIN_EMAIL: ${{ env.ADMIN_EMAIL }}
           SUPERADMIN_EMAIL: ${{ env.SUPERADMIN_EMAIL }}
           SUPERADMIN_PASSWORD: ${{ env.SUPERADMIN_PASSWORD }}
+          MINIO_ACCESS_KEY: ${{ env.MINIO_ACCESS_KEY }}
+          MINIO_SECRET_KEY: ${{ env.MINIO_SECRET_KEY }}
+          MINIO_BUCKET: ${{ env.MINIO_BUCKET }}
         with:
           host: ${{ secrets.SSH_HOST }}
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: PORT,DOCKER_IMAGE,DOCKER_TAG,DOCKER_CONTAINER_NAME,REPOSITORY_URL,NODE_ENV,JWT_EXPIRES_IN,JWT_REFRESH_EXPIRES_IN,SMTP_SECURE,SMTP_FROM_NAME,MAIL_SEND_DELAY_MS,MAIL_MAX_RETRIES,APP_NAME,APP_URL,CORS_ALLOWLIST,FRONTEND_URL,FRONT_URL,MONGO_URI,JWT_SECRET,JWT_REFRESH_SECRET,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,ADMIN_EMAIL,SUPERADMIN_EMAIL,SUPERADMIN_PASSWORD
+          envs: PORT,DOCKER_IMAGE,DOCKER_TAG,DOCKER_CONTAINER_NAME,MINIO_CONTAINER_NAME,MINIO_NETWORK,MINIO_ENDPOINT,MINIO_PORT,MINIO_SSL,REPOSITORY_URL,NODE_ENV,JWT_EXPIRES_IN,JWT_REFRESH_EXPIRES_IN,SMTP_SECURE,SMTP_FROM_NAME,MAIL_SEND_DELAY_MS,MAIL_MAX_RETRIES,APP_NAME,APP_URL,CORS_ALLOWLIST,FRONTEND_URL,FRONT_URL,MONGO_URI,JWT_SECRET,JWT_REFRESH_SECRET,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,ADMIN_EMAIL,SUPERADMIN_EMAIL,SUPERADMIN_PASSWORD,MINIO_ACCESS_KEY,MINIO_SECRET_KEY,MINIO_BUCKET
           script: |
             set -e
             APP_DIR=/home/${{ secrets.SSH_USER }}/commercgestion/commercegestion_back
@@ -91,6 +107,13 @@ jobs:
             fi
             cd "$APP_DIR"
             docker build -t "$DOCKER_IMAGE:$DOCKER_TAG" .
+
+            docker network create "$MINIO_NETWORK" 2>/dev/null || true
+            if ! docker inspect "$MINIO_CONTAINER_NAME" >/dev/null 2>&1; then
+              echo "Le conteneur MinIO '$MINIO_CONTAINER_NAME' est introuvable." >&2
+              exit 1
+            fi
+            docker network connect "$MINIO_NETWORK" "$MINIO_CONTAINER_NAME" 2>/dev/null || true
 
             if docker ps -a --format '{{.Names}}' | grep -qx "$DOCKER_CONTAINER_NAME"; then
               docker rm -f "${DOCKER_CONTAINER_NAME}_backup" 2>/dev/null || true
@@ -107,6 +130,7 @@ jobs:
               --memory-reservation=2g \
               --cpus=4 \
               --pids-limit=200 \
+              --network "$MINIO_NETWORK" \
               -p "$PORT:$PORT" \
               -e PORT \
               -e MONGO_URI \
@@ -132,6 +156,12 @@ jobs:
               -e FRONT_URL \
               -e SUPERADMIN_EMAIL \
               -e SUPERADMIN_PASSWORD \
+              -e MINIO_ENDPOINT \
+              -e MINIO_PORT \
+              -e MINIO_SSL \
+              -e MINIO_ACCESS_KEY \
+              -e MINIO_SECRET_KEY \
+              -e MINIO_BUCKET \
               -v "${DOCKER_CONTAINER_NAME}_upload:/app/upload" \
               "$DOCKER_IMAGE:$DOCKER_TAG"
 

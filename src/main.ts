@@ -6,12 +6,14 @@ import { ConfigService } from '@nestjs/config';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { join } from 'node:path';
 import * as express from 'express';
+import type { NextFunction, Request, Response } from 'express';
 
 import { LoggerService } from './common/logger/logger.service';
 import { setupSwagger } from './config/swagger.config';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { runSeeders } from './seeders/seeds';
 import { MailDeliverabilityService } from './shared/mail/mail-deliverability.service';
+import { MinioStorageService } from './shared/upload/minio-storage.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -115,6 +117,18 @@ async function bootstrap() {
    * STATIC FILES
    * ===============================
    */
+  const storage = app.get(MinioStorageService);
+  app.use('/upload', (req: Request, res: Response, next: NextFunction) => {
+    void (async () => {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+      const file = await storage.get(req.path);
+      if (!file) return next();
+      if (file.contentType) res.type(file.contentType);
+      if (file.size !== undefined) res.setHeader('Content-Length', file.size);
+      if (req.method === 'HEAD') return res.end();
+      file.stream.on('error', (error: Error) => next(error)).pipe(res);
+    })().catch((error: unknown) => next(error));
+  });
   app.use('/upload', express.static(join(process.cwd(), 'upload')));
 
   /**
