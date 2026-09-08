@@ -21,8 +21,8 @@ env:
   MAIL_SEND_DELAY_MS: "300"
   MAIL_MAX_RETRIES: "3"
   APP_NAME: Etokisana
-  APP_URL: http://api.commercegestion.online
-  CORS_ALLOWLIST: http://localhost:3000,https://commercegestion.com,https://www.commercegestion.com,http://api.commercegestion.online,http://commercegestion.online
+  APP_URL: https://api.commercegestion.online
+  CORS_ALLOWLIST: http://localhost:3000,https://commercegestion.com,https://www.commercegestion.com,https://api.commercegestion.online,https://commercegestion.online,https://www.commercegestion.online
   FRONTEND_URL: https://commercegestion.online
   FRONT_URL: https://commercegestion.online
 
