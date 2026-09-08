@@ -5,7 +5,7 @@
 Le client se connecte en fournissant `userId` et `userAccess` en query params :
 
 ```javascript
-const socket = io('https://api-etokisana.tsirylab.com', {
+const socket = io('https://api.commercegestion.online', {
   query: {
     userId: '69b3ba868559353c9a3967f9',     // ObjectId de l'utilisateur connecté
     userAccess: 'USER'                      // 'USER' | 'ADMIN' | 'SUPERADMIN'
