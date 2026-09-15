@@ -1228,12 +1228,12 @@ export class TransactionsService {
     // Les transactions constituent un historique et conservent donc les dépôts
     // déjà virés. Les Actifs portent l'état courant : après un VIREMENT_DROIT,
     // la ligne de l'ancien ayant-droit est diminuée ou archivée.
-    return this.actifsService.getDepositedActifsByDetenteur(userId, {
+    return this.actifsService.getActiveDepositsAtOthers(userId, {
       detenteurId: detentaireId,
       siteId,
       productId,
-      page: String(page),
-      limit: String(limit),
+      page,
+      limit,
       search,
     });
 

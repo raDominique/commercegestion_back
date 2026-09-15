@@ -832,6 +832,100 @@ export class ActifsService {
   }
 
   /**
+   * Retourne l'état courant des dépôts de l'ayant-droit dans le même format
+   * qu'une liste de transactions. La source reste Actif afin de ne pas inclure
+   * les lignes historiques déjà sorties ou entièrement virées.
+   */
+  async getActiveDepositsAtOthers(
+    userId: string,
+    query: {
+      detenteurId?: string;
+      siteId?: string;
+      productId?: string;
+      page?: number;
+      limit?: number;
+      search?: string;
+    },
+  ) {
+    const {
+      detenteurId,
+      siteId,
+      productId,
+      page = 1,
+      limit = 10,
+      search,
+    } = query;
+    const userObjectId = new Types.ObjectId(userId);
+    const filter = {
+      userId: userObjectId,
+      ayant_droit: userObjectId,
+      isActive: true,
+      $expr: {
+        $gt: [
+          { $subtract: ['$quantite', { $ifNull: ['$quantiteEnAttente', 0] }] },
+          0,
+        ],
+      },
+      detentaire: detenteurId
+        ? new Types.ObjectId(detenteurId)
+        : { $ne: userObjectId },
+      ...(siteId ? { depotId: new Types.ObjectId(siteId) } : {}),
+      ...(productId ? { productId: new Types.ObjectId(productId) } : {}),
+    };
+
+    const actifs = await this.actifModel
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .populate([
+        { path: 'productId' },
+        { path: 'depotId' },
+        { path: 'detentaire' },
+        { path: 'ayant_droit' },
+      ])
+      .exec();
+
+    const searchLower = search?.toLowerCase();
+    const searched = searchLower
+      ? actifs.filter((actif: any) =>
+          (actif.productId?.productName || '')
+            .toLowerCase()
+            .includes(searchLower),
+        )
+      : actifs;
+    const skip = (page - 1) * limit;
+
+    return {
+      status: 'success',
+      message:
+        "Dépôts actifs de l'utilisateur chez d'autres membres récupérés avec succès",
+      data: searched.slice(skip, skip + limit).map((actif: any) => ({
+        _id: actif._id,
+        type: 'DÉPÔT',
+        status: 'APPROVED',
+        initiatorId: actif.ayant_droit,
+        recipientId: actif.detentaire,
+        productId: actif.productId,
+        // L'actif ne conserve que son site courant, qui correspond à la destination.
+        siteOrigineId: null,
+        siteDestinationId: actif.depotId,
+        quantite: Math.max(
+          0,
+          actif.quantite - (actif.quantiteEnAttente ?? 0),
+        ),
+        prixUnitaire: actif.prixUnitaire,
+        detentaire: actif.detentaire,
+        ayant_droit: actif.ayant_droit,
+        isActive: actif.isActive,
+        createdAt: actif.createdAt,
+        updatedAt: actif.updatedAt,
+      })),
+      page,
+      limit,
+      total: searched.length,
+    };
+  }
+
+  /**
    * Trouve un actif sans restriction de quantité ou isActive.
    * Utilisé pour récupérer le détenteur (detentaire) d'un actif même après diminution.
    */
