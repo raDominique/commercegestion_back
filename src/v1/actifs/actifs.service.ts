@@ -731,12 +731,20 @@ export class ActifsService {
     query: {
       detenteurId?: string;
       siteId?: string;
+      productId?: string;
       page?: string;
       limit?: string;
       search?: string;
     },
   ) {
-    const { detenteurId, siteId, page = '1', limit = '10', search } = query;
+    const {
+      detenteurId,
+      siteId,
+      productId,
+      page = '1',
+      limit = '10',
+      search,
+    } = query;
 
     const skip = (Number(page) - 1) * Number(limit);
 
@@ -763,6 +771,7 @@ export class ActifsService {
       },
       ...detentaireFilter,
       ...(siteId ? { depotId: new Types.ObjectId(siteId) } : {}),
+      ...(productId ? { productId: new Types.ObjectId(productId) } : {}),
     };
 
     // On ne peuple que le produit. codeCPC est conservé pour la recherche

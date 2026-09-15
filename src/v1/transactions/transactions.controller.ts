@@ -492,19 +492,19 @@ Erreurs possibles:
   }
 
   /**
-   * Récupère les dépôts détenus par l'utilisateur pour d'autres membres
+   * Récupère les dépôts de l'utilisateur détenus par d'autres membres
    * qui n'ont pas encore fait l'objet d'un virement de droit
    */
   @Get('deposit-at-others/me')
   @Auth()
   @ApiOperation({
     summary:
-      "Dépôts d'autres membres détenus par l'utilisateur sans virement de droit",
-    description: `Récupère toutes les transactions DÉPÔT approuvées où l'utilisateur connecté est le détenteur
-et l'ayant-droit est un autre membre, et qui n'ont pas encore fait l'objet d'un virement de droit (VIREMENT_DROIT).
+      "Dépôts de l'utilisateur chez d'autres membres sans virement de droit",
+    description: `Récupère les actifs de dépôt actuellement disponibles où l'utilisateur connecté est l'ayant-droit
+et le détenteur est un autre membre. La recherche est faite dans les actifs, et non dans l'historique des transactions : un actif entièrement viré (VIREMENT_DROIT) est archivé et n'est donc pas retourné.
 
 Utilité:
-- Voir les marchandises d'autres membres détenues physiquement par l'utilisateur
+- Voir ses marchandises détenues physiquement par un autre membre
 - Identifier les dépôts disponibles pour un virement de droit
 - Gérer les actifs externes
 
@@ -551,7 +551,7 @@ Pagination:
   @ApiResponse({
     status: 200,
     description:
-      "Liste paginée des dépôts d'autres membres détenus par l'utilisateur",
+      "Liste paginée des dépôts de l'utilisateur détenus par d'autres membres",
   })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
   async getAllDepositAtOthersMe(

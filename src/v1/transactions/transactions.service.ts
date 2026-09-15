@@ -1224,7 +1224,22 @@ export class TransactionsService {
     siteId?: string,
     productId?: string,
     detentaireId?: string,
-  ): Promise<PaginationResult<TransactionDocument>> {
+  ) {
+    // Les transactions constituent un historique et conservent donc les dépôts
+    // déjà virés. Les Actifs portent l'état courant : après un VIREMENT_DROIT,
+    // la ligne de l'ancien ayant-droit est diminuée ou archivée.
+    return this.actifsService.getDepositedActifsByDetenteur(userId, {
+      detenteurId: detentaireId,
+      siteId,
+      productId,
+      page: String(page),
+      limit: String(limit),
+      search,
+    });
+
+    /* Legacy transaction-history lookup kept below temporarily for reference.
+     * It must not be used to determine the current state of a deposit.
+     */
     const skip = (page - 1) * limit;
     const userObjId = new Types.ObjectId(userId);
 
@@ -1309,7 +1324,8 @@ export class TransactionsService {
             (d.productId as any)?.productName?.toLowerCase() || '';
           const txNumber = d.transactionNumber?.toLowerCase() || '';
           return (
-            productName.includes(searchLower) || txNumber.includes(searchLower)
+            productName.includes(searchLower!) ||
+            txNumber.includes(searchLower!)
           );
         })
       : filtered;
