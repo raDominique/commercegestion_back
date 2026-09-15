@@ -184,7 +184,7 @@ Erreurs possibles:
   @ApiResponse({
     status: 400,
     description:
-      'Paramètres invalides, retrait sur des actifs d\'autrui, ou conditions de retrait non remplies (aucun dépôt préalable vers ce membre, quantité supérieure au solde déposé, stock insuffisant dans les actifs du retrayant)',
+      "Paramètres invalides, retrait sur des actifs d'autrui, ou conditions de retrait non remplies (aucun dépôt préalable vers ce membre, quantité supérieure au solde déposé, stock insuffisant dans les actifs du retrayant)",
   })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
   @ApiBody({ type: CreateReturnDto })
@@ -563,6 +563,51 @@ Pagination:
   ) {
     return this.transactionsService.getAllDepositAtOthersMe(
       req.user.userId,
+      page,
+      limit,
+      search,
+      siteId,
+      productId,
+      detentaireId,
+    );
+  }
+
+  /**
+   * Récupère tous les dépôts dont le détenteur est différent de l'ayant-droit,
+   * y compris ceux ayant fait l'objet d'un virement de droit.
+   */
+  @Get('deposit-at-others-with-virement')
+  @Auth()
+  @ApiOperation({
+    summary: 'Tous les dépôts chez un autre détenteur',
+    description:
+      "Récupère les transactions DÉPÔT approuvées et actives où le détenteur est différent de l'ayant-droit, y compris celles avec virement de droit.",
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Recherche par nom de produit ou numéro de transaction',
+  })
+  @ApiQuery({ name: 'siteId', required: false, type: String })
+  @ApiQuery({ name: 'productId', required: false, type: String })
+  @ApiQuery({ name: 'detentaireId', required: false, type: String })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste paginée de tous les dépôts chez un autre détenteur',
+  })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  getAllDepositAtOthersWithVirement(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @Query('search') search?: string,
+    @Query('siteId') siteId?: string,
+    @Query('productId') productId?: string,
+    @Query('detentaireId') detentaireId?: string,
+  ): ReturnType<TransactionsService['getAllDepositAtOthersWithVirement']> {
+    return this.transactionsService.getAllDepositAtOthersWithVirement(
       page,
       limit,
       search,

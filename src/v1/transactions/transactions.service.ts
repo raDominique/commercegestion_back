@@ -1284,6 +1284,85 @@ export class TransactionsService {
   }
 
   /**
+   * Récupère tous les dépôts approuvés dont le détenteur est différent de
+   * l'ayant-droit, sans exclure les dépôts ayant fait l'objet d'un virement.
+   */
+  async getAllDepositAtOthersWithVirement(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    siteId?: string,
+    productId?: string,
+    detentaireId?: string,
+  ): Promise<PaginationResult<TransactionDocument>> {
+    const skip = (page - 1) * limit;
+    const filters: any[] = [
+      { type: TransactionType.DEPOT },
+      { status: TransactionStatus.APPROVED },
+      { isActive: true },
+      { $expr: { $ne: ['$detentaire', '$ayant_droit'] } },
+    ];
+
+    if (productId) {
+      filters.push({ productId: new Types.ObjectId(productId) });
+    }
+
+    if (siteId) {
+      const siteObjId = new Types.ObjectId(siteId);
+      filters.push({
+        $or: [
+          { siteOrigineId: siteObjId },
+          { siteDestinationId: siteObjId },
+        ],
+      });
+    }
+
+    if (detentaireId) {
+      filters.push({ detentaire: new Types.ObjectId(detentaireId) });
+    }
+
+    const query = { $and: filters };
+    const depots = await this.transactionModel
+      .find(query)
+      .sort({ createdAt: -1 })
+      .populate([
+        'initiatorId',
+        'recipientId',
+        'productId',
+        'siteOrigineId',
+        'siteDestinationId',
+        'detentaire',
+        'ayant_droit',
+      ])
+      .exec();
+
+    const searchLower = search?.toLowerCase();
+    const searched = searchLower
+      ? depots.filter((d) => {
+          const productName =
+            (d.productId as any)?.productName?.toLowerCase() || '';
+          const txNumber = d.transactionNumber?.toLowerCase() || '';
+          return (
+            productName.includes(searchLower) || txNumber.includes(searchLower)
+          );
+        })
+      : depots;
+
+    const total = searched.length;
+    const data = searched.slice(skip, skip + limit);
+
+    return {
+      status: 'success',
+      message:
+        'Dépôts chez les autres membres, avec ou sans virement de droit, récupérés avec succès',
+      data,
+      page,
+      limit,
+      total,
+    };
+  }
+
+  /**
    * Envoie les notifications d'approbation de transaction
    * Notifie le destinataire que sa transaction a été approuvée
    * Notifie aussi le déposant/initiator que sa transaction a été approuvée
