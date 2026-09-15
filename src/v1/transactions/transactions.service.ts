@@ -162,16 +162,38 @@ export class TransactionsService {
     // - Retrayant: réserve sa créance chez le détenteur (site origine)
     // - Détenteur: réserve son stock détenu (site origine) + son passif
     // - Retrayant: crée ligne "en attente" au site destination (il va détenir)
-    const { detentaire, productId, siteOrigineId, siteDestinationId, quantite, prixUnitaire } = createReturnDto;
+    const {
+      detentaire,
+      productId,
+      siteOrigineId,
+      siteDestinationId,
+      quantite,
+      prixUnitaire,
+    } = createReturnDto;
 
     // 1. Réserve sur l'actif du retrayant chez le détenteur (siteOrigineId)
-    await this.actifsService.reserveActif(retrayantId, siteOrigineId, productId, quantite);
+    await this.actifsService.reserveActif(
+      retrayantId,
+      siteOrigineId,
+      productId,
+      quantite,
+    );
 
     // 2. Réserve sur l'actif du détenteur (siteOrigineId)
-    await this.actifsService.reserveActif(detentaire, siteOrigineId, productId, quantite);
+    await this.actifsService.reserveActif(
+      detentaire,
+      siteOrigineId,
+      productId,
+      quantite,
+    );
 
     // 3. Réserve sur le passif du détenteur envers le retrayant
-    await this.passifsService.reservePassif(detentaire, productId, retrayantId, quantite);
+    await this.passifsService.reservePassif(
+      detentaire,
+      productId,
+      retrayantId,
+      quantite,
+    );
 
     // 4. Crée/augmente l'actif "en attente" du retrayant au site de destination
     //    (il va physiquement détenir la marchandise après approbation)
@@ -380,7 +402,9 @@ export class TransactionsService {
       ? new Types.ObjectId(createVenteDto.contrepartieId)
       : null;
     const quantiteContrepartie = contrepartieId
-      ? Math.round(createVenteDto.quantite * createVenteDto.rapportEchange * 1e6) / 1e6
+      ? Math.round(
+          createVenteDto.quantite * createVenteDto.rapportEchange * 1e6,
+        ) / 1e6
       : 0;
 
     const transaction = new this.transactionModel({
@@ -612,21 +636,43 @@ export class TransactionsService {
       const quantite = transaction.quantite;
 
       // 1. Libérer réservation sur l'actif du retrayant chez le détenteur
-      await this.actifsService.releasePendingActif(ayantDroitId, siteOrigineId, productId, quantite);
+      await this.actifsService.releasePendingActif(
+        ayantDroitId,
+        siteOrigineId,
+        productId,
+        quantite,
+      );
 
       // 2. Libérer réservation sur l'actif du détenteur
-      await this.actifsService.releasePendingActif(detentaireId, siteOrigineId, productId, quantite);
+      await this.actifsService.releasePendingActif(
+        detentaireId,
+        siteOrigineId,
+        productId,
+        quantite,
+      );
 
       // 3. Libérer réservation sur le passif du détenteur
-      await this.passifsService.releasePendingPassif(detentaireId, productId, ayantDroitId, quantite);
+      await this.passifsService.releasePendingPassif(
+        detentaireId,
+        productId,
+        ayantDroitId,
+        quantite,
+      );
 
       // 4. Libérer l'actif "en attente" du retrayant au site destination
       //    (diminuer quantiteEnAttente, si tombe à 0 et quantite=0 -> archiver)
       try {
-        await this.actifsService.releasePendingActif(ayantDroitId, siteDestinationId, productId, quantite);
+        await this.actifsService.releasePendingActif(
+          ayantDroitId,
+          siteDestinationId,
+          productId,
+          quantite,
+        );
       } catch (err) {
         // Ignorer si l'actif n'existe pas encore
-        console.warn(`[rejectTransaction] Impossible de libérer actif en attente destination: ${err.message}`);
+        console.warn(
+          `[rejectTransaction] Impossible de libérer actif en attente destination: ${err.message}`,
+        );
       }
     } else if (transaction.type === TransactionType.VENTE) {
       // Restaurer la quantite du produit chez le vendeur
@@ -643,7 +689,9 @@ export class TransactionsService {
       // Restaurer la contrepartie chez l'acheteur si échange
       if (transaction.contrepartieId) {
         const contrepartieQte = transaction.rapportEchange
-          ? Math.round(transaction.quantite * transaction.rapportEchange * 1e6) / 1e6
+          ? Math.round(
+              transaction.quantite * transaction.rapportEchange * 1e6,
+            ) / 1e6
           : 0;
         if (contrepartieQte > 0) {
           const contrepartieSiteId =
@@ -893,8 +941,7 @@ export class TransactionsService {
         siteOrigineId,
         productId,
       );
-      const holderId =
-        sellerActif?.detentaire?.toString() || vendeurId;
+      const holderId = sellerActif?.detentaire?.toString() || vendeurId;
 
       await this.passifsService.decreasePassifByCreditor(
         holderId,
@@ -1165,8 +1212,8 @@ export class TransactionsService {
   }
 
   /**
-   * Récupère tous les dépôts APProuvés où l'utilisateur est ayant_droit
-   * et le détenteur est un autre membre, et qui n'ont pas encore fait
+   * Récupère tous les dépôts APPROUVÉS où l'utilisateur est détenteur
+   * et l'ayant-droit est un autre membre, et qui n'ont pas encore fait
    * l'objet d'un virement de droit (VIREMENT_DROIT).
    */
   async getAllDepositAtOthersMe(
@@ -1181,12 +1228,12 @@ export class TransactionsService {
     const skip = (page - 1) * limit;
     const userObjId = new Types.ObjectId(userId);
 
-    // 1) Trouver tous les VIREMENT_DROIT où cet utilisateur a transféré ses droits
+    // 1) Trouver les VIREMENT_DROIT effectués sur les dépôts détenus par cet utilisateur
     const virements = await this.transactionModel
       .find({
         type: TransactionType.VIREMENT_DROIT,
         status: TransactionStatus.APPROVED,
-        'metadata.previousAyantDroitId': userId,
+        detentaire: userObjId,
         isActive: true,
       })
       .select('productId detentaire siteOrigineId quantite')
@@ -1204,8 +1251,8 @@ export class TransactionsService {
     const filters: any[] = [
       { type: TransactionType.DEPOT },
       { status: TransactionStatus.APPROVED },
-      { ayant_droit: userObjId },
-      { detentaire: { $ne: userObjId } },
+      { detentaire: userObjId },
+      { ayant_droit: { $ne: userObjId } },
       { isActive: true },
     ];
 
@@ -1216,10 +1263,7 @@ export class TransactionsService {
     if (siteId) {
       const siteObjId = new Types.ObjectId(siteId);
       filters.push({
-        $or: [
-          { siteOrigineId: siteObjId },
-          { siteDestinationId: siteObjId },
-        ],
+        $or: [{ siteOrigineId: siteObjId }, { siteDestinationId: siteObjId }],
       });
     }
 
@@ -1260,11 +1304,11 @@ export class TransactionsService {
     const searchLower = search?.toLowerCase();
     const searched = searchLower
       ? filtered.filter((d) => {
-          const productName = (d.productId as any)?.productName?.toLowerCase() || '';
+          const productName =
+            (d.productId as any)?.productName?.toLowerCase() || '';
           const txNumber = d.transactionNumber?.toLowerCase() || '';
           return (
-            productName.includes(searchLower) ||
-            txNumber.includes(searchLower)
+            productName.includes(searchLower) || txNumber.includes(searchLower)
           );
         })
       : filtered;
@@ -1275,7 +1319,7 @@ export class TransactionsService {
     return {
       status: 'success',
       message:
-        'Dépôts chez les autres membres sans virement de droit récupérés avec succès',
+        "Dépôts d'autres membres détenus par l'utilisateur sans virement de droit récupérés avec succès",
       data,
       page,
       limit,
@@ -1310,10 +1354,7 @@ export class TransactionsService {
     if (siteId) {
       const siteObjId = new Types.ObjectId(siteId);
       filters.push({
-        $or: [
-          { siteOrigineId: siteObjId },
-          { siteDestinationId: siteObjId },
-        ],
+        $or: [{ siteOrigineId: siteObjId }, { siteDestinationId: siteObjId }],
       });
     }
 
@@ -1418,7 +1459,9 @@ export class TransactionsService {
             `${recipientType} approuvé`,
             `Votre ${recipientType.toLowerCase()} de ${transaction.quantite} ${productName} a été approuvé par ${approverName} (${transaction.transactionNumber})`,
           )
-          .catch((e) => console.error('WS notify approval recipient failed:', e));
+          .catch((e) =>
+            console.error('WS notify approval recipient failed:', e),
+          );
       }
 
       // Envoyer aussi la notification au déposant/initiator que sa transaction a été approuvée
@@ -1451,7 +1494,9 @@ export class TransactionsService {
             `Votre ${initiatorType} approuvé`,
             `Votre ${initiatorType.toLowerCase()} de ${transaction.quantite} ${productName} a été approuvé par ${approverName} (${transaction.transactionNumber})`,
           )
-          .catch((e) => console.error('WS notify approval initiator failed:', e));
+          .catch((e) =>
+            console.error('WS notify approval initiator failed:', e),
+          );
       }
     } catch (error) {
       console.error(
@@ -1515,7 +1560,9 @@ export class TransactionsService {
             `${recipientType} rejeté`,
             `Votre ${recipientType.toLowerCase()} de ${transaction.quantite} ${productName} a été rejeté par ${approverName} : ${rejectionReason} (${transaction.transactionNumber})`,
           )
-          .catch((e) => console.error('WS notify rejection recipient failed:', e));
+          .catch((e) =>
+            console.error('WS notify rejection recipient failed:', e),
+          );
       }
 
       // Envoyer aussi la notification au déposant/initiator que sa transaction a été rejetée
@@ -1549,7 +1596,9 @@ export class TransactionsService {
             `Votre ${initiatorType} rejeté`,
             `Votre ${initiatorType.toLowerCase()} de ${transaction.quantite} ${productName} a été rejeté par ${approverName} : ${rejectionReason} (${transaction.transactionNumber})`,
           )
-          .catch((e) => console.error('WS notify rejection initiator failed:', e));
+          .catch((e) =>
+            console.error('WS notify rejection initiator failed:', e),
+          );
       }
     } catch (error) {
       console.error(
