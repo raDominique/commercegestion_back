@@ -1233,10 +1233,11 @@ export class TransactionsService {
       .find({
         type: TransactionType.VIREMENT_DROIT,
         status: TransactionStatus.APPROVED,
-        detentaire: userObjId,
+        detentaire: { $ne: userObjId },
+        ayant_droit: userObjId,
         isActive: true,
       })
-      .select('productId detentaire siteOrigineId quantite')
+      .select('productId detentaire ayant_droit siteOrigineId quantite')
       .lean()
       .exec();
 
@@ -1251,8 +1252,8 @@ export class TransactionsService {
     const filters: any[] = [
       { type: TransactionType.DEPOT },
       { status: TransactionStatus.APPROVED },
-      { detentaire: userObjId },
-      { ayant_droit: { $ne: userObjId } },
+      { detentaire: { $ne: userObjId } },
+      { ayant_droit: userObjId },
       { isActive: true },
     ];
 
