@@ -1,6 +1,8 @@
 import {
   Controller,
   Get,
+  Patch,
+  Param,
   Query,
   Req,
   BadRequestException,
@@ -54,6 +56,29 @@ export class NotificationsController {
       req.user.userId,
       query,
     );
+  }
+
+  @Patch(':notificationId/read')
+  @Auth()
+  @ApiOperation({ summary: 'Marquer une notification comme lue' })
+  @ApiResponse({ status: 200, description: 'Notification marquée comme lue.' })
+  @ApiResponse({ status: 404, description: 'Notification introuvable.' })
+  async markAsRead(
+    @Req() req: any,
+    @Param('notificationId') notificationId: string,
+  ) {
+    return this.notificationsService.markAsRead(req.user.userId, notificationId);
+  }
+
+  @Patch('read-all')
+  @Auth()
+  @ApiOperation({ summary: 'Marquer toutes les notifications comme lues' })
+  @ApiResponse({
+    status: 200,
+    description: 'Toutes les notifications ont été marquées comme lues.',
+  })
+  async markAllAsRead(@Req() req: any) {
+    return this.notificationsService.markAllAsRead(req.user.userId);
   }
 
   @Get('export')

@@ -11,6 +11,8 @@ describe('NotificationsService', () => {
   const mockModel = {
     find: jest.fn(),
     findOne: jest.fn(),
+    findOneAndUpdate: jest.fn(),
+    updateMany: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
     exec: jest.fn(),
@@ -53,5 +55,19 @@ describe('NotificationsService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('marks all unread notifications as read and notifies connected clients', async () => {
+    mockModel.updateMany.mockReturnValue({
+      exec: jest.fn().mockResolvedValue({ modifiedCount: 2 }),
+    });
+
+    await expect(service.markAllAsRead('user-1')).resolves.toEqual({
+      updatedCount: 2,
+    });
+    expect(mockModel.updateMany).toHaveBeenCalledWith(
+      { userId: 'user-1', isRead: false },
+      { $set: { isRead: true } },
+    );
   });
 });

@@ -1,7 +1,7 @@
 // src/notifications/notifications.service.ts
 import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { NotificationsGateway } from './notifications.gateway';
 import { Notification } from './notification.schema';
 import { PaginationResult } from '../interfaces/pagination.interface';
@@ -84,6 +84,48 @@ export class NotificationsService {
       page,
       limit,
     };
+  }
+
+  /** Marque une notification appartenant à l'utilisateur comme lue. */
+  async markAsRead(userId: string, notificationId: string) {
+    if (!Types.ObjectId.isValid(notificationId)) {
+      throw new NotFoundException('Notification introuvable');
+    }
+
+    const notification = await this.notificationModel
+      .findOneAndUpdate(
+        { _id: notificationId, userId },
+        { $set: { isRead: true } },
+        { new: true },
+      )
+      .exec();
+
+    if (!notification) {
+      throw new NotFoundException('Notification introuvable');
+    }
+
+    this.gateway?.server
+      .to(`user_${userId}`)
+      .emit('notification_read', { notificationId });
+
+    return notification;
+  }
+
+  /**
+   * Marque toutes les notifications non lues de l'utilisateur comme lues.
+   * Le front masque ensuite ces éléments par défaut, ce qui vide la boîte.
+   */
+  async markAllAsRead(userId: string) {
+    const result = await this.notificationModel
+      .updateMany({ userId, isRead: false }, { $set: { isRead: true } })
+      .exec();
+    const updatedCount = result.modifiedCount;
+
+    this.gateway?.server
+      .to(`user_${userId}`)
+      .emit('notifications_read_all', { updatedCount });
+
+    return { updatedCount };
   }
 
   async exportAll(

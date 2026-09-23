@@ -13,6 +13,8 @@ describe('NotificationsController', () => {
           provide: NotificationsService,
           useValue: {
             getUserNotifications: jest.fn(),
+            markAsRead: jest.fn(),
+            markAllAsRead: jest.fn(),
           },
         },
       ],

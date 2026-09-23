@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { NotificationsService } from './notifications.service';
 import { Notification, NotificationSchema } from './notification.schema';
 import { NotificationsController } from './notifications.controller';
+import { NotificationsGateway } from './notifications.gateway';
 import { UsersModule } from 'src/v1/users/users.module';
 
 @Module({
@@ -13,7 +14,7 @@ import { UsersModule } from 'src/v1/users/users.module';
     forwardRef(() => UsersModule),
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsService],
+  providers: [NotificationsService, NotificationsGateway],
   exports: [NotificationsService],
 })
 export class NotificationsModule {}

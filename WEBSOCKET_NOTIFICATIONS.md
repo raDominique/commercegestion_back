@@ -111,6 +111,53 @@ Authorization: Bearer <token>
 
 Réponse paginée avec `isRead`, `createdAt`, etc.
 
+### Lecture et affichage des notifications
+
+Les notifications arrivent avec `isRead: false`. Le serveur expose les actions
+suivantes pour conserver cet état et synchronise les autres onglets connectés :
+
+```
+PATCH /api/v1/notifications/:notificationId/read
+PATCH /api/v1/notifications/read-all
+Authorization: Bearer <token>
+```
+
+`read-all` renvoie `{ updatedCount }` et émet l'événement Socket.io
+`notifications_read_all`. Une lecture individuelle émet `notification_read`
+avec `{ notificationId }`.
+
+Le front doit masquer les notifications lues par défaut. L'option **Tout
+afficher** affiche également les lues, en gris ; les non lues restent en gras.
+Après **Tout marquer lu**, il marque l'état local comme lu puis, si *Tout
+afficher* est désactivé, la boîte devient vide immédiatement.
+
+```tsx
+const [showRead, setShowRead] = useState(false);
+
+const visibleNotifications = notifications.filter(
+  (notification) => showRead || !notification.isRead,
+);
+
+async function markAllAsRead() {
+  await api.patch('/v1/notifications/read-all');
+  setNotifications((items) =>
+    items.map((item) => ({ ...item, isRead: true })),
+  );
+}
+
+socket.on('notification_read', ({ notificationId }) => {
+  setNotifications((items) => items.map((item) =>
+    item._id === notificationId ? { ...item, isRead: true } : item,
+  ));
+});
+socket.on('notifications_read_all', () => {
+  setNotifications((items) => items.map((item) => ({ ...item, isRead: true })));
+});
+
+// Rendu : fontWeight: notification.isRead ? 400 : 700,
+//          color: notification.isRead ? '#9ca3af' : 'inherit'
+```
+
 ## Architecture
 
 ```
