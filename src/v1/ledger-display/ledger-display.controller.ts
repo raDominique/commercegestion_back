@@ -729,6 +729,14 @@ Erreurs possibles:
     description: 'Recherche par productId ou depotId',
     example: '69989c5cdff25ef7fe0a460f',
   })
+  @ApiQuery({
+    name: 'group',
+    required: false,
+    type: Boolean,
+    description:
+      "Regrouper les lignes par produit + dépôt (défaut: false, une ligne par mouvement)",
+    example: false,
+  })
   @ApiResponse({
     status: 200,
     description:
@@ -793,18 +801,21 @@ Erreurs possibles:
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
     @Query('search') search?: string,
+    @Query('group') group?: string,
   ): Promise<PaginationResult<any>> {
     if (!userId) {
       throw new BadRequestException('userId is required');
     }
     const pageNum = Math.max(1, parseInt(page) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
+    const groupBool = group === 'true' || group === '1';
 
     const result = await this.ledgerDisplayService.getActifsWithPagination(
       userId,
       pageNum,
       limitNum,
       search,
+      groupBool,
     );
 
     return {
@@ -911,6 +922,14 @@ Erreurs possibles:
     description: 'Recherche par productId ou depotId',
     example: '69989c5cdff25ef7fe0a460f',
   })
+  @ApiQuery({
+    name: 'group',
+    required: false,
+    type: Boolean,
+    description:
+      "Regrouper les lignes par produit + dépôt (défaut: false, une ligne par mouvement)",
+    example: false,
+  })
   @ApiResponse({
     status: 200,
     description:
@@ -975,18 +994,21 @@ Erreurs possibles:
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
     @Query('search') search?: string,
+    @Query('group') group?: string,
   ): Promise<PaginationResult<any>> {
     if (!userId) {
       throw new BadRequestException('userId is required');
     }
     const pageNum = Math.max(1, parseInt(page) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
+    const groupBool = group === 'true' || group === '1';
 
     const result = await this.ledgerDisplayService.getPassifsWithPagination(
       userId,
       pageNum,
       limitNum,
       search,
+      groupBool,
     );
 
     return {

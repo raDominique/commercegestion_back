@@ -872,6 +872,7 @@ export class LedgerDisplayService {
     page: number = 1,
     limit: number = 10,
     search?: string,
+    group: boolean = false,
   ): Promise<{
     data: any[];
     total: number;
@@ -1083,153 +1084,66 @@ export class LedgerDisplayService {
         .exec() as any,
     ]);
 
-    // Regrouper les actifs confirmés par (productId + depotId) pour éviter les doublons
-    const actifMap = new Map<string, any>();
-    for (const actif of actifs || []) {
-      const key = `${actif.productId?._id || 'N/A'}|${actif.depotId?._id || 'N/A'}`;
+    // Formater les actifs confirmés: UNE ligne par actif (dégroupé, sans regroupement)
+    const formattedActifs = (actifs || []).map((actif: any) => {
       const quantite = actif.quantite || 0;
       const enAttente = actif.quantiteEnAttente || 0;
+      const quantiteDisponible = Math.max(0, quantite - enAttente);
 
-      if (actifMap.has(key)) {
-        const existing = actifMap.get(key);
-        existing.ids.push(actif._id.toString());
-        existing.quantite += quantite;
-        existing.quantiteEnAttente += enAttente;
-        existing.quantiteDisponible = Math.max(0, existing.quantite - existing.quantiteEnAttente);
-        existing.valeurTotale = existing.quantiteDisponible * (existing.prixUnitaire || 1);
-        // Statut = le plus avancé des deux (APPROVED > PENDING)
-        existing.statut = TransactionStatus.APPROVED;
-        if (actif.ayant_droit) {
-          const nom = `${actif.ayant_droit.userFirstname} ${actif.ayant_droit.userName}`;
-          if (!existing.ayantDroits.includes(nom)) {
-            existing.ayantDroits.push(nom);
-          }
-        }
-        if (actif.updatedAt && new Date(actif.updatedAt) > new Date(existing.dateModification)) {
-          existing.dateModification = actif.updatedAt;
-        }
-      } else {
-        const quantiteDisponible = Math.max(0, quantite - enAttente);
-        actifMap.set(key, {
-          ids: [actif._id.toString()],
-          id: actif._id,
-          transactionNumber: null,
-          type: 'ACTIF',
-          statut: TransactionStatus.APPROVED,
-          productId: actif.productId?._id || 'N/A',
-          productName: actif.productId?.productName || 'N/A',
-          productCode: actif.productId?.codeCPC || 'N/A',
-          productImage: actif.productId?.productImage || null,
-          quantite,
-          quantiteEnAttente: enAttente,
-          quantiteDisponible,
-          prixUnitaire: actif.prixUnitaire,
-          valeurTotale: quantiteDisponible * (actif.prixUnitaire || 1),
-          depotId: actif.depotId?._id || 'N/A',
-          depot: actif.depotId?.siteName || 'N/A',
-          depotAdresse: actif.depotId?.siteAddress || 'N/A',
-          detentaire: actif.detentaire
-            ? `${actif.detentaire.userFirstname} ${actif.detentaire.userName}`
-            : 'N/A',
-          detentaireId: actif.detentaire?._id || null,
-          ayantDroit: actif.ayant_droit
-            ? `${actif.ayant_droit.userFirstname} ${actif.ayant_droit.userName}`
-            : 'N/A',
-          ayantDroitId: actif.ayant_droit?._id || null,
-          ayantDroits: actif.ayant_droit
-            ? [`${actif.ayant_droit.userFirstname} ${actif.ayant_droit.userName}`]
-            : [],
-          dateCreation: actif.createdAt,
-          dateModification: actif.updatedAt,
-          isActive: actif.isActive,
-        });
-      }
-    }
-    const formattedActifs = Array.from(actifMap.values());
-
-    // Grouper aussi les PENDING par (productId + depotId) pour les fusionner
-    // avec les confirmés au lieu de les concaténer
-    const pendingMap = new Map<string, any>();
-
-    const groupPending = (pending: any[]) => {
-      for (const p of pending || []) {
-        const key = `${p.productId}|${p.depotId}`;
-        const q = p.quantite || 0;
-        const qAtt = p.quantiteEnAttente || 0;
-
-        if (pendingMap.has(key)) {
-          const existing = pendingMap.get(key);
-          existing.ids.push(p.id?.toString() || p._id?.toString());
-          existing.quantite += q;
-          existing.quantiteEnAttente += qAtt;
-          existing.quantiteDisponible = Math.max(0, existing.quantite - existing.quantiteEnAttente);
-          existing.valeurTotale = existing.quantiteDisponible * (existing.prixUnitaire || 1);
-          existing.statut = [
-            ...new Set([...(Array.isArray(existing.statut) ? existing.statut : [existing.statut]), ...(Array.isArray(p.statut) ? p.statut : [p.statut])]),
-          ];
-        } else {
-          pendingMap.set(key, {
-            ids: [p.id?.toString() || p._id?.toString()],
-            id: p.id || p._id,
-            transactionNumber: p.transactionNumber,
-            type: p.type,
-            statut: p.statut,
-            productId: p.productId,
-            productName: p.productName,
-            productCode: p.productCode,
-            productImage: p.productImage,
-            quantite: q,
-            quantiteEnAttente: qAtt,
-            quantiteDisponible: Math.max(0, q - qAtt),
-            prixUnitaire: p.prixUnitaire,
-            valeurTotale: Math.max(0, q - qAtt) * (p.prixUnitaire || 1),
-            depotId: p.depotId,
-            depot: p.depot,
-            depotAdresse: p.depotAdresse,
-            detentaire: p.detentaire,
-            detentaireId: p.detentaireId,
-            ayantDroit: p.ayantDroit,
-            ayantDroitId: p.ayantDroitId,
-            dateCreation: p.dateCreation,
-            dateModification: p.dateModification,
-            isActive: p.isActive,
-          });
-        }
-      }
-    };
-
-    groupPending(pendingActifs);
-    groupPending(pendingRetraitActifs);
-
-    // Fusionner pendingMap dans actifMap
-    for (const [key, pending] of pendingMap) {
-      if (actifMap.has(key)) {
-        const confirmed = actifMap.get(key);
-        confirmed.ids.push(...pending.ids);
-        confirmed.quantite += pending.quantite;
-        confirmed.quantiteEnAttente += pending.quantiteEnAttente;
-        confirmed.quantiteDisponible = Math.max(0, confirmed.quantite - confirmed.quantiteEnAttente);
-        confirmed.valeurTotale = confirmed.quantiteDisponible * (confirmed.prixUnitaire || 1);
-        confirmed.statut = [
-          ...new Set([...(Array.isArray(confirmed.statut) ? confirmed.statut : [confirmed.statut]), ...(Array.isArray(pending.statut) ? pending.statut : [pending.statut])]),
-        ];
-        if (pending.dateCreation && new Date(pending.dateCreation) > new Date(confirmed.dateModification)) {
-          confirmed.dateModification = pending.dateCreation;
-        }
-      } else {
-        actifMap.set(key, pending);
-      }
-    }
+      return {
+        ids: [actif._id.toString()],
+        id: actif._id,
+        transactionNumber: null,
+        type: 'ACTIF',
+        statut: TransactionStatus.APPROVED,
+        productId: actif.productId?._id || 'N/A',
+        productName: actif.productId?.productName || 'N/A',
+        productCode: actif.productId?.codeCPC || 'N/A',
+        productImage: actif.productId?.productImage || null,
+        quantite,
+        quantiteEnAttente: enAttente,
+        quantiteDisponible,
+        prixUnitaire: actif.prixUnitaire,
+        valeurTotale: quantiteDisponible * (actif.prixUnitaire || 1),
+        depotId: actif.depotId?._id || 'N/A',
+        depot: actif.depotId?.siteName || 'N/A',
+        depotAdresse: actif.depotId?.siteAddress || 'N/A',
+        detentaire: actif.detentaire
+          ? `${actif.detentaire.userFirstname} ${actif.detentaire.userName}`
+          : 'N/A',
+        detentaireId: actif.detentaire?._id || null,
+        ayantDroit: actif.ayant_droit
+          ? `${actif.ayant_droit.userFirstname} ${actif.ayant_droit.userName}`
+          : 'N/A',
+        ayantDroitId: actif.ayant_droit?._id || null,
+        ayantDroits: actif.ayant_droit
+          ? [`${actif.ayant_droit.userFirstname} ${actif.ayant_droit.userName}`]
+          : [],
+        dateCreation: actif.createdAt,
+        dateModification: actif.updatedAt,
+        isActive: actif.isActive,
+      };
+    });
 
     // 3. Tri final et pagination
-    const merged = Array.from(actifMap.values()).sort(
+    // Défaut: UNE ligne par mouvement (dégroupé) — chaque transaction PENDING et
+    // chaque actif confirmé reste une ligne distincte.
+    // Si group=true: les lignes sont fusionnées par (productId + depotId) comme
+    // dans l'ancien comportement.
+    const merged = [
+      ...pendingActifs,
+      ...pendingRetraitActifs,
+      ...formattedActifs,
+    ].sort(
       (a, b) =>
         new Date(b.dateCreation).getTime() -
         new Date(a.dateCreation).getTime(),
     );
 
-    const total = merged.length;
-    const data = merged.slice(skip, skip + limit);
+    const finalLines = group ? this.groupActifLines(merged) : merged;
+
+    const total = finalLines.length;
+    const data = finalLines.slice(skip, skip + limit);
 
     return {
       data,
@@ -1238,6 +1152,81 @@ export class LedgerDisplayService {
       limit,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  /**
+   * Fusionne les lignes d'actifs par (productId + depotId) — mode group=true.
+   * Les quantités sont sommées, les ids cumulés, le statut agrégé (PENDING si
+   * au moins une ligne en attente, sinon APPROVED) et les ayant-droits unifiés.
+   */
+  private groupActifLines(lines: any[]): any[] {
+    const grouped = new Map<string, any>();
+
+    for (const line of lines) {
+      const key = `${line.productId || 'N/A'}|${line.depotId || 'N/A'}`;
+      const q = line.quantite || 0;
+      const qAtt = line.quantiteEnAttente || 0;
+
+      if (grouped.has(key)) {
+        const existing = grouped.get(key);
+        existing.ids.push(...(line.ids || []));
+        existing.quantite += q;
+        existing.quantiteEnAttente += qAtt;
+        existing.quantiteDisponible = Math.max(
+          0,
+          existing.quantite - existing.quantiteEnAttente,
+        );
+        existing.valeurTotale =
+          existing.quantiteDisponible * (existing.prixUnitaire || 1);
+        existing.statut =
+          Array.isArray(existing.statut) || Array.isArray(line.statut)
+            ? [
+                ...new Set([
+                  ...(Array.isArray(existing.statut)
+                    ? existing.statut
+                    : [existing.statut]),
+                  ...(Array.isArray(line.statut)
+                    ? line.statut
+                    : [line.statut]),
+                ]),
+              ]
+            : existing.statut === line.statut
+              ? existing.statut
+              : [existing.statut, line.statut];
+        if (line.ayantDroit && line.ayantDroit !== 'N/A') {
+          if (!existing.ayantDroits.includes(line.ayantDroit)) {
+            existing.ayantDroits.push(line.ayantDroit);
+          }
+        }
+        if (
+          line.dateCreation &&
+          new Date(line.dateCreation) > new Date(existing.dateCreation)
+        ) {
+          existing.dateCreation = line.dateCreation;
+        }
+        if (
+          line.dateModification &&
+          new Date(line.dateModification) > new Date(existing.dateModification)
+        ) {
+          existing.dateModification = line.dateModification;
+        }
+      } else {
+        grouped.set(key, {
+          ...line,
+          ids: [...(line.ids || [])],
+          ayantDroits:
+            line.ayantDroit && line.ayantDroit !== 'N/A'
+              ? [...new Set([...(line.ayantDroits || []), line.ayantDroit])]
+              : [...(line.ayantDroits || [])],
+        });
+      }
+    }
+
+    return Array.from(grouped.values()).sort(
+      (a, b) =>
+        new Date(b.dateCreation).getTime() -
+        new Date(a.dateCreation).getTime(),
+    );
   }
 
   /**
@@ -1250,6 +1239,7 @@ export class LedgerDisplayService {
     page: number = 1,
     limit: number = 10,
     search?: string,
+    group: boolean = false,
   ): Promise<{
     data: any[];
     total: number;
@@ -1407,14 +1397,19 @@ export class LedgerDisplayService {
     }));
 
     // 3. Fusionner, trier par date décroissante, paginer
+    // Défaut: une ligne par enregistrement (dégroupé).
+    // Si group=true: les lignes sont fusionnées par (productId + depotId) —
+    // quantités sommées, ids cumulés, statuts et ayant-droits agrégés.
     const merged = [...pendingPassifs, ...formattedConfirmed].sort(
       (a, b) =>
         new Date(b.dateCreation).getTime() -
         new Date(a.dateCreation).getTime(),
     );
 
-    const total = merged.length;
-    const data = merged.slice(skip, skip + limit);
+    const finalLines = group ? this.groupActifLines(merged) : merged;
+
+    const total = finalLines.length;
+    const data = finalLines.slice(skip, skip + limit);
 
     return {
       data,
