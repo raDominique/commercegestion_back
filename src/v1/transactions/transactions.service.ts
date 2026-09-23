@@ -1721,6 +1721,7 @@ export class TransactionsService {
             true, // isDestinataire: TRUE
             initiatorUser.userName,
             transaction.type,
+            recipientUser.userEmail,
           );
           console.log(
             `[Mail OK] Destinataire (${recipientUser.userName} → ${recipientUser.userEmail}) type: ${recipientType}`,
@@ -1761,6 +1762,7 @@ export class TransactionsService {
             false, // isDestinataire: FALSE
             recipientUser?.userName || 'Inconnu',
             transaction.type,
+            recipientUser?.userEmail,
           );
           console.log(
             `[Mail OK] Initiateur (${initiatorUser.userName} → ${initiatorUser.userEmail}) type: ${initiatorType}`,

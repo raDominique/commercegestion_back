@@ -404,6 +404,7 @@ export class MailService {
     isDestinataire: boolean,
     envoyeurName?: string,
     transactionTypeEnum?: TransactionType,
+    recipientEmail?: string,
   ) {
     let templateName: string;
     if (transactionTypeEnum === TransactionType.DEPOT) {
@@ -431,6 +432,7 @@ export class MailService {
       context: {
         envoyeurName: envoyeurName,
         recipientName,
+        recipientEmail,
         transactionType,
         productName,
         quantity,
