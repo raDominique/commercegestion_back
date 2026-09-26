@@ -561,7 +561,10 @@ export class TransactionsService {
       );
     }
 
-    // Approuver la transaction
+    // Préparer l'approbation en mémoire. Les écritures comptables doivent être
+    // créées avant de rendre la transaction APPROVED persistante : autrement,
+    // une erreur pendant applyTransactionMovements fait disparaître le dépôt de
+    // la liste PENDING sans créer les actifs/passifs correspondants.
     transaction.status = TransactionStatus.APPROVED;
     transaction.approuveurId = new Types.ObjectId(approveDto.approuveurId);
     transaction.approvedAt = new Date();
@@ -570,11 +573,12 @@ export class TransactionsService {
       transaction.observations = approveDto.observations;
     }
 
-    const updatedTransaction = await transaction.save();
-
     // Appliquer les mouvements d'actifs/passifs selon le type
     // (processDepot gère déjà confirmPendingActif pour les dépôts)
-    await this.applyTransactionMovements(updatedTransaction);
+    await this.applyTransactionMovements(transaction);
+
+    // Ne persister le statut APPROVED qu'une fois tous les mouvements appliqués.
+    const updatedTransaction = await transaction.save();
 
     // Envoyer la notification d'approbation (fire-and-forget)
     this.sendApprovalNotification(
@@ -790,9 +794,10 @@ export class TransactionsService {
         MovementType.DEPOT,
       );
 
-      // Lier la Transaction au StockMovement créé
+      // Lier la transaction au StockMovement créé. La sauvegarde est faite par
+      // approveTransaction après l'application complète des mouvements afin de
+      // ne pas valider une transaction dont les écritures ont échoué.
       transaction.linkedStockMovementId = stockMovement._id;
-      await transaction.save();
     } catch (error) {
       console.error('Error applying deposit movements:', error);
       throw error;
