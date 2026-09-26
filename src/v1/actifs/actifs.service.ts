@@ -641,7 +641,7 @@ export class ActifsService {
         quantite: { $gt: 0 },
       })
       .populate('productId', 'productName _id')
-      .select('quantite quantiteEnAttente productId')
+      .select('quantite quantiteEnAttente productId detentaire ayant_droit')
       .exec()
       .then((actifs) => {
         type PopulatedProduct = {
@@ -649,15 +649,71 @@ export class ActifsService {
           productName: string;
         };
 
-        return actifs.map((a) => {
-          const product = a.productId as unknown as PopulatedProduct | null;
+        // Chaque dépôt chez un tiers est écrit deux fois : dans le bilan du
+        // propriétaire et dans celui du détenteur. Ces deux lignes partagent le
+        // même couple (détenteur, ayant-droit) et ne doivent compter qu'une fois
+        // dans le stock physique du site.
+        const holdings = new Map<
+          string,
+          { quantite: number; productId: Types.ObjectId; productName: string }
+        >();
+        const products = new Map<
+          string,
+          { quantite: number; productId: Types.ObjectId; productName: string }
+        >();
 
-          return {
-            quantite: Math.max(0, a.quantite - (a.quantiteEnAttente ?? 0)),
-            productId: product?._id,
-            productName: product?.productName,
-          };
+        actifs.forEach((a) => {
+          const product = a.productId as unknown as PopulatedProduct | null;
+          if (!product?._id) return;
+
+          const productId = product._id.toString();
+          const quantiteDisponible = Math.max(
+            0,
+            a.quantite - (a.quantiteEnAttente ?? 0),
+          );
+          const detentaireId = a.detentaire?.toString();
+          const ayantDroitId = a.ayant_droit?.toString();
+          // Les anciennes lignes qui ne portent pas ces informations restent
+          // des lignes distinctes pour éviter de masquer du stock historique.
+          const holdingId =
+            detentaireId && ayantDroitId
+              ? `${productId}:${detentaireId}:${ayantDroitId}`
+              : a._id.toString();
+          const existingHolding = holdings.get(holdingId);
+
+          if (existingHolding) {
+            // Les lignes miroir ont normalement la même quantité. Le maximum
+            // protège le stock affiché si l'une d'elles est temporairement
+            // réservée par une transaction en attente.
+            existingHolding.quantite = Math.max(
+              existingHolding.quantite,
+              quantiteDisponible,
+            );
+            return;
+          }
+
+          holdings.set(holdingId, {
+            quantite: quantiteDisponible,
+            productId: product._id,
+            productName: product.productName,
+          });
         });
+
+        // Additionner uniquement les dépôts réellement distincts d'un même
+        // produit, après avoir éliminé les écritures miroir.
+        holdings.forEach((holding) => {
+          const productId = holding.productId.toString();
+          const existing = products.get(productId);
+
+          if (existing) {
+            existing.quantite += holding.quantite;
+            return;
+          }
+
+          products.set(productId, { ...holding });
+        });
+
+        return [...products.values()];
       });
   }
 
