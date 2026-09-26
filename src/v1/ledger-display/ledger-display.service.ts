@@ -64,18 +64,32 @@ export class LedgerDisplayService {
   async getUserLedger(userId: string): Promise<any> {
     const userIdObj = new Types.ObjectId(userId);
 
-    // 1. Récupérer les transactions approuvées et rejetées
+    // 1. Récupérer les transactions finalisées ainsi que les retraits en
+    // attente. Un retrait pending est déjà provisionné dans les actifs ; il
+    // doit donc être visible dans les deux grands livres de l'ayant-droit.
     const transactions = await this.transactionModel
       .find({
-        status: { $in: ['APPROVED', 'REJECTED'] },
-        $or: [
-          { initiatorId: userIdObj },
-          { recipientId: userIdObj },
-          { ayant_droit: userIdObj },
-          { detentaire: userIdObj },
+        $and: [
+          {
+            $or: [
+              { initiatorId: userIdObj },
+              { recipientId: userIdObj },
+              { ayant_droit: userIdObj },
+              { detentaire: userIdObj },
+            ],
+          },
+          {
+            $or: [
+              { status: { $in: ['APPROVED', 'REJECTED'] } },
+              {
+                status: TransactionStatus.PENDING,
+                type: TransactionType.RETRAIT,
+              },
+            ],
+          },
         ],
       })
-      .sort({ approvedAt: 1 }) // Tri ascendant pour le calcul chronologique du stock
+      .sort({ createdAt: 1 }) // Tri ascendant pour le calcul chronologique du stock
       .populate([
         { path: 'initiatorId', select: 'userFirstname userName' },
         { path: 'recipientId', select: 'userFirstname userName' },
@@ -116,6 +130,9 @@ export class LedgerDisplayService {
 
       const isInitiator = tx.initiatorId?._id?.equals(userIdObj);
       const isRecipient = tx.recipientId?._id?.equals(userIdObj);
+      const isPendingWithdrawal =
+        tx.status === TransactionStatus.PENDING &&
+        tx.type === TransactionType.RETRAIT;
 
       // --- Logique ACTIF ---
       if (tx.type === TransactionType.INITIALISATION) {
@@ -166,7 +183,9 @@ export class LedgerDisplayService {
           activesMovements.push(
             this.mapMovement(
               tx,
-              'RETRAIT (SORTIE)',
+              isPendingWithdrawal
+                ? 'RETRAIT (EN ATTENTE)'
+                : 'RETRAIT (SORTIE)',
               -tx.quantite,
               'ACTIF',
               tx.siteOrigineId,
@@ -176,7 +195,9 @@ export class LedgerDisplayService {
           passivesMovements.push(
             this.mapMovement(
               tx,
-              'RETRAIT (ANNULATION DETTE)',
+              isPendingWithdrawal
+                ? 'RETRAIT (ANNULATION DETTE EN ATTENTE)'
+                : 'RETRAIT (ANNULATION DETTE)',
               -tx.quantite,
               'PASSIF',
               tx.siteOrigineId,
@@ -187,7 +208,9 @@ export class LedgerDisplayService {
           activesMovements.push(
             this.mapMovement(
               tx,
-              'RETRAIT (APPROUVÉ)',
+              isPendingWithdrawal
+                ? 'RETRAIT (RÉCEPTION EN ATTENTE)'
+                : 'RETRAIT (APPROUVÉ)',
               tx.quantite,
               'ACTIF',
               tx.siteDestinationId,
@@ -238,6 +261,7 @@ export class LedgerDisplayService {
       finalStock: 0,
       movementType: type,
       isRejected: false,
+      isPending: tx.status === TransactionStatus.PENDING,
     };
   }
 
