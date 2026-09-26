@@ -125,13 +125,19 @@ export class ActifsService {
     depotId: string,
     productId: string,
     quantite: number,
+    actors?: { detentaireId: string; ayantDroitId: string },
   ) {
-    const actif = await this.actifModel.findOne({
+    const filter: any = {
       userId: new Types.ObjectId(userId),
       depotId: new Types.ObjectId(depotId),
       productId: new Types.ObjectId(productId),
       isActive: true,
-    });
+    };
+    if (actors) {
+      filter.detentaire = new Types.ObjectId(actors.detentaireId);
+      filter.ayant_droit = new Types.ObjectId(actors.ayantDroitId);
+    }
+    const actif = await this.actifModel.findOne(filter);
 
     if (!actif || actif.quantite - actif.quantiteEnAttente < quantite) {
       throw new NotFoundException(
@@ -152,13 +158,19 @@ export class ActifsService {
     depotId: string,
     productId: string,
     quantite: number,
+    actors?: { detentaireId: string; ayantDroitId: string },
   ) {
-    const actif = await this.actifModel.findOne({
+    const filter: any = {
       userId: new Types.ObjectId(userId),
       depotId: new Types.ObjectId(depotId),
       productId: new Types.ObjectId(productId),
       isActive: true,
-    });
+    };
+    if (actors) {
+      filter.detentaire = new Types.ObjectId(actors.detentaireId);
+      filter.ayant_droit = new Types.ObjectId(actors.ayantDroitId);
+    }
+    const actif = await this.actifModel.findOne(filter);
 
     if (!actif || actif.quantiteEnAttente < quantite) {
       console.warn(
@@ -172,8 +184,11 @@ export class ActifsService {
   }
 
   /**
-   * Ajoute/augmente la quantité EN ATTENTE sur un actif (sans toucher au stock réel).
-   * Utilisé pour créer la ligne "en attente" du retrayant au site de destination.
+   * Provisionne un retour entrant sur l'actif de destination.
+   *
+   * La quantité est affichée immédiatement dans l'actif du propriétaire afin
+   * que son bilan reflète le retour demandé. quantiteEnAttente conserve la
+   * trace que ce retour n'est pas encore validé et permet de l'annuler proprement.
    */
   async addOrIncreaseActifEnAttente(
     userId: string,
@@ -196,12 +211,13 @@ export class ActifsService {
     if (!actif) {
       actif = new this.actifModel({
         ...filter,
-        quantite: 0,
+        quantite: quantiteEnAttente,
         quantiteEnAttente,
         prixUnitaire,
         isActive: true,
       });
     } else {
+      actif.quantite += quantiteEnAttente;
       actif.quantiteEnAttente += quantiteEnAttente;
     }
     return await actif.save();
@@ -216,13 +232,19 @@ export class ActifsService {
     depotId: string,
     productId: string,
     quantite: number,
+    actors?: { detentaireId: string; ayantDroitId: string },
   ) {
-    const actif = await this.actifModel.findOne({
+    const filter: any = {
       userId: new Types.ObjectId(userId),
       depotId: new Types.ObjectId(depotId),
       productId: new Types.ObjectId(productId),
       isActive: true,
-    });
+    };
+    if (actors) {
+      filter.detentaire = new Types.ObjectId(actors.detentaireId);
+      filter.ayant_droit = new Types.ObjectId(actors.ayantDroitId);
+    }
+    const actif = await this.actifModel.findOne(filter);
 
     if (!actif || actif.quantite < quantite) {
       throw new NotFoundException(
@@ -244,8 +266,9 @@ export class ActifsService {
   }
 
   /**
-   * Confirme une ligne "en attente" à la DESTINATION : convertit quantiteEnAttente -> quantite.
-   * Utilisé pour le retrait approuvé : la ligne créée au site destination passe de pending à réel.
+   * Confirme une ligne de retour à la destination. La quantité a déjà été
+   * provisionnée à la création du retrait ; l'approbation enlève seulement le
+   * marqueur d'attente afin de ne pas l'ajouter une seconde fois.
    */
   async confirmPendingActifAtDestination(
     userId: string,
@@ -266,9 +289,43 @@ export class ActifsService {
       );
     }
 
-    // Convertir en-attente -> réel
+    // La quantité était déjà affichée/provisionnée à la création du retrait.
     actif.quantiteEnAttente = Math.max(0, actif.quantiteEnAttente - quantite);
-    actif.quantite += quantite;
+
+    return await actif.save();
+  }
+
+  /**
+   * Annule le provisionnement d'un retour rejeté à sa destination.
+   */
+  async releasePendingIncomingActif(
+    userId: string,
+    depotId: string,
+    productId: string,
+    quantite: number,
+  ) {
+    const actif = await this.actifModel.findOne({
+      userId: new Types.ObjectId(userId),
+      depotId: new Types.ObjectId(depotId),
+      productId: new Types.ObjectId(productId),
+      detentaire: new Types.ObjectId(userId),
+      ayant_droit: new Types.ObjectId(userId),
+      isActive: true,
+    });
+
+    if (!actif || actif.quantiteEnAttente < quantite || actif.quantite < quantite) {
+      throw new NotFoundException(
+        `Provisionnement de retour insuffisant à annuler. (En attente: ${actif?.quantiteEnAttente || 0}, Quantité: ${actif?.quantite || 0}, Demandé: ${quantite})`,
+      );
+    }
+
+    actif.quantiteEnAttente -= quantite;
+    actif.quantite -= quantite;
+
+    if (actif.quantite === 0) {
+      actif.isActive = false;
+      actif.archivedAt = new Date();
+    }
 
     return await actif.save();
   }

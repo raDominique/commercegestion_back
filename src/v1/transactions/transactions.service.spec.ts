@@ -39,4 +39,45 @@ describe('TransactionsService approval', () => {
 
     expect(transaction.save).not.toHaveBeenCalled();
   });
+
+  it('confirms a self-held withdrawal only once', async () => {
+    const actifsService = {
+      confirmPendingActif: jest.fn().mockResolvedValue(undefined),
+      confirmPendingActifAtDestination: jest.fn().mockResolvedValue(undefined),
+    };
+    const passifsService = {
+      confirmPendingPassif: jest.fn().mockResolvedValue(undefined),
+    };
+    const service = new TransactionsService(
+      {} as any,
+      actifsService as any,
+      passifsService as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+    const userId = new Types.ObjectId();
+
+    await (service as any).applyReturnMovements({
+      detentaire: userId,
+      ayant_droit: userId,
+      productId: new Types.ObjectId(),
+      siteOrigineId: new Types.ObjectId(),
+      siteDestinationId: new Types.ObjectId(),
+      quantite: 250,
+      prixUnitaire: 0,
+      transactionNumber: 'RETRAIT-TEST',
+    });
+
+    expect(actifsService.confirmPendingActif).toHaveBeenCalledTimes(1);
+    expect(passifsService.confirmPendingPassif).not.toHaveBeenCalled();
+    expect(
+      actifsService.confirmPendingActifAtDestination,
+    ).toHaveBeenCalledTimes(1);
+  });
 });

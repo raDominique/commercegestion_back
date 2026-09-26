@@ -177,23 +177,29 @@ export class TransactionsService {
       siteOrigineId,
       productId,
       quantite,
+      { detentaireId: detentaire, ayantDroitId: retrayantId },
     );
 
-    // 2. Réserve sur l'actif du détenteur (siteOrigineId)
-    await this.actifsService.reserveActif(
-      detentaire,
-      siteOrigineId,
-      productId,
-      quantite,
-    );
+    // 2. Réserve la ligne miroir du détenteur uniquement s'il est distinct du
+    // retrayant. Sans cette garde, un retrait de son propre stock réserve puis
+    // soustrait deux fois la même ligne d'actif.
+    if (detentaire !== retrayantId) {
+      await this.actifsService.reserveActif(
+        detentaire,
+        siteOrigineId,
+        productId,
+        quantite,
+        { detentaireId: detentaire, ayantDroitId: retrayantId },
+      );
 
-    // 3. Réserve sur le passif du détenteur envers le retrayant
-    await this.passifsService.reservePassif(
-      detentaire,
-      productId,
-      retrayantId,
-      quantite,
-    );
+      // 3. Réserve sur le passif du détenteur envers le retrayant
+      await this.passifsService.reservePassif(
+        detentaire,
+        productId,
+        retrayantId,
+        quantite,
+      );
+    }
 
     // 4. Crée/augmente l'actif "en attente" du retrayant au site de destination
     //    (il va physiquement détenir la marchandise après approbation)
@@ -645,28 +651,31 @@ export class TransactionsService {
         siteOrigineId,
         productId,
         quantite,
+        { detentaireId, ayantDroitId },
       );
 
-      // 2. Libérer réservation sur l'actif du détenteur
-      await this.actifsService.releasePendingActif(
-        detentaireId,
-        siteOrigineId,
-        productId,
-        quantite,
-      );
-
-      // 3. Libérer réservation sur le passif du détenteur
-      await this.passifsService.releasePendingPassif(
-        detentaireId,
-        productId,
-        ayantDroitId,
-        quantite,
-      );
-
-      // 4. Libérer l'actif "en attente" du retrayant au site destination
-      //    (diminuer quantiteEnAttente, si tombe à 0 et quantite=0 -> archiver)
-      try {
+      if (detentaireId !== ayantDroitId) {
+        // 2. Libérer réservation sur l'actif miroir du détenteur
         await this.actifsService.releasePendingActif(
+          detentaireId,
+          siteOrigineId,
+          productId,
+          quantite,
+          { detentaireId, ayantDroitId },
+        );
+
+        // 3. Libérer réservation sur le passif du détenteur
+        await this.passifsService.releasePendingPassif(
+          detentaireId,
+          productId,
+          ayantDroitId,
+          quantite,
+        );
+      }
+
+      // 4. Annuler le provisionnement de retour au site destination.
+      try {
+        await this.actifsService.releasePendingIncomingActif(
           ayantDroitId,
           siteDestinationId,
           productId,
@@ -838,23 +847,27 @@ export class TransactionsService {
         originSiteId,
         productId,
         quantity,
+        { detentaireId, ayantDroitId },
       );
 
-      // 2. Confirmer la réservation sur l'actif du détenteur (site origine)
-      await this.actifsService.confirmPendingActif(
-        detentaireId,
-        originSiteId,
-        productId,
-        quantity,
-      );
+      if (detentaireId !== ayantDroitId) {
+        // 2. Confirmer la réservation sur l'actif miroir du détenteur
+        await this.actifsService.confirmPendingActif(
+          detentaireId,
+          originSiteId,
+          productId,
+          quantity,
+          { detentaireId, ayantDroitId },
+        );
 
-      // 3. Confirmer la réservation sur le passif du détenteur
-      await this.passifsService.confirmPendingPassif(
-        detentaireId,
-        productId,
-        ayantDroitId,
-        quantity,
-      );
+        // 3. Confirmer la réservation sur le passif du détenteur
+        await this.passifsService.confirmPendingPassif(
+          detentaireId,
+          productId,
+          ayantDroitId,
+          quantity,
+        );
+      }
 
       // 4. Confirmer l'actif "en attente" du retrayant au site destination
       //    Convertit quantiteEnAttente -> quantite (AJOUTE au stock réel)
