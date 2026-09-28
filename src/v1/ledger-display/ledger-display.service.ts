@@ -1346,6 +1346,78 @@ export class LedgerDisplayService {
         isActive: true,
       }));
 
+    // 1b. Récupérer les RETRAITS PENDING où l'utilisateur est le détenteur.
+    // Ils ne diminuent pas encore la dette confirmée, mais constituent une
+    // réservation qui doit être visible dans le ledger des passifs.
+    const pendingRetraits = await this.transactionModel
+      .find({
+        type: TransactionType.RETRAIT,
+        status: TransactionStatus.PENDING,
+        recipientId: userIdObj,
+        isActive: true,
+      })
+      .sort({ createdAt: -1 })
+      .populate([
+        {
+          path: 'productId',
+          select: 'productName codeCPC productImage prixUnitaire productVolume',
+        },
+        {
+          path: 'siteOrigineId',
+          select: 'siteId siteName siteAddress location siteUserID',
+          populate: { path: 'siteUserID', select: 'userName userFirstname' },
+        },
+        {
+          path: 'detentaire',
+          select: 'userName userFirstname userPhone',
+        },
+        {
+          path: 'ayant_droit',
+          select: 'userName userFirstname userPhone',
+        },
+      ])
+      .lean()
+      .exec() as any[];
+
+    const pendingRetraitPassifs = (pendingRetraits || [])
+      .filter((tx: any) => {
+        if (!search) return true;
+        const searchLower = search.toLowerCase();
+        return (
+          (tx.productId?.productName?.toLowerCase() || '').includes(
+            searchLower,
+          ) || (tx.transactionNumber?.toLowerCase() || '').includes(searchLower)
+        );
+      })
+      .map((tx: any) => ({
+        id: tx._id,
+        transactionNumber: tx.transactionNumber,
+        type: 'RETRAIT',
+        statut: TransactionStatus.PENDING,
+        productId: tx.productId?._id || 'N/A',
+        productName: tx.productId?.productName || 'N/A',
+        productCode: tx.productId?.codeCPC || 'N/A',
+        productImage: tx.productId?.productImage || null,
+        quantite: tx.quantite,
+        prixUnitaire: tx.prixUnitaire,
+        valeurTotale: (tx.quantite || 0) * (tx.prixUnitaire || 0),
+        depotId: tx.siteOrigineId?._id || 'N/A',
+        depot: tx.siteOrigineId?.siteName || 'N/A',
+        depotAdresse: tx.siteOrigineId?.siteAddress || 'N/A',
+        detentaire: tx.detentaire
+          ? `${tx.detentaire.userName} ${tx.detentaire.userFirstname}`
+          : 'N/A',
+        ayantDroit: tx.ayant_droit
+          ? `${tx.ayant_droit.userName} ${tx.ayant_droit.userFirstname}`
+          : 'N/A',
+        detentaireId: tx.detentaire?._id || null,
+        ayantDroitId: tx.ayant_droit?._id || null,
+        dateCreation: tx.createdAt,
+        dateModification: tx.updatedAt,
+        isActive: true,
+        isReservation: true,
+      }));
+
     // 2. Récupérer les passifs confirmés
     const filter: any = {
       userId: userIdObj,
@@ -1402,6 +1474,11 @@ export class LedgerDisplayService {
       productCode: passif.productId?.codeCPC || 'N/A',
       productImage: passif.productId?.productImage || null,
       quantite: passif.quantite,
+      quantiteEnAttente: passif.quantiteEnAttente || 0,
+      quantiteDisponible: Math.max(
+        0,
+        passif.quantite - (passif.quantiteEnAttente || 0),
+      ),
       prixUnitaire: passif.prixUnitaire,
       valeurTotale: (passif.quantite || 0) * (passif.prixUnitaire || 0),
       depotId: passif.depotId?._id || 'N/A',
@@ -1424,7 +1501,11 @@ export class LedgerDisplayService {
     // Défaut: une ligne par enregistrement (dégroupé).
     // Si group=true: les lignes sont fusionnées par (productId + depotId) —
     // quantités sommées, ids cumulés, statuts et ayant-droits agrégés.
-    const merged = [...pendingPassifs, ...formattedConfirmed].sort(
+    const merged = [
+      ...pendingPassifs,
+      ...pendingRetraitPassifs,
+      ...formattedConfirmed,
+    ].sort(
       (a, b) =>
         new Date(b.dateCreation).getTime() -
         new Date(a.dateCreation).getTime(),
