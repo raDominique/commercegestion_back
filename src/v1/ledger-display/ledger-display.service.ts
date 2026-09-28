@@ -982,15 +982,20 @@ export class LedgerDisplayService {
         isActive: true,
       }));
 
-    // 1bis. Récupérer les PENDING RETRAIT où l'utilisateur est le retrayant
-    //    (X fait un retrait chez le détenteur Y: actifs en cours de retrait,
-    //    en attente de validation)
+    // 1bis. Récupérer les PENDING RETRAIT pour les deux parties : le
+    // retrayant X et le détenteur Y. La réservation doit être visible dans
+    // les actifs des deux membres jusqu'à sa validation ou son rejet.
     const pendingRetraits = await this.transactionModel
       .find({
         type: TransactionType.RETRAIT,
         status: TransactionStatus.PENDING,
         isActive: true,
-        $or: [{ initiatorId: userIdObj }, { ayant_droit: userIdObj }],
+        $or: [
+          { initiatorId: userIdObj },
+          { ayant_droit: userIdObj },
+          { recipientId: userIdObj },
+          { detentaire: userIdObj },
+        ],
       })
       .sort({ createdAt: -1 })
       .populate([
