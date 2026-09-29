@@ -493,15 +493,20 @@ export class TransactionsService {
       prixUnitaire: 0,
     });
 
-    // Transfert du passif associé (si existant): débiteur X -> débiteur Z, créancier = détenteur Y
-    await this.passifsService.transferDebtorByCreditor({
-      fromDebtorId: initiatorId,
-      toDebtorId: dto.beneficiaryId,
-      productId: dto.productId,
-      creancierId: dto.detentaireId,
-      quantite: dto.quantite,
-      depotId: dto.siteId,
-    });
+    // Le détenteur reste débiteur. Seul le créancier (l'ayant-droit) change.
+    await this.passifsService.decreasePassifByCreditor(
+      dto.detentaireId,
+      dto.productId,
+      initiatorId,
+      dto.quantite,
+    );
+    await this.passifsService.addOrIncreasePassif(
+      dto.detentaireId,
+      dto.siteId,
+      dto.productId,
+      dto.quantite,
+      dto.beneficiaryId,
+    );
 
     const transaction = new this.transactionModel({
       transactionNumber,

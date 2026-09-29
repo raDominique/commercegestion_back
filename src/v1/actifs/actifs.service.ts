@@ -355,7 +355,7 @@ export class ActifsService {
       prixUnitaire = 0,
     } = params;
 
-    const sourceActif = await this.actifModel.findOne({
+    const sourceActifDetenteur = await this.actifModel.findOne({
       userId: new Types.ObjectId(detentaireId),
       depotId: new Types.ObjectId(depotId),
       productId: new Types.ObjectId(productId),
@@ -363,21 +363,55 @@ export class ActifsService {
       isActive: true,
     });
 
-    if (!sourceActif || sourceActif.quantite < quantite) {
+    // Le même dépôt est présent dans le bilan du détenteur et dans celui de
+    // l'ayant-droit. Les deux lignes doivent évoluer ensemble ; autrement
+    // l'ancien ayant-droit continuerait à voir le montant initial.
+    const sourceActifAyantDroit =
+      fromAyantDroitId === detentaireId
+        ? sourceActifDetenteur
+        : await this.actifModel.findOne({
+            userId: new Types.ObjectId(fromAyantDroitId),
+            depotId: new Types.ObjectId(depotId),
+            productId: new Types.ObjectId(productId),
+            detentaire: new Types.ObjectId(detentaireId),
+            ayant_droit: new Types.ObjectId(fromAyantDroitId),
+            isActive: true,
+          });
+
+    const disponibleDetenteur = sourceActifDetenteur
+      ? sourceActifDetenteur.quantite - sourceActifDetenteur.quantiteEnAttente
+      : 0;
+    const disponibleAyantDroit = sourceActifAyantDroit
+      ? sourceActifAyantDroit.quantite - sourceActifAyantDroit.quantiteEnAttente
+      : 0;
+
+    if (
+      !sourceActifDetenteur ||
+      !sourceActifAyantDroit ||
+      disponibleDetenteur < quantite ||
+      disponibleAyantDroit < quantite
+    ) {
       throw new NotFoundException(
-        `Stock insuffisant ou actif inexistant pour transfert de droit. (Demandé: ${quantite}, Dispo: ${sourceActif?.quantite})`,
+        `Stock insuffisant ou actif inexistant pour transfert de droit. (Demandé: ${quantite}, Dispo: ${Math.min(disponibleDetenteur, disponibleAyantDroit)})`,
       );
     }
 
-    sourceActif.quantite -= quantite;
-    if (sourceActif.quantite === 0) {
-      sourceActif.isActive = false;
-      sourceActif.archivedAt = new Date();
-    }
-    await sourceActif.save();
+    const decreaseSource = async (actif: ActifDocument) => {
+      actif.quantite -= quantite;
+      if (actif.quantite === 0) {
+        actif.isActive = false;
+        actif.archivedAt = new Date();
+      }
+      await actif.save();
+    };
 
-    // Créer / augmenter l'actif cible au même détenteur/site, mais avec nouveau ayant_droit
-    return this.addOrIncreaseActif(
+    await decreaseSource(sourceActifDetenteur);
+    if (sourceActifAyantDroit !== sourceActifDetenteur) {
+      await decreaseSource(sourceActifAyantDroit);
+    }
+
+    // Ligne miroir du détenteur, avec le nouveau ayant-droit.
+    const actifDetenteur = await this.addOrIncreaseActif(
       detentaireId,
       depotId,
       productId,
@@ -386,6 +420,23 @@ export class ActifsService {
       detentaireId,
       toAyantDroitId,
     );
+
+    // Ligne du bilan du bénéficiaire : indispensable au calcul de
+    // deposit-at-others/me et au solde restant de l'ancien ayant-droit.
+    const actifBeneficiaire =
+      toAyantDroitId === detentaireId
+        ? actifDetenteur
+        : await this.addOrIncreaseActif(
+            toAyantDroitId,
+            depotId,
+            productId,
+            quantite,
+            prixUnitaire,
+            detentaireId,
+            toAyantDroitId,
+          );
+
+    return { actifDetenteur, actifBeneficiaire };
   }
 
   /**
