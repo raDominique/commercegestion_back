@@ -964,6 +964,9 @@ export class LedgerDisplayService {
         quantite: tx.quantite,
         quantiteEnAttente: tx.quantite,
         quantiteDisponible: 0,
+        quantiteATransferer: 0,
+        quantiteMaxTransferable: 0,
+        quantiteRestantAVirer: 0,
         prixUnitaire: tx.prixUnitaire,
         valeurTotale: (tx.quantite || 0) * (tx.prixUnitaire || 0),
         depotId: tx.siteDestinationId?._id || 'N/A',
@@ -1048,6 +1051,9 @@ export class LedgerDisplayService {
         quantite: tx.quantite,
         quantiteEnAttente: tx.quantite,
         quantiteDisponible: 0,
+        quantiteATransferer: 0,
+        quantiteMaxTransferable: 0,
+        quantiteRestantAVirer: 0,
         prixUnitaire: tx.prixUnitaire,
         valeurTotale: (tx.quantite || 0) * (tx.prixUnitaire || 0),
         depotId: tx.siteOrigineId?._id || 'N/A',
@@ -1118,6 +1124,13 @@ export class LedgerDisplayService {
       const quantite = actif.quantite || 0;
       const enAttente = actif.quantiteEnAttente || 0;
       const quantiteDisponible = Math.max(0, quantite - enAttente);
+      const detentaireId = actif.detentaire?._id?.toString();
+      const ayantDroitId = actif.ayant_droit?._id?.toString();
+      const isTransferableDeposit =
+        ayantDroitId === userId && detentaireId !== userId;
+      const quantiteMaxTransferable = isTransferableDeposit
+        ? quantiteDisponible
+        : 0;
 
       return {
         ids: [actif._id.toString()],
@@ -1132,6 +1145,9 @@ export class LedgerDisplayService {
         quantite,
         quantiteEnAttente: enAttente,
         quantiteDisponible,
+        quantiteATransferer: 0,
+        quantiteMaxTransferable,
+        quantiteRestantAVirer: quantiteMaxTransferable,
         prixUnitaire: actif.prixUnitaire,
         valeurTotale: quantiteDisponible * (actif.prixUnitaire || 1),
         depotId: actif.depotId?._id || 'N/A',

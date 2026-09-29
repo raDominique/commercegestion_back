@@ -1011,27 +1011,37 @@ export class ActifsService {
       status: 'success',
       message:
         "Dépôts actifs de l'utilisateur chez d'autres membres récupérés avec succès",
-      data: searched.slice(skip, skip + limit).map((actif: any) => ({
-        _id: actif._id,
-        type: 'DÉPÔT',
-        status: 'APPROVED',
-        initiatorId: actif.ayant_droit,
-        recipientId: actif.detentaire,
-        productId: actif.productId,
-        // L'actif ne conserve que son site courant, qui correspond à la destination.
-        siteOrigineId: null,
-        siteDestinationId: actif.depotId,
-        quantite: Math.max(
+      data: searched.slice(skip, skip + limit).map((actif: any) => {
+        const quantiteDisponible = Math.max(
           0,
           actif.quantite - (actif.quantiteEnAttente ?? 0),
-        ),
-        prixUnitaire: actif.prixUnitaire,
-        detentaire: actif.detentaire,
-        ayant_droit: actif.ayant_droit,
-        isActive: actif.isActive,
-        createdAt: actif.createdAt,
-        updatedAt: actif.updatedAt,
-      })),
+        );
+
+        return {
+          _id: actif._id,
+          type: 'DÉPÔT',
+          status: 'APPROVED',
+          initiatorId: actif.ayant_droit,
+          recipientId: actif.detentaire,
+          productId: actif.productId,
+          // L'actif ne conserve que son site courant, qui correspond à la destination.
+          siteOrigineId: null,
+          siteDestinationId: actif.depotId,
+          quantite: quantiteDisponible,
+          // Contrat pour le formulaire de virement de droit : le front initialise
+          // la saisie à 0, limite la valeur au maximum disponible, puis affiche le
+          // reliquat calculé sans avoir à déduire les réservations lui-même.
+          quantiteATransferer: 0,
+          quantiteMaxTransferable: quantiteDisponible,
+          quantiteRestantAVirer: quantiteDisponible,
+          prixUnitaire: actif.prixUnitaire,
+          detentaire: actif.detentaire,
+          ayant_droit: actif.ayant_droit,
+          isActive: actif.isActive,
+          createdAt: actif.createdAt,
+          updatedAt: actif.updatedAt,
+        };
+      }),
       page,
       limit,
       total: searched.length,
