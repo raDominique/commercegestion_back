@@ -43,15 +43,45 @@ export class DashboardService {
 
   async getDashboard(userId: string, userAccess?: string) {
     const userIdObj = new Types.ObjectId(userId);
+    // Les dépôts chez un tiers sont représentés par des écritures miroir :
+    // selon le rôle de l'utilisateur, l'information peut être portée par
+    // userId, ayant_droit, detentaire, creancierId ou initiator/recipient.
+    // Le dashboard doit utiliser les mêmes rôles que les écrans Actifs,
+    // Passifs et Transactions afin de ne pas retourner des statistiques vides.
+    const actifFilter = {
+      isActive: true,
+      $or: [
+        { userId: userIdObj },
+        { ayant_droit: userIdObj },
+        { detentaire: userIdObj },
+      ],
+    };
+    const passifFilter = {
+      isActive: true,
+      $or: [
+        { userId: userIdObj },
+        { creancierId: userIdObj },
+        { ayant_droit: userIdObj },
+        { detentaire: userIdObj },
+      ],
+    };
+    const transactionActorFilter = {
+      $or: [
+        { initiatorId: userIdObj },
+        { recipientId: userIdObj },
+        { ayant_droit: userIdObj },
+        { detentaire: userIdObj },
+      ],
+    };
 
     const [
       retraitEffectue,
       depotEffectue,
-      stocksProduits,
+      produitsEnStock,
       actifs,
       passifs,
       nombreDeSite,
-      produitsUtilisables,
+      produitsUtilisablesStats,
 
       totalSites,
       totalUsers,
@@ -75,27 +105,43 @@ export class DashboardService {
       // --- placeholders pour les valeurs existantes ---
       // retraitEffectue
       this.transactionModel.countDocuments({
-        initiatorId: userIdObj,
         type: TransactionType.RETRAIT,
+        ...transactionActorFilter,
       }),
       // depotEffectue
       this.transactionModel.countDocuments({
-        initiatorId: userIdObj,
         type: TransactionType.DEPOT,
+        ...transactionActorFilter,
       }),
-      // stocksProduits
-      this.productModel.countDocuments({ productOwnerId: userIdObj }),
+      // Produits réellement présents dans les actifs de l'utilisateur.
+      // productOwnerId désigne le créateur du catalogue, pas le propriétaire
+      // du stock ; l'utiliser ici donnait 0 pour la plupart des utilisateurs.
+      this.actifModel.aggregate([
+        { $match: actifFilter },
+        { $group: { _id: '$productId' } },
+      ]),
       // actifs
-      this.actifModel.countDocuments({ userId: userIdObj }),
+      this.actifModel.countDocuments(actifFilter),
       // passifs
-      this.passifModel.countDocuments({ userId: userIdObj }),
+      this.passifModel.countDocuments(passifFilter),
       // nombreDeSite
       this.siteModel.countDocuments({ siteUserID: userIdObj }),
-      // produitsUtilisables
-      this.productModel.countDocuments({
-        productOwnerId: userIdObj,
-        productValidation: true,
-      }),
+      // Produits validés réellement utilisables dans les actifs de l'utilisateur.
+      this.actifModel.aggregate([
+        { $match: actifFilter },
+        { $group: { _id: '$productId' } },
+        {
+          $lookup: {
+            from: 'products',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'product',
+          },
+        },
+        { $unwind: '$product' },
+        { $match: { 'product.productValidation': true } },
+        { $count: 'total' },
+      ]),
 
       // admin stats
       this.siteModel.countDocuments(),
@@ -107,7 +153,7 @@ export class DashboardService {
 
       // actifsGlobal
       this.actifModel.aggregate([
-        { $match: { userId: userIdObj } },
+        { $match: actifFilter },
         {
           $group: {
             _id: null,
@@ -122,7 +168,7 @@ export class DashboardService {
       ]),
       // passifsGlobal
       this.passifModel.aggregate([
-        { $match: { userId: userIdObj } },
+        { $match: passifFilter },
         {
           $group: {
             _id: null,
@@ -138,7 +184,7 @@ export class DashboardService {
 
       // actifsBySite
       this.actifModel.aggregate([
-        { $match: { userId: userIdObj } },
+        { $match: actifFilter },
         {
           $group: {
             _id: '$depotId',
@@ -170,7 +216,7 @@ export class DashboardService {
       ]),
       // passifsBySite
       this.passifModel.aggregate([
-        { $match: { userId: userIdObj } },
+        { $match: passifFilter },
         {
           $group: {
             _id: '$depotId',
@@ -203,7 +249,7 @@ export class DashboardService {
 
       // actifsByProduct
       this.actifModel.aggregate([
-        { $match: { userId: userIdObj } },
+        { $match: actifFilter },
         {
           $group: {
             _id: '$productId',
@@ -235,7 +281,7 @@ export class DashboardService {
       ]),
       // passifsByProduct
       this.passifModel.aggregate([
-        { $match: { userId: userIdObj } },
+        { $match: passifFilter },
         {
           $group: {
             _id: '$productId',
@@ -273,9 +319,7 @@ export class DashboardService {
        */
       this.transactionModel.aggregate([
         {
-          $match: {
-            initiatorId: userIdObj,
-          },
+          $match: transactionActorFilter,
         },
         {
           $group: {
@@ -301,9 +345,7 @@ export class DashboardService {
        */
       this.transactionModel.aggregate([
         {
-          $match: {
-            initiatorId: userIdObj,
-          },
+          $match: transactionActorFilter,
         },
         {
           $group: {
@@ -329,6 +371,8 @@ export class DashboardService {
      * ============================
      */
 
+    const stocksProduits = produitsEnStock.length;
+    const produitsUtilisables = produitsUtilisablesStats[0]?.total || 0;
     const nombreDeProduitsParSite =
       nombreDeSite > 0 ? Number((stocksProduits / nombreDeSite).toFixed(2)) : 0;
 
