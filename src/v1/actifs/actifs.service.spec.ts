@@ -96,4 +96,29 @@ describe('ActifsService', () => {
       },
     ]);
   });
+
+  it('uses the holder mirror when selling stock owned by an ayant droit', async () => {
+    const holderMirror = {
+      quantite: 8000,
+      isActive: true,
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+    mockModel.findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(holderMirror);
+
+    await service.decreaseActifForVente(
+      new Types.ObjectId().toString(),
+      new Types.ObjectId().toString(),
+      new Types.ObjectId().toString(),
+      2000,
+    );
+
+    expect(holderMirror.quantite).toBe(6000);
+    expect(holderMirror.save).toHaveBeenCalledTimes(1);
+    expect(mockModel.findOne).toHaveBeenCalledTimes(2);
+    expect(mockModel.findOne.mock.calls[1][0]).toEqual(
+      expect.objectContaining({ ayant_droit: expect.any(Types.ObjectId) }),
+    );
+  });
 });

@@ -78,26 +78,11 @@ export class ActifsService {
     productId: string,
     quantite: number,
   ) {
-    console.log('DEBUG decreaseActif called with:', {
-      userId,
-      depotId,
-      productId,
-      quantite,
-    });
     const actif = await this.actifModel.findOne({
       userId: new Types.ObjectId(userId),
       depotId: new Types.ObjectId(depotId),
       productId: new Types.ObjectId(productId),
       isActive: true,
-    });
-
-    console.log('DEBUG decreaseActif:', {
-      userId: new Types.ObjectId(userId),
-      depotId: new Types.ObjectId(depotId),
-      productId: new Types.ObjectId(productId),
-      quantite,
-      actif,
-      actifQuantite: actif?.quantite,
     });
 
     if (!actif || actif.quantite < quantite) {
@@ -108,6 +93,48 @@ export class ActifsService {
 
     actif.quantite -= quantite;
 
+    if (actif.quantite === 0) {
+      actif.isActive = false;
+      actif.archivedAt = new Date();
+    }
+
+    return await actif.save();
+  }
+
+  /**
+   * Débite le stock proposé dans une vente. Un vendeur peut être propriétaire
+   * d'un stock conservé chez un tiers : dans ce cas seule la vente est
+   * autorisée à utiliser la ligne miroir dont il est l'ayant-droit.
+   */
+  async decreaseActifForVente(
+    vendeurId: string,
+    depotId: string,
+    productId: string,
+    quantite: number,
+  ) {
+    let actif = await this.actifModel.findOne({
+      userId: new Types.ObjectId(vendeurId),
+      depotId: new Types.ObjectId(depotId),
+      productId: new Types.ObjectId(productId),
+      isActive: true,
+    });
+
+    if (!actif) {
+      actif = await this.actifModel.findOne({
+        depotId: new Types.ObjectId(depotId),
+        productId: new Types.ObjectId(productId),
+        ayant_droit: new Types.ObjectId(vendeurId),
+        isActive: true,
+      });
+    }
+
+    if (!actif || actif.quantite < quantite) {
+      throw new NotFoundException(
+        `Stock insuffisant ou actif inexistant. (Demandé: ${quantite}, Dispo: ${actif?.quantite})`,
+      );
+    }
+
+    actif.quantite -= quantite;
     if (actif.quantite === 0) {
       actif.isActive = false;
       actif.archivedAt = new Date();

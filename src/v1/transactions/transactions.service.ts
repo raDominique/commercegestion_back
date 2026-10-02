@@ -437,7 +437,7 @@ export class TransactionsService {
     const savedTransaction = await transaction.save();
 
     // Réserver la quantite du produit chez le vendeur
-    await this.actifsService.decreaseActif(
+    await this.actifsService.decreaseActifForVente(
       createVenteDto.vendeurId,
       createVenteDto.siteOrigineId,
       createVenteDto.productId,
