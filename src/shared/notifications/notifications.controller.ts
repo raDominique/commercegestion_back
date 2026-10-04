@@ -67,7 +67,10 @@ export class NotificationsController {
     @Req() req: any,
     @Param('notificationId') notificationId: string,
   ) {
-    return this.notificationsService.markAsRead(req.user.userId, notificationId);
+    return this.notificationsService.markAsRead(
+      req.user.userId,
+      notificationId,
+    );
   }
 
   @Patch('read-all')

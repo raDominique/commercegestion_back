@@ -275,20 +275,20 @@ Erreurs possibles:
   @Get('all-by-site/:siteId')
   @Auth()
   @ApiOperation({
-    summary: "Récupère tous les actifs d'un site pour un select2",
-    description: `Récupère tous les actifs disponibles sur un site sans pagination.
+    summary: "RǸcup��re tous les actifs d'un site pour un select2",
+    description: `RǸcup��re tous les actifs disponibles sur un site sans pagination.
     
 Retourne:
-- quantité: Quantité disponible
+- quantitǸ: QuantitǸ disponible
 - productId: ID du produit
 - productName: Nom du produit
 
-Utilisation: Remplir des listes déroulantes (select2)
+Utilisation: Remplir des listes dǸroulantes (select2)
 
 Conditions:
 - Site valide
 - Actifs actifs (isActive = true)
-- Quantité > 0`,
+- QuantitǸ > 0`,
   })
   @ApiResponse({
     status: 200,
@@ -308,10 +308,40 @@ Conditions:
       ],
     },
   })
-  @ApiResponse({ status: 401, description: 'Non authentifié' })
-  @ApiResponse({ status: 404, description: 'Site non trouvé' })
+  @ApiResponse({ status: 401, description: 'Non authentifiǸ' })
+  @ApiResponse({ status: 404, description: 'Site non trouvǸ' })
   async getAllActifsByIdSite(@Param('siteId') siteId: string) {
     return this.actifsService.getAllActifsByIdSite(siteId);
+  }
+
+  @Get('quantite-vendable-by-site/:siteId')
+  @Auth()
+  @ApiOperation({
+    summary: 'Quantité vendable par produit pour un site',
+    description: `Récupère la quantité disponible à la vente (quantité vendable) par produit sur un site donné.
+    
+Retourne:
+- quantite: Quantité vendable (disponible après déduction des réservations/en attente)
+- productId: ID du produit
+- productName: Nom du produit`,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des quantités vendables par produit',
+    schema: {
+      example: [
+        {
+          quantite: 5000,
+          productId: '6a2c23e25c2d6a97db31f901',
+          productName: 'Ciments, mortiers, bétons...',
+        },
+      ],
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  @ApiResponse({ status: 404, description: 'Site non trouvé' })
+  async getQuantiteVendableBySite(@Param('siteId') siteId: string) {
+    return this.actifsService.getQuantiteVendableBySite(siteId);
   }
 
   @Get('my-deposits')
@@ -360,7 +390,8 @@ Erreurs possibles:
     name: 'siteId',
     required: false,
     type: String,
-    description: 'ID du site de dépôt pour filtrer les actifs déposés sur ce site',
+    description:
+      'ID du site de dépôt pour filtrer les actifs déposés sur ce site',
     example: '6a59c1a49520706d1f14f25d',
   })
   @ApiQuery({

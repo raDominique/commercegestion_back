@@ -121,4 +121,22 @@ describe('ActifsService', () => {
       expect.objectContaining({ ayant_droit: expect.any(Types.ObjectId) }),
     );
   });
+
+  it('does not use a holder mirror for the standard stock decrease flow', async () => {
+    mockModel.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.decreaseActif(
+        new Types.ObjectId().toString(),
+        new Types.ObjectId().toString(),
+        new Types.ObjectId().toString(),
+        1,
+      ),
+    ).rejects.toThrow('Stock insuffisant ou actif inexistant');
+
+    expect(mockModel.findOne).toHaveBeenCalledTimes(1);
+    expect(mockModel.findOne.mock.calls[0][0]).not.toHaveProperty(
+      'ayant_droit',
+    );
+  });
 });

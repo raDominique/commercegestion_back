@@ -183,9 +183,7 @@ export class LedgerDisplayService {
           activesMovements.push(
             this.mapMovement(
               tx,
-              isPendingWithdrawal
-                ? 'RETRAIT (EN ATTENTE)'
-                : 'RETRAIT (SORTIE)',
+              isPendingWithdrawal ? 'RETRAIT (EN ATTENTE)' : 'RETRAIT (SORTIE)',
               -tx.quantite,
               'ACTIF',
               tx.siteOrigineId,
@@ -909,7 +907,7 @@ export class LedgerDisplayService {
 
     // 1. Récupérer les PENDING DEPOT où l'utilisateur est le destinataire OU l'initiateur
     //    (actifs en attente d'arrivée pour le destinataire, en attente de validation pour l'initiateur)
-    const pendingDepots = await this.transactionModel
+    const pendingDepots = (await this.transactionModel
       .find({
         type: TransactionType.DEPOT,
         status: TransactionStatus.PENDING,
@@ -925,7 +923,10 @@ export class LedgerDisplayService {
         {
           path: 'siteDestinationId',
           select: 'siteId siteName siteAddress location siteUserID',
-          populate: { path: 'siteUserID', select: 'userName userFirstname userPhone' },
+          populate: {
+            path: 'siteUserID',
+            select: 'userName userFirstname userPhone',
+          },
         },
         {
           path: 'detentaire',
@@ -937,7 +938,7 @@ export class LedgerDisplayService {
         },
       ])
       .lean()
-      .exec() as any[];
+      .exec()) as any[];
 
     // Formater les dépôts en attente en actifs
     const pendingActifs = (pendingDepots || [])
@@ -947,8 +948,7 @@ export class LedgerDisplayService {
         const productName = tx.productId?.productName?.toLowerCase() || '';
         const txNumber = tx.transactionNumber?.toLowerCase() || '';
         return (
-          productName.includes(searchLower) ||
-          txNumber.includes(searchLower)
+          productName.includes(searchLower) || txNumber.includes(searchLower)
         );
       })
       .map((tx: any) => ({
@@ -988,7 +988,7 @@ export class LedgerDisplayService {
     // 1bis. Récupérer les PENDING RETRAIT pour les deux parties : le
     // retrayant X et le détenteur Y. La réservation doit être visible dans
     // les actifs des deux membres jusqu'à sa validation ou son rejet.
-    const pendingRetraits = await this.transactionModel
+    const pendingRetraits = (await this.transactionModel
       .find({
         type: TransactionType.RETRAIT,
         status: TransactionStatus.PENDING,
@@ -1024,7 +1024,7 @@ export class LedgerDisplayService {
         },
       ])
       .lean()
-      .exec() as any[];
+      .exec()) as any[];
 
     // Formater les retraits en attente en actifs
     const pendingRetraitActifs = (pendingRetraits || [])
@@ -1034,8 +1034,7 @@ export class LedgerDisplayService {
         const productName = tx.productId?.productName?.toLowerCase() || '';
         const txNumber = tx.transactionNumber?.toLowerCase() || '';
         return (
-          productName.includes(searchLower) ||
-          txNumber.includes(searchLower)
+          productName.includes(searchLower) || txNumber.includes(searchLower)
         );
       })
       .map((tx: any) => ({
@@ -1181,8 +1180,7 @@ export class LedgerDisplayService {
       ...formattedActifs,
     ].sort(
       (a, b) =>
-        new Date(b.dateCreation).getTime() -
-        new Date(a.dateCreation).getTime(),
+        new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime(),
     );
 
     const finalLines = group ? this.groupActifLines(merged) : merged;
@@ -1230,9 +1228,7 @@ export class LedgerDisplayService {
                   ...(Array.isArray(existing.statut)
                     ? existing.statut
                     : [existing.statut]),
-                  ...(Array.isArray(line.statut)
-                    ? line.statut
-                    : [line.statut]),
+                  ...(Array.isArray(line.statut) ? line.statut : [line.statut]),
                 ]),
               ]
             : existing.statut === line.statut
@@ -1269,8 +1265,7 @@ export class LedgerDisplayService {
 
     return Array.from(grouped.values()).sort(
       (a, b) =>
-        new Date(b.dateCreation).getTime() -
-        new Date(a.dateCreation).getTime(),
+        new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime(),
     );
   }
 
@@ -1297,7 +1292,7 @@ export class LedgerDisplayService {
 
     // 1. Récupérer les PENDING DEPOT où l'utilisateur est le destinataire (passifs en attente)
     // Le passif est une dette du dépositaire (recipient) envers le déposant (initiator)
-    const pendingDepots = await this.transactionModel
+    const pendingDepots = (await this.transactionModel
       .find({
         type: TransactionType.DEPOT,
         status: TransactionStatus.PENDING,
@@ -1325,7 +1320,7 @@ export class LedgerDisplayService {
         },
       ])
       .lean()
-      .exec() as any[];
+      .exec()) as any[];
 
     // Formater les dépôts en attente en passifs
     const pendingPassifs = (pendingDepots || [])
@@ -1335,8 +1330,7 @@ export class LedgerDisplayService {
         const productName = tx.productId?.productName?.toLowerCase() || '';
         const txNumber = tx.transactionNumber?.toLowerCase() || '';
         return (
-          productName.includes(searchLower) ||
-          txNumber.includes(searchLower)
+          productName.includes(searchLower) || txNumber.includes(searchLower)
         );
       })
       .map((tx: any) => ({
@@ -1370,7 +1364,7 @@ export class LedgerDisplayService {
     // 1b. Récupérer les RETRAITS PENDING où l'utilisateur est le détenteur.
     // Ils ne diminuent pas encore la dette confirmée, mais constituent une
     // réservation qui doit être visible dans le ledger des passifs.
-    const pendingRetraits = await this.transactionModel
+    const pendingRetraits = (await this.transactionModel
       .find({
         type: TransactionType.RETRAIT,
         status: TransactionStatus.PENDING,
@@ -1398,7 +1392,7 @@ export class LedgerDisplayService {
         },
       ])
       .lean()
-      .exec() as any[];
+      .exec()) as any[];
 
     const pendingRetraitPassifs = (pendingRetraits || [])
       .filter((tx: any) => {
@@ -1528,8 +1522,7 @@ export class LedgerDisplayService {
       ...formattedConfirmed,
     ].sort(
       (a, b) =>
-        new Date(b.dateCreation).getTime() -
-        new Date(a.dateCreation).getTime(),
+        new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime(),
     );
 
     const finalLines = group ? this.groupActifLines(merged) : merged;

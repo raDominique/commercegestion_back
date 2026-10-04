@@ -3,7 +3,10 @@ import { getModelToken } from '@nestjs/mongoose';
 import { NotFoundException } from '@nestjs/common';
 import { PassifsService } from './passifs.service';
 import { Passif } from './passifs.schema';
-import { Transaction, TransactionStatus } from '../transactions/transactions.schema';
+import {
+  Transaction,
+  TransactionStatus,
+} from '../transactions/transactions.schema';
 import { ExportService } from '../../shared/export/export.service';
 
 const OID = (hex: string) => (hex + '0'.repeat(24)).slice(0, 24);
@@ -33,7 +36,6 @@ const mockDoc = (overrides = {}) => ({
   ...overrides,
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockModel: any = jest.fn(() => mockDoc());
 mockModel.findOne = jest.fn();
 mockModel.find = jest.fn();
@@ -94,17 +96,28 @@ describe('PassifsService', () => {
   describe('addOrIncreasePassif', () => {
     it('should return null when detentaire equals creancierId', async () => {
       const result = await service.addOrIncreasePassif(
-        USER_ID, DEPOT_ID, PRODUCT_ID, 50, USER_ID,
+        USER_ID,
+        DEPOT_ID,
+        PRODUCT_ID,
+        50,
+        USER_ID,
       );
       expect(result).toBeNull();
     });
 
     it('should increase quantity on existing passif', async () => {
-      const existingDoc = mockDoc({ quantite: 100, save: jest.fn().mockResolvedValue({ quantite: 150 }) });
+      const existingDoc = mockDoc({
+        quantite: 100,
+        save: jest.fn().mockResolvedValue({ quantite: 150 }),
+      });
       mockModel.findOne.mockResolvedValue(existingDoc);
 
       const result = await service.addOrIncreasePassif(
-        USER_ID, DEPOT_ID, PRODUCT_ID, 50, CREDITOR_ID,
+        USER_ID,
+        DEPOT_ID,
+        PRODUCT_ID,
+        50,
+        CREDITOR_ID,
       );
 
       expect(existingDoc.quantite).toBe(150);
@@ -124,7 +137,11 @@ describe('PassifsService', () => {
       mockModel.mockReturnValue(newDoc);
 
       const result = await service.addOrIncreasePassif(
-        USER_ID, DEPOT_ID, PRODUCT_ID, 50, CREDITOR_ID,
+        USER_ID,
+        DEPOT_ID,
+        PRODUCT_ID,
+        50,
+        CREDITOR_ID,
       );
 
       expect(mockModel).toHaveBeenCalledWith(
@@ -140,7 +157,10 @@ describe('PassifsService', () => {
 
   describe('decreasePassif', () => {
     it('should decrease quantity and set inactive when zero', async () => {
-      const doc = mockDoc({ quantite: 50, save: jest.fn().mockResolvedValue({ quantite: 0, isActive: false }) });
+      const doc = mockDoc({
+        quantite: 50,
+        save: jest.fn().mockResolvedValue({ quantite: 0, isActive: false }),
+      });
       mockModel.findOne.mockResolvedValue(doc);
 
       await service.decreasePassif(USER_ID, PRODUCT_ID, 50);
@@ -154,16 +174,26 @@ describe('PassifsService', () => {
     it('should do nothing when passif not found', async () => {
       mockModel.findOne.mockResolvedValue(null);
 
-      await expect(service.decreasePassif(USER_ID, PRODUCT_ID, 50)).resolves.toBeUndefined();
+      await expect(
+        service.decreasePassif(USER_ID, PRODUCT_ID, 50),
+      ).resolves.toBeUndefined();
     });
   });
 
   describe('decreasePassifByCreditor', () => {
     it('should decrease passif for specific creditor', async () => {
-      const doc = mockDoc({ quantite: 100, save: jest.fn().mockResolvedValue({ quantite: 70 }) });
+      const doc = mockDoc({
+        quantite: 100,
+        save: jest.fn().mockResolvedValue({ quantite: 70 }),
+      });
       mockModel.findOne.mockResolvedValue(doc);
 
-      await service.decreasePassifByCreditor(USER_ID, PRODUCT_ID, CREDITOR_ID, 30);
+      await service.decreasePassifByCreditor(
+        USER_ID,
+        PRODUCT_ID,
+        CREDITOR_ID,
+        30,
+      );
 
       expect(doc.quantite).toBe(70);
       expect(doc.save).toHaveBeenCalled();
@@ -173,7 +203,12 @@ describe('PassifsService', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       mockModel.findOne.mockResolvedValue(null);
 
-      await service.decreasePassifByCreditor(USER_ID, PRODUCT_ID, CREDITOR_ID, 30);
+      await service.decreasePassifByCreditor(
+        USER_ID,
+        PRODUCT_ID,
+        CREDITOR_ID,
+        30,
+      );
 
       expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
@@ -183,7 +218,9 @@ describe('PassifsService', () => {
   describe('transferDebtorByCreditor', () => {
     it('should transfer debt from one debtor to another', async () => {
       const docFrom = mockDoc({ quantite: 100, save: jest.fn() });
-      mockModel.findOne.mockResolvedValueOnce(docFrom).mockResolvedValueOnce(null);
+      mockModel.findOne
+        .mockResolvedValueOnce(docFrom)
+        .mockResolvedValueOnce(null);
 
       await service.transferDebtorByCreditor({
         fromDebtorId: USER_ID,
@@ -218,7 +255,13 @@ describe('PassifsService', () => {
       const doc = mockDoc({ quantite: 100, save: jest.fn() });
       mockModel.findOne.mockResolvedValueOnce(doc).mockResolvedValueOnce(null);
 
-      await service.updateCreancier(USER_ID, PRODUCT_ID, 30, CREDITOR_ID, OID('a00000000000c'));
+      await service.updateCreancier(
+        USER_ID,
+        PRODUCT_ID,
+        30,
+        CREDITOR_ID,
+        OID('a00000000000c'),
+      );
 
       expect(doc.quantite).toBe(70);
     });
@@ -284,7 +327,9 @@ describe('PassifsService', () => {
       populateMock1.mockReturnValue({ populate: populateMock2 });
       populateMock2.mockReturnValue({ populate: populateMock3 });
       populateMock3.mockReturnValue({ populate: populateMock4 });
-      populateMock4.mockReturnValue({ lean: jest.fn().mockReturnValue({ exec: execMock }) });
+      populateMock4.mockReturnValue({
+        lean: jest.fn().mockReturnValue({ exec: execMock }),
+      });
 
       const result: any = await service.getPassifDetails(OID('txId00000001'));
 
@@ -307,15 +352,21 @@ describe('PassifsService', () => {
       populateMock1.mockReturnValue({ populate: populateMock2 });
       populateMock2.mockReturnValue({ populate: populateMock3 });
       populateMock3.mockReturnValue({ populate: populateMock4 });
-      populateMock4.mockReturnValue({ lean: jest.fn().mockReturnValue({ exec: execMock }) });
+      populateMock4.mockReturnValue({
+        lean: jest.fn().mockReturnValue({ exec: execMock }),
+      });
 
-      await expect(service.getPassifDetails(OID('aabbccddee02'))).rejects.toThrow(NotFoundException);
+      await expect(
+        service.getPassifDetails(OID('aabbccddee02')),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('getAllPassifsByIdSite', () => {
     it('should return mapped passifs for a site', async () => {
-      const docs = [{ quantite: 50, productId: { _id: 'prod1', productName: 'Riz' } }];
+      const docs = [
+        { quantite: 50, productId: { _id: 'prod1', productName: 'Riz' } },
+      ];
       const execMock = jest.fn().mockResolvedValue(docs);
       const selectMock = jest.fn().mockReturnValue({ exec: execMock });
       const populateMock = jest.fn().mockReturnValue({ select: selectMock });
@@ -323,7 +374,9 @@ describe('PassifsService', () => {
 
       const results = await service.getAllPassifsByIdSite(DEPOT_ID);
 
-      expect(results).toEqual([{ quantite: 50, productId: 'prod1', productName: 'Riz' }]);
+      expect(results).toEqual([
+        { quantite: 50, productId: 'prod1', productName: 'Riz' },
+      ]);
     });
   });
 });

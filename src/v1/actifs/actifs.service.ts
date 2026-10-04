@@ -340,7 +340,11 @@ export class ActifsService {
       isActive: true,
     });
 
-    if (!actif || actif.quantiteEnAttente < quantite || actif.quantite < quantite) {
+    if (
+      !actif ||
+      actif.quantiteEnAttente < quantite ||
+      actif.quantite < quantite
+    ) {
       throw new NotFoundException(
         `Provisionnement de retour insuffisant à annuler. (En attente: ${actif?.quantiteEnAttente || 0}, Quantité: ${actif?.quantite || 0}, Demandé: ${quantite})`,
       );
@@ -670,7 +674,7 @@ export class ActifsService {
 
     return actifs;
   }
-  
+
   async getAvailableValidatedProducts(query: any) {
     const {
       page = 1,
@@ -1140,5 +1144,82 @@ export class ActifsService {
       depotId: new Types.ObjectId(depotId),
       productId: new Types.ObjectId(productId),
     });
+  }
+
+  /**
+   * Récupère la quantité vendable (disponible après réservations) par produit pour un site
+   * Retourne: quantite, productId, productName
+   */
+  async getQuantiteVendableBySite(siteId: string) {
+    return this.actifModel
+      .find({
+        depotId: new Types.ObjectId(siteId),
+        isActive: true,
+        quantite: { $gt: 0 },
+      })
+      .populate('productId', 'productName _id')
+      .select('quantite quantiteEnAttente productId detentaire ayant_droit')
+      .exec()
+      .then((actifs) => {
+        type PopulatedProduct = {
+          _id: Types.ObjectId;
+          productName: string;
+        };
+
+        const holdings = new Map<
+          string,
+          { quantite: number; productId: Types.ObjectId; productName: string }
+        >();
+        const products = new Map<
+          string,
+          { quantite: number; productId: Types.ObjectId; productName: string }
+        >();
+
+        actifs.forEach((a) => {
+          const product = a.productId as unknown as PopulatedProduct | null;
+          if (!product?._id) return;
+
+          const productId = product._id.toString();
+          const quantiteDisponible = Math.max(
+            0,
+            a.quantite - (a.quantiteEnAttente ?? 0),
+          );
+          const detentaireId = a.detentaire?.toString();
+          const ayantDroitId = a.ayant_droit?.toString();
+          const holdingId =
+            detentaireId && ayantDroitId
+              ? `${productId}:${detentaireId}:${ayantDroitId}`
+              : a._id.toString();
+          const existingHolding = holdings.get(holdingId);
+
+          if (existingHolding) {
+            existingHolding.quantite = Math.max(
+              existingHolding.quantite,
+              quantiteDisponible,
+            );
+            return;
+          }
+
+          holdings.set(holdingId, {
+            quantite: quantiteDisponible,
+            productId: product._id,
+            productName: product.productName,
+          });
+        });
+
+        holdings.forEach((holding) => {
+          const productId = holding.productId.toString();
+          const existing = products.get(productId);
+
+          if (existing) {
+            existing.quantite += holding.quantite;
+            return;
+          }
+
+          products.set(productId, { ...holding });
+        });
+
+        return [...products.values()];
+      });
   }
 }

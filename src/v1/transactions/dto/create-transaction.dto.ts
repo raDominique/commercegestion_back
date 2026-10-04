@@ -263,7 +263,7 @@ export class CreateVenteDto {
 
   @ApiProperty({
     description:
-      "Produit de contrepartie reçu en échange (optionnel, null = vente monétaire). " +
+      'Produit de contrepartie reçu en échange (optionnel, null = vente monétaire). ' +
       "Ex: si j'achète du Riz avec du Maïs, la contrepartie est le Maïs.",
     required: false,
     example: '69989c5cdff25ef7fe0a460f',
@@ -275,8 +275,8 @@ export class CreateVenteDto {
   @ApiProperty({
     description:
       "Rapport d'échange (remplace le prix unitaire). " +
-      "Quantité de contrepartie pour 1 unité du produit acheté. " +
-      "Ex: 500 FCFA/unité si vente monétaire, ou 2 (kg de Maïs pour 1 kg de Riz) si échange.",
+      'Quantité de contrepartie pour 1 unité du produit acheté. ' +
+      'Ex: 500 FCFA/unité si vente monétaire, ou 2 (kg de Maïs pour 1 kg de Riz) si échange.',
     example: 500,
   })
   @IsNumber({ maxDecimalPlaces: 6 })

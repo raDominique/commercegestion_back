@@ -1752,7 +1752,7 @@ export class TransactionsService {
           // WebSocket notification to recipient
           this.notificationsService
             .notifyUser(
-              recipientId!,
+              recipientId,
               `Nouveau ${recipientType}`,
               `Vous avez reçu un ${recipientType.toLowerCase()} de ${transaction.quantite} ${productName} (${transaction.transactionNumber})`,
             )

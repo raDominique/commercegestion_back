@@ -545,7 +545,7 @@ export class UsersController {
   @ApiOperation({
     summary: 'Liste paginée des filleuls par ID de parrain',
     description:
-      "Retourne les utilisateurs ayant choisi le parrain spécifié via son ID (code parrainage 8 carac.).",
+      'Retourne les utilisateurs ayant choisi le parrain spécifié via son ID (code parrainage 8 carac.).',
   })
   @ApiParam({ name: 'parrainId', example: 'XJ8K2P9W' })
   @ApiQuery({ name: 'page', required: false, example: 1 })

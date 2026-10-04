@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Transaction, TransactionStatus } from '../transactions/transactions.schema';
+import {
+  Transaction,
+  TransactionStatus,
+} from '../transactions/transactions.schema';
 import { Passif, PassifDocument } from './passifs.schema';
 import {
   ExportService,
@@ -298,14 +301,14 @@ export class PassifsService {
     if (passif) return passif;
 
     // Fallback: chercher dans les transactions PENDING (passif en attente d'approbation)
-    const pendingTx = await this.transactionModel
+    const pendingTx = (await this.transactionModel
       .findById(passifId)
       .populate('productId', 'productName codeCPC productImage prixUnitaire')
       .populate('siteDestinationId', 'siteName siteAddress siteLat siteLng')
       .populate('detentaire', 'userNickName userName userPhone userEmail')
       .populate('ayant_droit', 'userNickName userName userPhone userEmail')
       .lean()
-      .exec() as any;
+      .exec()) as any;
 
     if (!pendingTx || pendingTx.status !== TransactionStatus.PENDING) {
       throw new NotFoundException(`Passif avec l'ID ${passifId} non trouvé`);

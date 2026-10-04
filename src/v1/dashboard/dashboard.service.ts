@@ -19,8 +19,10 @@ export class DashboardService {
     @InjectModel(Transaction.name)
     private readonly transactionModel: Model<TransactionDocument>,
     @InjectModel(Actif.name) private readonly actifModel: Model<ActifDocument>,
-    @InjectModel(Passif.name) private readonly passifModel: Model<PassifDocument>,
-    @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
+    @InjectModel(Passif.name)
+    private readonly passifModel: Model<PassifDocument>,
+    @InjectModel(Product.name)
+    private readonly productModel: Model<ProductDocument>,
     @InjectModel(Site.name) private readonly siteModel: Model<SiteDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {}
@@ -187,7 +189,10 @@ export class DashboardService {
         { $match: transactionFilter },
         {
           $group: {
-            _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
+            _id: {
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' },
+            },
             count: { $sum: 1 },
             quantite: { $sum: '$quantite' },
           },
@@ -198,7 +203,10 @@ export class DashboardService {
         { $match: transactionFilter },
         {
           $group: {
-            _id: { year: { $isoWeekYear: '$createdAt' }, week: { $isoWeek: '$createdAt' } },
+            _id: {
+              year: { $isoWeekYear: '$createdAt' },
+              week: { $isoWeek: '$createdAt' },
+            },
             count: { $sum: 1 },
             quantite: { $sum: '$quantite' },
           },

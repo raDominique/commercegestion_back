@@ -734,7 +734,7 @@ Erreurs possibles:
     required: false,
     type: Boolean,
     description:
-      "Regrouper les lignes par produit + dépôt (défaut: false, une ligne par mouvement)",
+      'Regrouper les lignes par produit + dépôt (défaut: false, une ligne par mouvement)',
     example: false,
   })
   @ApiResponse({
@@ -927,7 +927,7 @@ Erreurs possibles:
     required: false,
     type: Boolean,
     description:
-      "Regrouper les lignes par produit + dépôt (défaut: false, une ligne par mouvement)",
+      'Regrouper les lignes par produit + dépôt (défaut: false, une ligne par mouvement)',
     example: false,
   })
   @ApiResponse({

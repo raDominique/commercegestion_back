@@ -4,7 +4,10 @@ import { ActifsService } from './actifs.service';
 import { ActifsController } from './actifs.controller';
 import { Actif, ActifSchema } from './actifs.schema';
 import { ProductsModule } from '../products/products.module';
-import { Transaction, TransactionSchema } from '../transactions/transactions.schema';
+import {
+  Transaction,
+  TransactionSchema,
+} from '../transactions/transactions.schema';
 
 @Module({
   imports: [
