@@ -1198,7 +1198,7 @@ export class LedgerDisplayService {
   }
 
   /**
-   * Fusionne les lignes d'actifs par (productId + depotId) — mode group=true.
+   * Fusionne les lignes d'actifs par (productId + depotId + status + type) — mode group=true.
    * Les quantités sont sommées, les ids cumulés, le statut agrégé (PENDING si
    * au moins une ligne en attente, sinon APPROVED) et les ayant-droits unifiés.
    */
@@ -1206,7 +1206,7 @@ export class LedgerDisplayService {
     const grouped = new Map<string, any>();
 
     for (const line of lines) {
-      const key = `${line.productId || 'N/A'}|${line.depotId || 'N/A'}`;
+      const key = `${line.productId || 'N/A'}|${line.depotId || 'N/A'}|${line.status || 'N/A'}|${line.type || 'N/A'}`;
       const q = line.quantite || 0;
       const qAtt = line.quantiteEnAttente || 0;
 
