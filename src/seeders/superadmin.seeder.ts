@@ -69,11 +69,18 @@ export class SuperAdminSeeder implements Seeder {
             });
         });
       }
-    } catch (error) {
-      this.logger.error(
-        "Échec de la préparation de l'avatar du seeder",
-        error.message,
-      );
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        this.logger.error(
+          "Échec de la préparation de l'avatar du seeder",
+          error.message,
+        );
+      } else {
+        this.logger.error(
+          "Échec de la préparation de l'avatar du seeder",
+          String(error),
+        );
+      }
     }
 
     // --- VÉRIFICATION & CRÉATION USER ---
