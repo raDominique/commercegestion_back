@@ -14,6 +14,7 @@ import { LogoutDto } from './dto/logout.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { Verify2FADto, Disable2FADto } from './dto/two-factor.dto';
 import { Auth } from './decorators/auth.decorator';
 
 @ApiTags('Authentication')
@@ -50,8 +51,9 @@ export class AuthController {
     @Body('userEmail') userEmail: string,
     @Body('userPassword') userPassword: string,
     @Req() req: Request,
+    @Body('totpToken') totpToken?: string,
   ) {
-    return this.authService.login(userEmail, userPassword, req);
+    return this.authService.login(userEmail, userPassword, req, totpToken);
   }
 
   @Post('refresh')
@@ -203,18 +205,26 @@ export class AuthController {
 
   @Post('2fa/enable')
   @Auth()
+  @ApiOperation({ summary: 'Activer la 2FA (génère un QR code)' })
+  @ApiResponse({ status: 201, description: 'QR code et secret générés' })
   enable2FA(@Req() req: any) {
     return this.authService.enable2FA(req.user.userId);
   }
 
   @Post('2fa/verify')
   @Auth()
+  @ApiOperation({ summary: 'Vérifier et activer la 2FA' })
+  @ApiBody({ type: Verify2FADto })
+  @ApiResponse({ status: 201, description: '2FA activée' })
   verify2FA(@Req() req: any, @Body('token') token: string) {
     return this.authService.verify2FA(req.user.userId, token);
   }
 
   @Post('2fa/disable')
   @Auth()
+  @ApiOperation({ summary: 'Désactiver la 2FA' })
+  @ApiBody({ type: Disable2FADto })
+  @ApiResponse({ status: 201, description: '2FA désactivée' })
   disable2FA(@Req() req: any, @Body('token') token: string) {
     return this.authService.disable2FA(req.user.userId, token);
   }

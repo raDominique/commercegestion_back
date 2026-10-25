@@ -38,7 +38,7 @@ export class AuthService {
   }
 
   /** Login utilisateur */
-  async login(userEmail: string, userPassword: string, req: Request) {
+  async login(userEmail: string, userPassword: string, req: Request, totpToken?: string) {
     const user = await this.usersService.findByEmailWithPassword(userEmail);
 
     if (!user) {
@@ -55,6 +55,23 @@ export class AuthService {
     if (!match) {
       await this.logAudit(user._id.toString(), AuditAction.LOGIN, req);
       throw new UnauthorizedException(AuthErrorMessage.INVALID_CREDENTIALS);
+    }
+
+    if (user.twoFactorEnabled) {
+      if (!totpToken) {
+        throw new UnauthorizedException('Code 2FA requis');
+      }
+      const userWithSecret = await this.usersService.findByIdWithSecret(
+        user._id.toString(),
+      );
+      const valid = verify({
+        token: totpToken,
+        secret: userWithSecret?.twoFactorSecret,
+      });
+      if (!valid) {
+        await this.logAudit(user._id.toString(), AuditAction.LOGIN, req);
+        throw new UnauthorizedException('Code 2FA invalide');
+      }
     }
 
     const payload = {
