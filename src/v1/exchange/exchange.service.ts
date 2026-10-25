@@ -27,9 +27,14 @@ export class ExchangeService {
 
   async createOffer(dto: CreateExchangeOfferDto, vendeurId: string) {
     if (!dto.acceptedDetenteurBIds || dto.acceptedDetenteurBIds.length === 0) {
-      throw new BadRequestException(
-        'Veuillez renseigner au moins un détenteur accepté (Y) pour le produit de contrepartie (B).',
-      );
+      // Cas Y = W : le même détenteur peut servir de contrepartie
+      if (dto.detentaireAId) {
+        dto.acceptedDetenteurBIds = [dto.detentaireAId];
+      } else {
+        throw new BadRequestException(
+          'Veuillez renseigner au moins un détenteur accepté (Y) pour le produit de contrepartie (B).',
+        );
+      }
     }
 
     // Validation: le vendeur doit disposer d'un actif A chez le détenteur W au dépôt indiqué
