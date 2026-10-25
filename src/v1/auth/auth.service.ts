@@ -18,6 +18,8 @@ import { AuditAction, EntityType } from '../audit/audit-log.schema';
 import { AuthErrorMessage } from './errors/auth-error.messages';
 import { MailService } from 'src/shared/mail/mail.service';
 import { ConfigService } from '@nestjs/config';
+import { generateSecret, verify, generateURI } from 'otplib';
+import * as qrcode from 'qrcode';
 
 @Injectable()
 export class AuthService {
@@ -313,5 +315,31 @@ export class AuthService {
       status: 'success',
       message: 'Votre mot de passe a été changé avec succès.',
     };
+  }
+
+  async enable2FA(userId: string) {
+    const secret = generateSecret();
+    await this.usersService.update2FAFields(userId, { twoFactorSecret: secret });
+    const otpauth = generateURI({ issuer: 'CommerceGestion', label: userId, secret });
+    const qrCodeDataUrl = await qrcode.toDataURL(otpauth);
+    return { secret, qrCodeDataUrl };
+  }
+
+  async verify2FA(userId: string, token: string) {
+    const user = await this.usersService.findByIdWithSecret(userId);
+    if (!user?.twoFactorSecret) throw new BadRequestException('2FA non initialisée');
+    const valid = verify({ token, secret: user.twoFactorSecret });
+    if (!valid) throw new BadRequestException('Code invalide');
+    await this.usersService.update2FAFields(userId, { twoFactorEnabled: true });
+    return { enabled: true };
+  }
+
+  async disable2FA(userId: string, token: string) {
+    const user = await this.usersService.findByIdWithSecret(userId);
+    if (!user?.twoFactorEnabled) throw new BadRequestException('2FA non activée');
+    const valid = verify({ token, secret: user.twoFactorSecret });
+    if (!valid) throw new BadRequestException('Code invalide');
+    await this.usersService.update2FAFields(userId, { twoFactorEnabled: false, twoFactorSecret: null });
+    return { enabled: false };
   }
 }

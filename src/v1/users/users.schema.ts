@@ -125,6 +125,16 @@ export class User {
   @Prop({ default: null })
   resetPasswordExpires?: Date;
 
+  // ==================== 2FA (TOTP) ====================
+  @Prop({ default: null, select: false })
+  twoFactorSecret?: string;
+
+  @Prop({ default: false })
+  twoFactorEnabled: boolean;
+
+  @Prop({ type: [String], default: [] })
+  twoFactorBackupCodes?: string[];
+
   // ==================== PARRAINAGE ====================
   @Prop()
   parrain1ID?: string;

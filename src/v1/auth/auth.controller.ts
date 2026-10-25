@@ -200,4 +200,22 @@ export class AuthController {
       req,
     );
   }
+
+  @Post('2fa/enable')
+  @Auth()
+  enable2FA(@Req() req: any) {
+    return this.authService.enable2FA(req.user.userId);
+  }
+
+  @Post('2fa/verify')
+  @Auth()
+  verify2FA(@Req() req: any, @Body('token') token: string) {
+    return this.authService.verify2FA(req.user.userId, token);
+  }
+
+  @Post('2fa/disable')
+  @Auth()
+  disable2FA(@Req() req: any, @Body('token') token: string) {
+    return this.authService.disable2FA(req.user.userId, token);
+  }
 }

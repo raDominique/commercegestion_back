@@ -701,6 +701,17 @@ export class UsersService implements OnModuleInit {
   /**
    * Utilisé par AuthService pour vérifier l'ancien mot de passe
    */
+  async findByIdWithSecret(userId: string): Promise<any> {
+    return this.userModel
+      .findOne({ _id: new (require('mongoose').Types.ObjectId)(userId), deletedAt: null })
+      .select('+twoFactorSecret')
+      .exec();
+  }
+
+  async update2FAFields(userId: string, fields: any): Promise<void> {
+    await this.userModel.updateOne({ _id: new (require('mongoose').Types.ObjectId)(userId) }, fields);
+  }
+
   async findByIdWithPassword(userId: string): Promise<PaginationResult<User>> {
     const user = await this.userModel
       .findOne({ _id: new Types.ObjectId(userId), deletedAt: null })
