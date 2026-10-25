@@ -596,7 +596,7 @@ export class ActifsService {
         isActive: true,
       })
       .populate('productId')
-      .populate('detentaire', 'userName userNickName')
+      .populate('detentaire', 'userName userEmail userNickName')
       .populate('depotId', 'siteId siteName siteAddress location')
       .exec();
   }
@@ -605,8 +605,8 @@ export class ActifsService {
     const actif = await this.actifModel
       .findById(actifId)
       .populate('productId', 'productName codeCPC productImage prixUnitaire') // Détails techniques du produit
-      .populate('ayant_droit', 'userNickName userName userPhone') // Le propriétaire (souvent l'utilisateur lui-même)
-      .populate('detentaire', 'userNickName userName userPhone') // Le gardien actuel (ex: Hangar ou Transporteur)
+      .populate('ayant_droit', 'userNickName userName userEmail userPhone') // Le propriétaire (souvent l'utilisateur lui-même)
+      .populate('detentaire', 'userNickName userName userEmail userPhone') // Le gardien actuel (ex: Hangar ou Transporteur)
       .populate('depotId', 'siteId siteName siteAddress location') // Localisation géographique
       .exec();
 
@@ -629,8 +629,8 @@ export class ActifsService {
     const actifs = await this.actifModel
       .find({ _id: { $in: objectIds } })
       .populate('productId', 'productName codeCPC productImage prixUnitaire')
-      .populate('ayant_droit', 'userNickName userName userPhone')
-      .populate('detentaire', 'userNickName userName userPhone')
+      .populate('ayant_droit', 'userNickName userName userEmail userPhone')
+      .populate('detentaire', 'userNickName userName userEmail userPhone')
       .populate('depotId', 'siteId siteName siteAddress location')
       .lean()
       .exec();
@@ -652,10 +652,10 @@ export class ActifsService {
             'productId',
             'productName codeCPC productImage prixUnitaire',
           )
-          .populate('initiatorId', 'userNickName userName userPhone')
-          .populate('recipientId', 'userNickName userName userPhone')
-          .populate('ayant_droit', 'userNickName userName userPhone')
-          .populate('detentaire', 'userNickName userName userPhone')
+          .populate('initiatorId', 'userNickName userName userEmail userPhone')
+          .populate('recipientId', 'userNickName userName userEmail userPhone')
+          .populate('ayant_droit', 'userNickName userName userEmail userPhone')
+          .populate('detentaire', 'userNickName userName userEmail userPhone')
           .populate('siteOrigineId', 'siteId siteName siteAddress location')
           .populate('siteDestinationId', 'siteId siteName siteAddress location')
           .lean()
@@ -731,7 +731,7 @@ export class ActifsService {
       this.actifModel
         .find(actifFilter)
         .populate('productId')
-        .populate('ayant_droit', 'userNickName raisonSocial')
+        .populate('ayant_droit', 'userNickName userEmail raisonSocial')
         .populate('depotId', 'siteName siteAddress')
         .sort(finalSort) // Trie sur prixUnitaire ou createdAt
         .skip(skip)

@@ -91,12 +91,12 @@ export class LedgerDisplayService {
       })
       .sort({ createdAt: 1 }) // Tri ascendant pour le calcul chronologique du stock
       .populate([
-        { path: 'initiatorId', select: 'userFirstname userName' },
-        { path: 'recipientId', select: 'userFirstname userName' },
+        { path: 'initiatorId', select: 'userFirstname userName userEmail' },
+        { path: 'recipientId', select: 'userFirstname userName userEmail' },
         { path: 'productId', select: 'productName codeCPC' },
         { path: 'siteOrigineId', select: 'siteName' },
         { path: 'siteDestinationId', select: 'siteName' },
-        { path: 'detentaire', select: 'userFirstname userName' },
+        { path: 'detentaire', select: 'userFirstname userName userEmail' },
       ])
       .exec();
 
@@ -304,12 +304,12 @@ export class LedgerDisplayService {
       .skip(skip)
       .limit(limit)
       .populate([
-        { path: 'initiatorId', select: 'userFirstname userName' },
-        { path: 'recipientId', select: 'userFirstname userName' },
+        { path: 'initiatorId', select: 'userFirstname userName userEmail' },
+        { path: 'recipientId', select: 'userFirstname userName userEmail' },
         { path: 'productId', select: 'name' },
         { path: 'siteOrigineId', select: 'name' },
         { path: 'siteDestinationId', select: 'name' },
-        { path: 'detentaire', select: 'userFirstname userName' },
+        { path: 'detentaire', select: 'userFirstname userName userEmail' },
       ])
       .exec();
 
@@ -353,12 +353,12 @@ export class LedgerDisplayService {
       .find(query)
       .sort({ approvedAt: -1 })
       .populate([
-        { path: 'initiatorId', select: 'userFirstname userName' },
-        { path: 'recipientId', select: 'userFirstname userName' },
+        { path: 'initiatorId', select: 'userFirstname userName userEmail' },
+        { path: 'recipientId', select: 'userFirstname userName userEmail' },
         { path: 'productId', select: 'name' },
         { path: 'siteOrigineId', select: 'name' },
         { path: 'siteDestinationId', select: 'name' },
-        { path: 'detentaire', select: 'userFirstname userName' },
+        { path: 'detentaire', select: 'userFirstname userName userEmail' },
       ])
       .exec();
 
@@ -753,12 +753,12 @@ export class LedgerDisplayService {
       })
       .sort({ approvedAt: 1 })
       .populate([
-        { path: 'initiatorId', select: 'userFirstname userName' },
-        { path: 'recipientId', select: 'userFirstname userName' },
+        { path: 'initiatorId', select: 'userFirstname userName userEmail' },
+        { path: 'recipientId', select: 'userFirstname userName userEmail' },
         { path: 'productId', select: 'productName codeCPC' },
         { path: 'siteOrigineId', select: 'siteName' },
-        { path: 'detentaire', select: 'userFirstname userName' },
-        { path: 'ayant_droit', select: 'userFirstname userName' },
+        { path: 'detentaire', select: 'userFirstname userName userEmail' },
+        { path: 'ayant_droit', select: 'userFirstname userName userEmail' },
       ])
       .exec();
 
@@ -925,16 +925,16 @@ export class LedgerDisplayService {
           select: 'siteId siteName siteAddress location siteUserID',
           populate: {
             path: 'siteUserID',
-            select: 'userName userFirstname userPhone',
+            select: 'userName userFirstname userEmail userPhone',
           },
         },
         {
           path: 'detentaire',
-          select: 'userName userFirstname userPhone',
+          select: 'userName userFirstname userEmail userPhone',
         },
         {
           path: 'ayant_droit',
-          select: 'userName userFirstname userPhone',
+          select: 'userName userFirstname userEmail userPhone',
         },
       ])
       .lean()
@@ -1011,16 +1011,16 @@ export class LedgerDisplayService {
           select: 'siteId siteName siteAddress location siteUserID',
           populate: {
             path: 'siteUserID',
-            select: 'userName userFirstname userPhone',
+            select: 'userName userFirstname userEmail userPhone',
           },
         },
         {
           path: 'detentaire',
-          select: 'userName userFirstname userPhone',
+          select: 'userName userFirstname userEmail userPhone',
         },
         {
           path: 'ayant_droit',
-          select: 'userName userFirstname userPhone',
+          select: 'userName userFirstname userEmail userPhone',
         },
       ])
       .lean()
@@ -1102,16 +1102,16 @@ export class LedgerDisplayService {
             select: 'siteId siteName siteAddress location siteUserID',
             populate: {
               path: 'siteUserID',
-              select: 'userName userFirstname',
+              select: 'userName userFirstname userEmail userPhone',
             },
           },
           {
             path: 'detentaire',
-            select: '_id userName userFirstname userPhone',
+            select: '_id userName userFirstname userEmail userPhone',
           },
           {
             path: 'ayant_droit',
-            select: '_id userName userFirstname userPhone',
+            select: '_id userName userFirstname userEmail userPhone',
           },
         ])
         .lean()
@@ -1270,6 +1270,57 @@ export class LedgerDisplayService {
   }
 
   /**
+   * Fusionne les lignes de passifs par (productId + depotId + status + type + ayantDroitId).
+   * Contrairement à groupActifLines, la clé inclut l'ayant droit afin de ne JAMAIS
+   * fusionner des passifs appartenant à des ayants droit différents (bug historique).
+   */
+  private groupPassifLines(lines: any[]): any[] {
+    const grouped = new Map<string, any>();
+
+    for (const line of lines) {
+      const key = `${line.productId || 'N/A'}|${line.depotId || 'N/A'}|${line.status || 'N/A'}|${line.type || 'N/A'}|${line.ayantDroitId || 'N/A'}`;
+      const q = line.quantite || 0;
+      const qAtt = line.quantiteEnAttente || 0;
+
+      if (grouped.has(key)) {
+        const existing = grouped.get(key);
+        existing.ids.push(...(line.ids || []));
+        existing.quantite += q;
+        existing.quantiteEnAttente += qAtt;
+        existing.quantiteDisponible = Math.max(
+          0,
+          existing.quantite - existing.quantiteEnAttente,
+        );
+        if (
+          line.dateCreation &&
+          new Date(line.dateCreation) > new Date(existing.dateCreation)
+        ) {
+          existing.dateCreation = line.dateCreation;
+        }
+        if (
+          line.dateModification &&
+          new Date(line.dateModification) > new Date(existing.dateModification)
+        ) {
+          existing.dateModification = line.dateModification;
+        }
+      } else {
+        grouped.set(key, {
+          ...line,
+          ids: [...(line.ids || [])],
+          ayantDroits:
+            line.ayantDroit && line.ayantDroit !== 'N/A'
+              ? [...new Set([...(line.ayantDroits || []), line.ayantDroit])]
+              : [...(line.ayantDroits || [])],
+        });
+      }
+    }
+
+    return Array.from(grouped.values()).sort(
+      (a, b) =>
+        new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime(),
+    );
+  }
+  /**
    * Récupère les PASSIFS BRUTS (Stock Movement + Transaction) pour un utilisateur avec pagination et search
    * Ceci affiche les passifs créés par TOUS les mouvements (Stock Movement + Transaction)
    * C'est l'endpoint critique pour afficher les passifs du /stock/depot
@@ -1308,15 +1359,15 @@ export class LedgerDisplayService {
         {
           path: 'siteDestinationId',
           select: 'siteId siteName siteAddress location siteUserID',
-          populate: { path: 'siteUserID', select: 'userName userFirstname' },
+          populate: { path: 'siteUserID', select: 'userName userFirstname userEmail userPhone' },
         },
         {
           path: 'detentaire',
-          select: 'userName userFirstname userPhone',
+          select: 'userName userFirstname userEmail userPhone',
         },
         {
           path: 'ayant_droit',
-          select: 'userName userFirstname userPhone',
+          select: 'userName userFirstname userEmail userPhone',
         },
       ])
       .lean()
@@ -1352,7 +1403,7 @@ export class LedgerDisplayService {
           ? `${tx.detentaire.userName} ${tx.detentaire.userFirstname}`
           : 'N/A',
         ayantDroit: tx.ayant_droit
-          ? `${tx.ayant_droit.userName} ${tx.ayant_droit.userFirstname}`
+          ? tx.ayant_droit.userEmail || 'N/A'
           : 'N/A',
         detentaireId: tx.detentaire?._id || null,
         ayantDroitId: tx.ayant_droit?._id || null,
@@ -1380,15 +1431,15 @@ export class LedgerDisplayService {
         {
           path: 'siteOrigineId',
           select: 'siteId siteName siteAddress location siteUserID',
-          populate: { path: 'siteUserID', select: 'userName userFirstname' },
+          populate: { path: 'siteUserID', select: 'userName userFirstname userEmail ' },
         },
         {
           path: 'detentaire',
-          select: 'userName userFirstname userPhone',
+          select: 'userName userFirstname userEmail userPhone',
         },
         {
           path: 'ayant_droit',
-          select: 'userName userFirstname userPhone',
+          select: 'userName userFirstname userEmail userPhone',
         },
       ])
       .lean()
@@ -1423,7 +1474,7 @@ export class LedgerDisplayService {
           ? `${tx.detentaire.userName} ${tx.detentaire.userFirstname}`
           : 'N/A',
         ayantDroit: tx.ayant_droit
-          ? `${tx.ayant_droit.userName} ${tx.ayant_droit.userFirstname}`
+          ? tx.ayant_droit.userEmail || 'N/A'
           : 'N/A',
         detentaireId: tx.detentaire?._id || null,
         ayantDroitId: tx.ayant_droit?._id || null,
@@ -1463,16 +1514,16 @@ export class LedgerDisplayService {
             select: 'siteId siteName siteAddress location siteUserID',
             populate: {
               path: 'siteUserID',
-              select: 'userName userFirstname',
+              select: 'userName userFirstname userEmail',
             },
           },
           {
             path: 'detentaire',
-            select: 'userName userFirstname userPhone',
+            select: 'userName userFirstname userEmail userPhone',
           },
           {
             path: 'ayant_droit',
-            select: 'userName userFirstname userPhone',
+            select: 'userName userFirstname userEmail userPhone',
           },
         ])
         .lean()
@@ -1503,7 +1554,7 @@ export class LedgerDisplayService {
         ? `${passif.detentaire.userFirstname} ${passif.detentaire.userName}`
         : 'N/A',
       ayantDroit: passif.ayant_droit
-        ? `${passif.ayant_droit.userFirstname} ${passif.ayant_droit.userName}`
+        ? passif.ayant_droit.userEmail || 'N/A'
         : 'N/A',
       detentaireId: passif.detentaire?._id || null,
       ayantDroitId: passif.ayant_droit?._id || null,
@@ -1525,7 +1576,7 @@ export class LedgerDisplayService {
         new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime(),
     );
 
-    const finalLines = group ? this.groupActifLines(merged) : merged;
+    const finalLines = group ? this.groupPassifLines(merged) : merged;
 
     const total = finalLines.length;
     const data = finalLines.slice(skip, skip + limit);
