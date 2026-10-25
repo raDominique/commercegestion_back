@@ -1125,8 +1125,7 @@ export class LedgerDisplayService {
       const quantiteDisponible = Math.max(0, quantite - enAttente);
       const detentaireId = actif.detentaire?._id?.toString();
       const ayantDroitId = actif.ayant_droit?._id?.toString();
-      const isTransferableDeposit =
-        ayantDroitId === userId && detentaireId !== userId;
+      const isTransferableDeposit = ayantDroitId === userId;
       const quantiteMaxTransferable = isTransferableDeposit
         ? quantiteDisponible
         : 0;
