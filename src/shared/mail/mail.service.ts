@@ -431,8 +431,9 @@ export class MailService {
       template: templateName,
       context: {
         envoyeurName: envoyeurName,
-        recipientName,
-        recipientEmail,
+        recipientName: recipientEmail || recipientName,
+        recipientEmail: recipientEmail || to,
+        userEmail: recipientEmail || to,
         transactionType,
         productName,
         quantity,
