@@ -977,7 +977,7 @@ export class LedgerDisplayService {
           : 'N/A',
         detentaireId: tx.detentaire?._id || null,
         ayantDroit: tx.ayant_droit
-          ? `${tx.ayant_droit.userFirstname} ${tx.ayant_droit.userName}`
+          ? tx.ayant_droit.userEmail || 'N/A'
           : 'N/A',
         ayantDroitId: tx.ayant_droit?._id || null,
         dateCreation: tx.createdAt,
@@ -1063,7 +1063,7 @@ export class LedgerDisplayService {
           : 'N/A',
         detentaireId: tx.detentaire?._id || null,
         ayantDroit: tx.ayant_droit
-          ? `${tx.ayant_droit.userFirstname} ${tx.ayant_droit.userName}`
+          ? tx.ayant_droit.userEmail || 'N/A'
           : 'N/A',
         ayantDroitId: tx.ayant_droit?._id || null,
         dateCreation: tx.createdAt,
@@ -1156,7 +1156,7 @@ export class LedgerDisplayService {
           : 'N/A',
         detentaireId: actif.detentaire?._id || null,
         ayantDroit: actif.ayant_droit
-          ? `${actif.ayant_droit.userFirstname} ${actif.ayant_droit.userName}`
+          ? actif.ayant_droit.userEmail || 'N/A'
           : 'N/A',
         ayantDroitId: actif.ayant_droit?._id || null,
         ayantDroits: actif.ayant_droit
