@@ -973,7 +973,7 @@ export class LedgerDisplayService {
         depot: tx.siteDestinationId?.siteName || 'N/A',
         depotAdresse: tx.siteDestinationId?.siteAddress || 'N/A',
         detentaire: tx.detentaire
-          ? `${tx.detentaire.userFirstname} ${tx.detentaire.userName}`
+          ? tx.detentaire.userEmail || 'N/A'
           : 'N/A',
         detentaireId: tx.detentaire?._id || null,
         ayantDroit: tx.ayant_droit
@@ -1059,7 +1059,7 @@ export class LedgerDisplayService {
         depot: tx.siteOrigineId?.siteName || 'N/A',
         depotAdresse: tx.siteOrigineId?.siteAddress || 'N/A',
         detentaire: tx.detentaire
-          ? `${tx.detentaire.userFirstname} ${tx.detentaire.userName}`
+          ? tx.detentaire.userEmail || 'N/A'
           : 'N/A',
         detentaireId: tx.detentaire?._id || null,
         ayantDroit: tx.ayant_droit
@@ -1152,7 +1152,7 @@ export class LedgerDisplayService {
         depot: actif.depotId?.siteName || 'N/A',
         depotAdresse: actif.depotId?.siteAddress || 'N/A',
         detentaire: actif.detentaire
-          ? `${actif.detentaire.userFirstname} ${actif.detentaire.userName}`
+          ? actif.detentaire.userEmail || 'N/A'
           : 'N/A',
         detentaireId: actif.detentaire?._id || null,
         ayantDroit: actif.ayant_droit
@@ -1399,7 +1399,7 @@ export class LedgerDisplayService {
         depot: tx.siteDestinationId?.siteName || 'N/A',
         depotAdresse: tx.siteDestinationId?.siteAddress || 'N/A',
         detentaire: tx.detentaire
-          ? `${tx.detentaire.userName} ${tx.detentaire.userFirstname}`
+          ? tx.detentaire.userEmail || 'N/A'
           : 'N/A',
         ayantDroit: tx.ayant_droit
           ? tx.ayant_droit.userEmail || 'N/A'
@@ -1470,7 +1470,7 @@ export class LedgerDisplayService {
         depot: tx.siteOrigineId?.siteName || 'N/A',
         depotAdresse: tx.siteOrigineId?.siteAddress || 'N/A',
         detentaire: tx.detentaire
-          ? `${tx.detentaire.userName} ${tx.detentaire.userFirstname}`
+          ? tx.detentaire.userEmail || 'N/A'
           : 'N/A',
         ayantDroit: tx.ayant_droit
           ? tx.ayant_droit.userEmail || 'N/A'
@@ -1550,7 +1550,7 @@ export class LedgerDisplayService {
       depot: passif.depotId?.siteName || 'N/A',
       depotAdresse: passif.depotId?.siteAddress || 'N/A',
       detentaire: passif.detentaire
-        ? `${passif.detentaire.userFirstname} ${passif.detentaire.userName}`
+        ? passif.detentaire.userEmail || 'N/A'
         : 'N/A',
       ayantDroit: passif.ayant_droit
         ? passif.ayant_droit.userEmail || 'N/A'
