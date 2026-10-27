@@ -219,14 +219,36 @@ export class AuthController {
   }
 
   @Post('2fa/complete')
-  @ApiOperation({ summary: 'Seconde étape du login 2FA (TOTP)' })
+  @ApiOperation({ summary: 'Seconde étape du login 2FA (TOTP ou Email OTP)' })
   @ApiResponse({ status: 201, description: 'Session créée' })
+  @ApiResponse({ status: 401, description: 'Code 2FA invalide ou session expirée' })
   complete2FA(
     @Body('loginChallenge') loginChallenge: string,
-    @Body('totpToken') totpToken: string,
+    @Req() req: Request,
+    @Body('totpToken') totpToken?: string,
+    @Body('emailOtpToken') emailOtpToken?: string,
+  ) {
+    return this.authService.complete2FA(
+      loginChallenge,
+      req,
+      totpToken,
+      emailOtpToken,
+    );
+  }
+
+  @Post('2fa/email-challenge')
+  @ApiOperation({ summary: 'Envoyer un code OTP par email pour le 2FA' })
+  @ApiResponse({ status: 201, description: 'Code envoyé' })
+  @ApiResponse({
+    status: 400,
+    description: 'Trop de demandes de code (max 3 / 15 min)',
+  })
+  @ApiResponse({ status: 401, description: 'Session 2FA expirée ou invalide' })
+  sendEmailChallenge(
+    @Body('loginChallenge') loginChallenge: string,
     @Req() req: Request,
   ) {
-    return this.authService.complete2FA(loginChallenge, totpToken, req);
+    return this.authService.sendEmailChallenge(loginChallenge, req);
   }
 
   @Post('2fa/enable')

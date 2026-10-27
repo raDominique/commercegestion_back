@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code de vérification 2FA - {{appName}}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f1eb; padding: 28px 16px; color: #263238; }
+    .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 16px 40px rgba(48,40,32,.14); }
+    .header { padding: 34px 36px 28px; background: linear-gradient(135deg,#2169a8,#3d8dcc); text-align: center; }
+    .header h1 { color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -.45px; }
+    .header p { color: rgba(255,255,255,0.9); font-size: 14px; margin-top: 7px; }
+    .content { padding: 34px 36px 28px; }
+    .greeting { font-size: 16px; font-weight: 600; margin-bottom: 14px; }
+    .message { color: #5d6669; line-height: 1.7; margin-bottom: 26px; font-size: 15px; }
+    .code-container { text-align: center; margin: 32px 0; }
+    .code { display: inline-block; font-size: 36px; font-weight: 700; letter-spacing: 12px; padding: 16px 32px; background: #f8f9fa; border: 2px solid #dadce0; border-radius: 12px; color: #202124; font-family: 'Courier New', monospace; }
+    .status-box { padding: 16px 18px; margin: 24px 0; border-radius: 12px; font-size: 14px; line-height: 1.65; background: #fff5e5; color: #865214; }
+    .status-box strong { display: block; margin-bottom: 4px; font-size: 15px; font-weight: 700; }
+    .support { text-align: center; font-size: 14px; color: #697477; line-height: 1.8; margin-top: 26px; padding-top: 20px; border-top: 1px solid #ebe2d8; }
+    .support a { color: #2169a8; text-decoration: none; font-weight: 600; }
+    .footer { padding: 20px 36px; text-align: center; font-size: 13px; color: #7c8586; line-height: 1.8; background: #faf8f5; border-top: 1px solid #ebe2d8; }
+    @media (max-width: 600px) {
+      body { padding: 12px; }
+      .email-container { border-radius: 14px; }
+      .header { padding: 28px 22px 22px; }
+      .content { padding: 28px 22px 22px; }
+      .code { font-size: 28px; letter-spacing: 8px; padding: 12px 20px; }
+      .footer { padding: 18px 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <h1>Authentification à deux facteurs</h1>
+      <p>Code de vérification</p>
+    </div>
+    <div class="content">
+      <p class="greeting">Bonjour {{name}},</p>
+      <p class="message">Votre code de vérification pour vous connecter à {{appName}} est :</p>
+
+      <div class="code-container">
+        <div class="code">{{code}}</div>
+      </div>
+
+      <div class="status-box">
+        <strong>Important</strong>
+        Ce code est valable pendant {{expiresIn}} minutes. Ne le partagez avec personne. Si vous n'avez pas demandé ce code, veuillez ignorer cet email.
+      </div>
+
+      <div class="support">
+        <strong>Besoin d'aide ?</strong><br />
+        <a href="{{supportLink}}">Contacter notre support</a>
+      </div>
+    </div>
+    <div class="footer">
+      <p>&copy; 2026 {{appName}}. Tous droits réservés.</p>
+    </div>
+  </div>
+</body>
+</html>

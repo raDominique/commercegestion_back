@@ -547,4 +547,24 @@ export class MailService {
       context: { ...context, appName: this.appName },
     });
   }
+
+  async sendTwoFactorCodeEmail(
+    to: string,
+    name: string,
+    code: string,
+    expiresInMinutes: number = 10,
+  ) {
+    await this.mailQueue.enqueue({
+      to,
+      subject: `Votre code de vérification 2FA - ${this.appName}`,
+      template: 'two-factor-code',
+      context: {
+        name,
+        code,
+        expiresIn: expiresInMinutes.toString(),
+        supportLink: `${this.frontUrl}/support`,
+        appName: this.appName,
+      },
+    });
+  }
 }

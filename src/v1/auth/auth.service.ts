@@ -20,6 +20,7 @@ import { MailService } from 'src/shared/mail/mail.service';
 import { ConfigService } from '@nestjs/config';
 import { generateSecret, verify, generateURI } from 'otplib';
 import * as qrcode from 'qrcode';
+import { EmailOtpService } from './email-otp.service';
 
 @Injectable()
 export class AuthService {
@@ -32,6 +33,7 @@ export class AuthService {
     private readonly jwtConfig: JwtConfig,
     private readonly mailService: MailService,
     private readonly configService: ConfigService,
+    private readonly emailOtpService: EmailOtpService,
   ) {
     this.frontUrl =
       this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
@@ -93,8 +95,13 @@ export class AuthService {
     return this.issueSession(user, req);
   }
 
-  /** Seconde étape du login 2FA : vérifie le challenge puis le code TOTP et émet la session */
-  async complete2FA(loginChallenge: string, totpToken: string, req: Request) {
+  /** Seconde étape du login 2FA : vérifie le challenge puis le code TOTP ou email OTP et émet la session */
+  async complete2FA(
+    loginChallenge: string,
+    req: Request,
+    totpToken?: string,
+    emailOtpToken?: string,
+  ) {
     let decoded: any;
     try {
       decoded = this.jwtService.verify(loginChallenge, {
@@ -114,11 +121,32 @@ export class AuthService {
       throw new UnauthorizedException('2FA non activée');
     }
 
-    const userWithSecret = await this.usersService.findByIdWithSecret(
-      decoded.sub,
-    );
-    const valid = verify({ token: totpToken, secret: userWithSecret?.twoFactorSecret });
+    let valid = false;
+    if (totpToken) {
+      const userWithSecret = await this.usersService.findByIdWithSecret(
+        decoded.sub,
+      );
+      valid = verify({ token: totpToken, secret: userWithSecret?.twoFactorSecret });
+      if (valid) {
+        await this.logAudit(decoded.sub, AuditAction.TWO_FA_CHOSEN_METHOD, req, {
+          ipAddress: req.ip || 'unknown',
+          userAgent: (req.headers['user-agent'] as string) || 'unknown',
+        } as any);
+      }
+    } else if (emailOtpToken) {
+      valid = await this.emailOtpService.verifyCode(decoded.sub, emailOtpToken);
+      if (valid) {
+        await this.logAudit(decoded.sub, AuditAction.TWO_FA_CHOSEN_METHOD, req, {
+          ipAddress: req.ip || 'unknown',
+          userAgent: (req.headers['user-agent'] as string) || 'unknown',
+        } as any);
+      }
+    } else {
+      throw new BadRequestException('Code 2FA requis');
+    }
+
     if (!valid) {
+      await this.logAudit(decoded.sub, AuditAction.TWO_FA_FAILED, req);
       await this.logAudit(decoded.sub, AuditAction.LOGIN, req);
       throw new UnauthorizedException('Code 2FA invalide');
     }
@@ -211,6 +239,54 @@ export class AuthService {
     } catch (err) {
       console.error('Token verification failed:', err);
       throw new UnauthorizedException(AuthErrorMessage.INVALID_TOKEN);
+    }
+  }
+
+  /** Envoyer un code OTP par email pour le 2FA */
+  async sendEmailChallenge(loginChallenge: string, req: Request) {
+    let decoded: any;
+    try {
+      decoded = this.jwtService.verify(loginChallenge, {
+        secret: this.jwtConfig.secret,
+      });
+    } catch {
+      throw new UnauthorizedException('Session 2FA expirée ou invalide');
+    }
+    if (decoded.purpose !== 'LOGIN_2FA') {
+      throw new UnauthorizedException('Session 2FA invalide');
+    }
+
+    const user = await this.usersService.findOne(decoded.sub);
+    const userDoc = user.data?.[0] as any;
+    if (!userDoc) throw new UnauthorizedException(AuthErrorMessage.USER_NOT_FOUND);
+    if (!userDoc.twoFactorEnabled) {
+      throw new UnauthorizedException('2FA non activée');
+    }
+    if (!userDoc.userEmailVerified) {
+      throw new UnauthorizedException('Email non vérifié');
+    }
+
+    try {
+      const { code } = await this.emailOtpService.createCode(
+        decoded.sub,
+        req.ip || 'unknown',
+        req.headers['user-agent'] as string,
+      );
+      await this.mailService.sendTwoFactorCodeEmail(
+        userDoc.userEmail,
+        userDoc.userName || userDoc.userEmail,
+        code,
+        10,
+      );
+      await this.logAudit(decoded.sub, AuditAction.TWO_FA_EMAIL_CODE_SENT, req);
+      return { sent: true };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        "Erreur lors de l'envoi du code OTP",
+      );
     }
   }
 

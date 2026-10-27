@@ -14,6 +14,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { JwtConfig } from './config/jwt.config';
 import { MailModule } from 'src/shared/mail/mail.module';
+import { EmailOtp, EmailOtpSchema } from './email-otp.schema';
+import { EmailOtpService } from './email-otp.service';
 @Module({
   imports: [
     MailModule,
@@ -22,6 +24,7 @@ import { MailModule } from 'src/shared/mail/mail.module';
     MongooseModule.forFeature([
       { name: RefreshToken.name, schema: RefreshTokenSchema },
       { name: AuditLog.name, schema: AuditLogSchema },
+      { name: EmailOtp.name, schema: EmailOtpSchema },
     ]),
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -43,6 +46,7 @@ import { MailModule } from 'src/shared/mail/mail.module';
     AuthService,
     AuditService,
     RefreshTokenService,
+    EmailOtpService,
     JwtStrategy,
     JwtRefreshStrategy,
     JwtConfig,
