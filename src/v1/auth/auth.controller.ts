@@ -203,6 +203,17 @@ export class AuthController {
     );
   }
 
+  @Post('2fa/complete')
+  @ApiOperation({ summary: 'Seconde étape du login 2FA (TOTP)' })
+  @ApiResponse({ status: 201, description: 'Session créée' })
+  complete2FA(
+    @Body('loginChallenge') loginChallenge: string,
+    @Body('totpToken') totpToken: string,
+    @Req() req: Request,
+  ) {
+    return this.authService.complete2FA(loginChallenge, totpToken, req);
+  }
+
   @Post('2fa/enable')
   @Auth()
   @ApiOperation({ summary: 'Activer la 2FA (génère un QR code)' })

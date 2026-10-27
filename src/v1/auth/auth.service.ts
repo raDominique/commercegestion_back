@@ -58,8 +58,24 @@ export class AuthService {
     }
 
     if (user.twoFactorEnabled) {
+      // Phase 1 : le mot de passe n'est jamais renvoyé au second pas.
+      // - Si totpToken fourni dans la même requête → vérification directe.
+      // - Sinon on renvoie un loginChallenge (TTL 5 min) que le client utilisera
+      //   sur POST /auth/2fa/complete.
       if (!totpToken) {
-        throw new UnauthorizedException('Code 2FA requis');
+        const loginChallenge = this.jwtService.sign(
+          {
+            sub: user._id.toString(),
+            purpose: 'LOGIN_2FA',
+            iat: Math.floor(Date.now() / 1000),
+          },
+          { secret: this.jwtConfig.secret, expiresIn: '5m' as any },
+        );
+        return {
+          require2FA: true,
+          loginChallenge,
+          methods: ['totp', 'email-otp'],
+        };
       }
       const userWithSecret = await this.usersService.findByIdWithSecret(
         user._id.toString(),
@@ -74,6 +90,44 @@ export class AuthService {
       }
     }
 
+    return this.issueSession(user, req);
+  }
+
+  /** Seconde étape du login 2FA : vérifie le challenge puis le code TOTP et émet la session */
+  async complete2FA(loginChallenge: string, totpToken: string, req: Request) {
+    let decoded: any;
+    try {
+      decoded = this.jwtService.verify(loginChallenge, {
+        secret: this.jwtConfig.secret,
+      });
+    } catch {
+      throw new UnauthorizedException('Session 2FA expirée ou invalide');
+    }
+    if (decoded.purpose !== 'LOGIN_2FA') {
+      throw new UnauthorizedException('Session 2FA invalide');
+    }
+
+    const user = await this.usersService.findOne(decoded.sub);
+    const userDoc = user.data?.[0] as any;
+    if (!userDoc) throw new UnauthorizedException(AuthErrorMessage.USER_NOT_FOUND);
+    if (!userDoc.twoFactorEnabled) {
+      throw new UnauthorizedException('2FA non activée');
+    }
+
+    const userWithSecret = await this.usersService.findByIdWithSecret(
+      decoded.sub,
+    );
+    const valid = verify({ token: totpToken, secret: userWithSecret?.twoFactorSecret });
+    if (!valid) {
+      await this.logAudit(decoded.sub, AuditAction.LOGIN, req);
+      throw new UnauthorizedException('Code 2FA invalide');
+    }
+
+    return this.issueSession(userDoc, req);
+  }
+
+  /** Émet les tokens (access + refresh) et journalise la connexion */
+  private async issueSession(user: any, req: Request) {
     const payload = {
       sub: user._id.toString(),
       userEmail: user.userEmail,
