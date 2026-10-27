@@ -36,6 +36,17 @@ export class AuthController {
     },
   })
   @ApiResponse({
+    status: 200,
+    description: '2FA required - challenge returned',
+    schema: {
+      example: {
+        require2FA: true,
+        loginChallenge: 'jwt.challenge.here',
+        methods: ['totp', 'email-otp'],
+      },
+    },
+  })
+  @ApiResponse({
     status: 401,
     description: 'Authentication failed',
     schema: {
@@ -48,12 +59,16 @@ export class AuthController {
     },
   })
   login(
-    @Body('userEmail') userEmail: string,
-    @Body('userPassword') userPassword: string,
+    @Body() loginDto: LoginDto,
     @Req() req: Request,
+    @Body('userEmail') userEmail?: string,
+    @Body('userPassword') userPassword?: string,
     @Body('totpToken') totpToken?: string,
   ) {
-    return this.authService.login(userEmail, userPassword, req, totpToken);
+    const email = loginDto?.userEmail ?? userEmail;
+    const password = loginDto?.userPassword ?? userPassword;
+    const token = loginDto?.totpToken ?? totpToken;
+    return this.authService.login(email, password, req, token);
   }
 
   @Post('refresh')

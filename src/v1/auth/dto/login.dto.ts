@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmail, IsOptional, IsString, Length, MinLength } from 'class-validator';
 
 export class LoginDto {
   @IsEmail({}, { message: 'Format de courriel invalide' })
@@ -19,4 +19,22 @@ export class LoginDto {
     minLength: 6,
   })
   userPassword: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(6, 6, { message: 'Le code TOTP doit contenir 6 chiffres' })
+  @ApiPropertyOptional({
+    example: '123456',
+    description: 'Code TOTP à 6 chiffres (si fourni dans le même appel)',
+  })
+  totpToken?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(6, 6, { message: "Le code OTP email doit contenir 6 chiffres" })
+  @ApiPropertyOptional({
+    example: '123456',
+    description: "Code OTP email à 6 chiffres (si fourni dans le même appel)",
+  })
+  emailOtpToken?: string;
 }
