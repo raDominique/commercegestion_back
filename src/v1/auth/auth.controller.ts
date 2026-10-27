@@ -64,11 +64,13 @@ export class AuthController {
     @Body('userEmail') userEmail?: string,
     @Body('userPassword') userPassword?: string,
     @Body('totpToken') totpToken?: string,
+    @Body('rememberMe') rememberMe?: boolean,
   ) {
     const email = loginDto?.userEmail ?? userEmail;
     const password = loginDto?.userPassword ?? userPassword;
     const token = loginDto?.totpToken ?? totpToken;
-    return this.authService.login(email, password, req, token);
+    const remember = loginDto?.rememberMe ?? rememberMe;
+    return this.authService.login(email, password, req, token, remember);
   }
 
   @Post('refresh')
@@ -275,5 +277,17 @@ export class AuthController {
   @ApiResponse({ status: 201, description: '2FA désactivée' })
   disable2FA(@Req() req: any, @Body('token') token: string) {
     return this.authService.disable2FA(req.user.userId, token);
+  }
+
+  @Post('2fa/use-backup-code')
+  @ApiOperation({ summary: 'Utiliser un code de secours pour le 2FA' })
+  @ApiResponse({ status: 201, description: 'Session créée' })
+  @ApiResponse({ status: 401, description: 'Code de secours invalide ou session expirée' })
+  useBackupCode(
+    @Body('loginChallenge') loginChallenge: string,
+    @Body('backupCode') backupCode: string,
+    @Req() req: Request,
+  ) {
+    return this.authService.useBackupCode(loginChallenge, backupCode, req);
   }
 }

@@ -74,28 +74,28 @@ sequenceDiagram
 - [x] Tests unitaires + Swagger.
 
 ### Phase 2 — Choix du facteur (TOTP / OTP email)
-- [ ] `POST /auth/2fa/email-challenge` : code OTP 6 chiffres, TTL 10 min, max 3 renvois/15 min.
-- [ ] `POST /auth/2fa/complete` : accepter `totpToken` **ou** `emailOtpToken`.
-- [ ] Audit : `2FA_CHOSEN_METHOD`, `2FA_EMAIL_CODE_SENT`, `2FA_FAILED`.
+- [x] `POST /auth/2fa/email-challenge` : code OTP 6 chiffres, TTL 10 min, max 3 renvois/15 min.
+- [x] `POST /auth/2fa/complete` : accepter `totpToken` **ou** `emailOtpToken`.
+- [x] Audit : `2FA_CHOSEN_METHOD`, `2FA_EMAIL_CODE_SENT`, `2FA_FAILED`.
 
 ### Phase 3 — Codes de secours + chiffrement du secret
-- [ ] 8 codes de secours à l'activation (hashés), renvoyés une seule fois.
-- [ ] Chiffrement du secret au repos (AES-256-GCM).
-- [ ] Endpoint `POST /auth/2fa/use-backup-code`.
+- [x] 8 codes de secours à l'activation (hashés), renvoyés une seule fois.
+- [x] Chiffrement du secret au repos (AES-256-GCM).
+- [x] Endpoint `POST /auth/2fa/use-backup-code`.
 
 ### Phase 4 — Rate limiting & anti-rejeu
-- [ ] Rate limit sur `verify`, `complete`, `email-challenge` (5 / 15 min).
-- [ ] Anti-rejeu TOTP (fenêtre `±1`, mémorisation du dernier code).
-- [ ] Verrouillage temporaire après 3 échecs.
+- [x] Rate limit sur `verify`, `complete`, `email-challenge`, `use-backup-code`, `disable` (5 / 15 min).
+- [x] Anti-rejeu TOTP (mémorisation du dernier code par utilisateur).
+- [x] Verrouillage temporaire après 3 échecs.
 
 ### Phase 5 — Remember me
-- [ ] `LoginDto.rememberMe?: boolean`.
-- [ ] Refresh token persistant (30 j, cookie httpOnly) vs court (24 h).
-- [ ] Révocation à la déconnexion / changement de mot de passe.
+- [x] `LoginDto.rememberMe?: boolean`.
+- [x] Refresh token persistant (30 j) vs court (24 h).
+- [x] Révocation à la déconnexion / changement de mot de passe / réinitialisation.
 
 ### Phase 6 — 2FA obligatoire à la première connexion
-- [ ] Flag `require2faSetup` + `setupToken` à la première connexion.
-- [ ] Guard JWT bloquant l'accès métier tant que `twoFactorEnabled === false`.
-- [ ] Audit : `2FA_FORCED_SETUP`.
+- [x] Flag `require2faSetup` + `setupToken` à la première connexion.
+- [x] Guard JWT bloquant l'accès métier tant que `twoFactorEnabled === false`.
+- [x] Audit : `2FA_FORCED_SETUP`.
 
 > Chaque phase est indépendante et peut être validée (tests + Swagger) avant de passer à la suivante.

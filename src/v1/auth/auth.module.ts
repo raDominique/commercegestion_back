@@ -16,6 +16,7 @@ import { JwtConfig } from './config/jwt.config';
 import { MailModule } from 'src/shared/mail/mail.module';
 import { EmailOtp, EmailOtpSchema } from './email-otp.schema';
 import { EmailOtpService } from './email-otp.service';
+import { AuthSecurityService } from './security/auth-security.service';
 @Module({
   imports: [
     MailModule,
@@ -47,6 +48,7 @@ import { EmailOtpService } from './email-otp.service';
     AuditService,
     RefreshTokenService,
     EmailOtpService,
+    AuthSecurityService,
     JwtStrategy,
     JwtRefreshStrategy,
     JwtConfig,

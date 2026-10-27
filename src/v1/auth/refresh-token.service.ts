@@ -47,4 +47,11 @@ export class RefreshTokenService {
       expiresAt: { $gt: new Date() },
     });
   }
+
+  async revokeAllByUser(userId: string) {
+    await this.tokenModel.updateMany(
+      { userId: new Types.ObjectId(userId), revoked: false },
+      { revoked: true, revokedAt: new Date() },
+    );
+  }
 }

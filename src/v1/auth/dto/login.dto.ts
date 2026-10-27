@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString, Length, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsOptional, IsString, Length, MinLength } from 'class-validator';
 
 export class LoginDto {
   @IsEmail({}, { message: 'Format de courriel invalide' })
@@ -19,6 +19,14 @@ export class LoginDto {
     minLength: 6,
   })
   userPassword: string;
+
+  @IsOptional()
+  @IsBoolean()
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Se souvenir de moi (refresh token persistant)',
+  })
+  rememberMe?: boolean;
 
   @IsOptional()
   @IsString()
