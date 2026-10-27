@@ -1346,7 +1346,7 @@ export class LedgerDisplayService {
       .find({
         type: TransactionType.DEPOT,
         status: TransactionStatus.PENDING,
-        recipientId: userIdObj,
+        $or: [{ recipientId: userIdObj }, { initiatorId: userIdObj }],
         isActive: true,
       })
       .sort({ createdAt: -1 })
@@ -1485,7 +1485,7 @@ export class LedgerDisplayService {
 
     // 2. Récupérer les passifs confirmés
     const filter: any = {
-      userId: userIdObj,
+      $or: [{ userId: userIdObj }, { ayant_droit: userIdObj }],
       isActive: true,
     };
 
