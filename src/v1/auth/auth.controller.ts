@@ -6,16 +6,16 @@ import {
   Get,
   UnauthorizedException,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import type { Request } from 'express';
+import { AuthService }                                 from './auth.service';
+import type { Request }                                from 'express';
 import { ApiOperation, ApiTags, ApiBody, ApiResponse } from '@nestjs/swagger';
-import { LoginDto } from './dto/login.dto';
-import { LogoutDto } from './dto/logout.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
-import { ChangePasswordDto } from './dto/change-password.dto';
-import { Verify2FADto, Disable2FADto } from './dto/two-factor.dto';
-import { Auth } from './decorators/auth.decorator';
+import { LoginDto }                                    from './dto/login.dto';
+import { LogoutDto }                                   from './dto/logout.dto';
+import { ForgotPasswordDto }                           from './dto/forgot-password.dto';
+import { ResetPasswordDto }                            from './dto/reset-password.dto';
+import { ChangePasswordDto }                           from './dto/change-password.dto';
+import { Verify2FADto, Disable2FADto }                 from './dto/two-factor.dto';
+import { Auth }                                        from './decorators/auth.decorator';
 
 @ApiTags('Authentication')
 @Controller()
@@ -222,6 +222,28 @@ export class AuthController {
 
   @Post('2fa/complete')
   @ApiOperation({ summary: 'Seconde étape du login 2FA (TOTP ou Email OTP)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['loginChallenge'],
+      properties: {
+        loginChallenge: {
+          type: 'string',
+          description: 'Challenge renvoyé par /auth/login ou /auth/2fa/complete (étape TOTP)',
+        },
+        totpToken: {
+          type: 'string',
+          description: 'Code TOTP à 6 chiffres (étape Authenticator)',
+          example: '123456',
+        },
+        emailOtpToken: {
+          type: 'string',
+          description: 'Code OTP reçu par email (étape email)',
+          example: '654321',
+        },
+      },
+    },
+  })
   @ApiResponse({ status: 201, description: 'Session créée' })
   @ApiResponse({ status: 401, description: 'Code 2FA invalide ou session expirée' })
   complete2FA(
