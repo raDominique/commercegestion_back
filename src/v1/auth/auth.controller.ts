@@ -260,6 +260,65 @@ export class AuthController {
     );
   }
 
+  @Post('2fa/totp/verify')
+  @ApiOperation({
+    summary: 'Étape 2 : vérifier le code TOTP et envoyer automatiquement l\'OTP par email',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['loginChallenge', 'totpToken'],
+      properties: {
+        loginChallenge: { type: 'string' },
+        totpToken: { type: 'string', example: '123456' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'TOTP valide, OTP email envoyé' })
+  @ApiResponse({ status: 401, description: 'Code TOTP invalide ou session expirée' })
+  verifyTotpStep(
+    @Body('loginChallenge') loginChallenge: string,
+    @Body('totpToken') totpToken: string,
+    @Req() req: Request,
+  ) {
+    return this.authService.complete2FA(
+      loginChallenge,
+      req,
+      totpToken,
+      undefined,
+    );
+  }
+
+  @Post('2fa/email/verify')
+  @ApiOperation({ summary: 'Étape 3 : vérifier l\'OTP email et créer la session' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['loginChallenge', 'emailOtpToken'],
+      properties: {
+        loginChallenge: {
+          type: 'string',
+          description: 'emailChallengeToken renvoyé par /auth/2fa/totp/verify',
+        },
+        emailOtpToken: { type: 'string', example: '654321' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Session créée' })
+  @ApiResponse({ status: 401, description: 'Code OTP invalide ou session expirée' })
+  verifyEmailOtpStep(
+    @Body('loginChallenge') loginChallenge: string,
+    @Body('emailOtpToken') emailOtpToken: string,
+    @Req() req: Request,
+  ) {
+    return this.authService.complete2FA(
+      loginChallenge,
+      req,
+      undefined,
+      emailOtpToken,
+    );
+  }
+
   @Post('2fa/email-challenge')
   @ApiOperation({ summary: 'Envoyer un code OTP par email pour le 2FA' })
   @ApiResponse({ status: 201, description: 'Code envoyé' })

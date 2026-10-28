@@ -15,12 +15,12 @@ sequenceDiagram
         B-->>F: { require2FA:true, requireBothFactors:true, loginChallenge, methods }
         F-->>U: Demande le code Authenticator
         U->>F: Saisit code Authenticator
-        F->>B: POST /auth/2fa/complete {loginChallenge, totpToken}
+        F->>B: POST /auth/2fa/totp/verify {loginChallenge, totpToken}
         B->>M: Envoie automatiquement l'OTP par email (TTL 10 min)
         M-->>U: Email avec code OTP
         B-->>F: { requireEmailOtp:true, emailChallengeToken }
         U->>F: Saisit le code reçu par email
-        F->>B: POST /auth/2fa/complete {loginChallenge:emailChallengeToken, emailOtpToken}
+        F->>B: POST /auth/2fa/email/verify {loginChallenge:emailChallengeToken, emailOtpToken}
         B-->>F: { accessToken, refreshToken }
     else 2FA non configurée (1ère connexion)
         B-->>F: { require2faSetup, setupToken }
@@ -36,10 +36,11 @@ sequenceDiagram
 À chaque connexion, les trois étapes sont **obligatoires et successives** :
 1. **Login** : `POST /auth/login` (email + password)
    - Si 2FA activée → `{ require2FA: true, requireBothFactors: true, loginChallenge, methods: ["totp","email-otp"] }` (TTL 5 min).
-2. **Authenticator (TOTP)** : `POST /auth/2fa/complete` avec `{ loginChallenge, totpToken }`.
+2. **Authenticator (TOTP)** : `POST /auth/2fa/totp/verify` avec `{ loginChallenge, totpToken }`.
    - Le backend vérifie le TOTP, envoie automatiquement un OTP par email et retourne `{ requireEmailOtp: true, emailChallengeToken }` (TTL 10 min).
-3. **OTP email** : `POST /auth/2fa/complete` avec `{ loginChallenge: emailChallengeToken, emailOtpToken }`.
+3. **OTP email** : `POST /auth/2fa/email/verify` avec `{ loginChallenge: emailChallengeToken, emailOtpToken }`.
    - Le backend vérifie l'OTP email puis émet les tokens JWT + refresh.
+   - Renvoi possible : `POST /auth/2fa/email-challenge`.
 4. **Remember me** : `rememberMe: boolean` dans `POST /auth/login`. Si actif → refresh token persistant (30 j, cookie httpOnly). Sinon TTL court (24 h).
 
 ## 2. Sécurité
