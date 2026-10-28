@@ -102,8 +102,8 @@ export class AuthService {
         : undefined;
       const valid = verify({
         token: totpToken,
-        secret: decryptedSecret,
-      });
+        secret: decryptedSecret as string,
+      }) as unknown as boolean;
       if (!valid) {
         await this.logAudit(user._id.toString(), AuditAction.LOGIN, req);
         throw new UnauthorizedException('Code 2FA invalide');
@@ -177,7 +177,7 @@ export class AuthService {
       const decryptedSecret = userWithSecret?.twoFactorSecret
         ? decryptSecret(userWithSecret.twoFactorSecret)
         : undefined;
-      valid = verify({ token: totpToken, secret: decryptedSecret });
+      valid = (verify({ token: totpToken, secret: decryptedSecret as string }) as unknown as { valid: boolean }).valid;
       if (valid) {
         await this.logAudit(decoded.sub, AuditAction.TWO_FA_CHOSEN_METHOD, req, {
           ipAddress: req.ip || 'unknown',
