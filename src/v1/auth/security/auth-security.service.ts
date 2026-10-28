@@ -21,10 +21,10 @@ export class AuthSecurityService {
   private failedAttemptsStore = new Map<string, FailedAttemptEntry>();
   private usedTotpCodes = new Map<string, TOTPUsedEntry>();
 
-  private readonly RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+  private readonly RATE_LIMIT_WINDOW = 2 * 60 * 1000; // 2 minutes
   private readonly RATE_LIMIT_MAX = 5;
   private readonly MAX_FAILED_ATTEMPTS = 3;
-  private readonly LOCK_DURATION = 15 * 60 * 1000; // 15 minutes
+  private readonly LOCK_DURATION = 2 * 60 * 1000; // 2 minutes
 
   checkRateLimit(key: string): void {
     const now = Date.now();
