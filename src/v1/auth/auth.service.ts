@@ -55,6 +55,9 @@ export class AuthService {
     totpToken?: string,
     rememberMe?: boolean,
   ) {
+    this.authSecurityService.checkRateLimit(
+      `login:${req.ip || 'unknown'}:${userEmail}`,
+    );
     const user = await this.usersService.findByEmailWithPassword(userEmail);
 
     if (!user) {
@@ -117,9 +120,6 @@ export class AuthService {
     emailOtpToken?: string,
     rememberMe?: boolean,
   ) {
-    const rateLimitKey = `complete2fa:${req.ip || 'unknown'}`;
-    this.authSecurityService.checkRateLimit(rateLimitKey);
-
     let decoded: any;
     try {
       decoded = this.jwtService.verify(loginChallenge, {
@@ -132,7 +132,12 @@ export class AuthService {
       throw new UnauthorizedException('Session 2FA invalide');
     }
 
-    const lockoutKey = `lockout:${decoded.sub}`;
+    // Rate limit distinct par API/étape (TOTP vs OTP email)
+    const step = decoded.purpose === 'LOGIN_2FA' ? 'totp' : 'emailotp';
+    const rateLimitKey = `${step}:${decoded.sub}`;
+    this.authSecurityService.checkRateLimit(rateLimitKey);
+
+    const lockoutKey = `lockout:${step}:${decoded.sub}`;
     this.authSecurityService.checkLockout(lockoutKey);
 
     const user = await this.usersService.findOne(decoded.sub);
@@ -570,9 +575,9 @@ export class AuthService {
   }
 
   async verify2FA(userId: string, token: string) {
-    const rateLimitKey = `verify2fa:${userId}:${userId}`;
+    const rateLimitKey = `verify2fa:${userId}`;
     this.authSecurityService.checkRateLimit(rateLimitKey);
-    this.authSecurityService.checkLockout(`lockout:${userId}`);
+    this.authSecurityService.checkLockout(`lockout:verify2fa:${userId}`);
 
     const user = await this.usersService.findByIdWithSecret(userId);
     if (!user?.twoFactorSecret) throw new BadRequestException('2FA non initialisée');
@@ -601,7 +606,7 @@ export class AuthService {
   async disable2FA(userId: string, token: string) {
     const rateLimitKey = `disable2fa:${userId}`;
     this.authSecurityService.checkRateLimit(rateLimitKey);
-    this.authSecurityService.checkLockout(`lockout:${userId}`);
+    this.authSecurityService.checkLockout(`lockout:disable2fa:${userId}`);
 
     const user = await this.usersService.findByIdWithSecret(userId);
     if (!user?.twoFactorEnabled) throw new BadRequestException('2FA non activée');
