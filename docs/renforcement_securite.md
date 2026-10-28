@@ -12,20 +12,16 @@ sequenceDiagram
     U->>F: Saisit email + mot de passe (+ rememberMe)
     F->>B: POST /auth/login
     alt 2FA activée
-        B-->>F: { loginChallenge, methods: [totp, email-otp] }
-        F-->>U: Propose le choix du facteur
-        alt Facteur TOTP
-            U->>F: Saisit code Authenticator
-            F->>B: POST /auth/2fa/complete {loginChallenge, totpToken}
-        else Facteur Email OTP
-            U->>F: Demande code par email
-            F->>B: POST /auth/2fa/email-challenge
-            B->>M: Envoie OTP (TTL 10 min)
-            M-->>U: Email avec code
-            U->>F: Saisit code reçu
-            F->>B: POST /auth/2fa/complete {loginChallenge, emailOtpToken}
-        end
-        B-->>F: { accessToken, refreshToken } (+ cookie remember si activé)
+        B-->>F: { require2FA:true, requireBothFactors:true, loginChallenge, methods }
+        F-->>U: Demande le code Authenticator
+        U->>F: Saisit code Authenticator
+        F->>B: POST /auth/2fa/complete {loginChallenge, totpToken}
+        B->>M: Envoie automatiquement l'OTP par email (TTL 10 min)
+        M-->>U: Email avec code OTP
+        B-->>F: { requireEmailOtp:true, emailChallengeToken }
+        U->>F: Saisit le code reçu par email
+        F->>B: POST /auth/2fa/complete {loginChallenge:emailChallengeToken, emailOtpToken}
+        B-->>F: { accessToken, refreshToken }
     else 2FA non configurée (1ère connexion)
         B-->>F: { require2faSetup, setupToken }
         F-->>U: Force l'enrôlement 2FA
@@ -36,15 +32,15 @@ sequenceDiagram
     F-->>U: Accès à l'application
 ```
 
-## 1. Flux cible
-1. `POST /auth/login` (email + password)
-   - Si 2FA activée → `{ loginChallenge, methods: ["totp","email-otp"] }` (session intermédiaire, TTL 5 min).
-   - Si 2FA non configurée → `require2faSetup` + `setupToken`.
-2. Choix du facteur (à la GitHub) :
-   - **TOTP** : `POST /auth/2fa/complete` avec `{ loginChallenge, totpToken }`.
-   - **OTP email** : `POST /auth/2fa/email-challenge` (envoi code TTL 10 min, max 3 renvois/15 min) puis `POST /auth/2fa/complete` avec `{ loginChallenge, emailOtpToken }`.
-3. `POST /auth/2fa/complete` : détruit le `loginChallenge`, émet les tokens JWT + refresh.
-4. **Remember me** : `rememberMe: boolean` dans `POST /auth/login`. Si actif → refresh token persistant (30 j, cookie httpOnly). Sinon TTL court (24 h) + cookie de session.
+## 1. Flux cible — Triple authentification obligatoire
+À chaque connexion, les trois étapes sont **obligatoires et successives** :
+1. **Login** : `POST /auth/login` (email + password)
+   - Si 2FA activée → `{ require2FA: true, requireBothFactors: true, loginChallenge, methods: ["totp","email-otp"] }` (TTL 5 min).
+2. **Authenticator (TOTP)** : `POST /auth/2fa/complete` avec `{ loginChallenge, totpToken }`.
+   - Le backend vérifie le TOTP, envoie automatiquement un OTP par email et retourne `{ requireEmailOtp: true, emailChallengeToken }` (TTL 10 min).
+3. **OTP email** : `POST /auth/2fa/complete` avec `{ loginChallenge: emailChallengeToken, emailOtpToken }`.
+   - Le backend vérifie l'OTP email puis émet les tokens JWT + refresh.
+4. **Remember me** : `rememberMe: boolean` dans `POST /auth/login`. Si actif → refresh token persistant (30 j, cookie httpOnly). Sinon TTL court (24 h).
 
 ## 2. Sécurité
 - `loginChallenge` usage unique, TTL 5 min, invalidé après 3 échecs.

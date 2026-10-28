@@ -74,44 +74,23 @@ export class AuthService {
     }
 
     if (user.twoFactorEnabled) {
-      // Phase 1 : le mot de passe n'est jamais renvoyé au second pas.
-      // - Si totpToken fourni dans la même requête → vérification directe.
-      // - Sinon on renvoie un loginChallenge (TTL 5 min) que le client utilisera
-      //   sur POST /auth/2fa/complete.
-      if (!totpToken) {
-        const loginChallenge = this.jwtService.sign(
-          {
-            sub: user._id.toString(),
-            purpose: 'LOGIN_2FA',
-            rememberMe: !!rememberMe,
-            iat: Math.floor(Date.now() / 1000),
-          },
-          { secret: this.jwtConfig.secret, expiresIn: '5m' as any },
-        );
-        return {
-          require2FA: true,
-          loginChallenge,
-          methods: ['totp', 'email-otp'],
-        };
-      }
-      const userWithSecret = await this.usersService.findByIdWithSecret(
-        user._id.toString(),
+      // Double authentification obligatoire : Authenticator puis OTP email.
+      // Le mot de passe n'est jamais renvoyé aux étapes suivantes.
+      const loginChallenge = this.jwtService.sign(
+        {
+          sub: user._id.toString(),
+          purpose: 'LOGIN_2FA',
+          rememberMe: !!rememberMe,
+          iat: Math.floor(Date.now() / 1000),
+        },
+        { secret: this.jwtConfig.secret, expiresIn: '5m' as any },
       );
-      const decryptedSecret = userWithSecret?.twoFactorSecret
-        ? decryptSecret(userWithSecret.twoFactorSecret)
-        : undefined;
-      const valid = verify({
-        token: totpToken,
-        secret: decryptedSecret as string,
-      }) as unknown as boolean;
-      if (!valid) {
-        await this.logAudit(user._id.toString(), AuditAction.LOGIN, req);
-        throw new UnauthorizedException('Code 2FA invalide');
-      }
-      if (rememberMe) {
-        await this.logAudit(user._id.toString(), AuditAction.LOGIN_REMEMBER_ME, req);
-      }
-      return this.issueSession(user, req, rememberMe);
+      return {
+        require2FA: true,
+        requireBothFactors: true,
+        loginChallenge,
+        methods: ['totp', 'email-otp'],
+      };
     }
 
     // Phase 6: 2FA obligatoire à la première connexion
@@ -149,7 +128,7 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Session 2FA expirée ou invalide');
     }
-    if (decoded.purpose !== 'LOGIN_2FA') {
+    if (decoded.purpose !== 'LOGIN_2FA' && decoded.purpose !== 'LOGIN_EMAIL_OTP') {
       throw new UnauthorizedException('Session 2FA invalide');
     }
 
@@ -165,6 +144,11 @@ export class AuthService {
 
     let valid = false;
     if (totpToken) {
+      if (decoded.purpose !== 'LOGIN_2FA') {
+        throw new UnauthorizedException(
+          'Le code Authenticator doit être validé en premier',
+        );
+      }
       try {
         this.authSecurityService.checkAndRecordTotpCode(decoded.sub, totpToken);
       } catch (e) {
@@ -185,6 +169,11 @@ export class AuthService {
         } as any);
       }
     } else if (emailOtpToken) {
+      if (decoded.purpose !== 'LOGIN_EMAIL_OTP') {
+        throw new UnauthorizedException(
+          'Le code Authenticator doit être validé avant le code email',
+        );
+      }
       valid = await this.emailOtpService.verifyCode(decoded.sub, emailOtpToken);
       if (valid) {
         await this.logAudit(decoded.sub, AuditAction.TWO_FA_CHOSEN_METHOD, req, {
@@ -204,6 +193,39 @@ export class AuthService {
     }
 
     this.authSecurityService.resetFailedAttempts(lockoutKey);
+
+    // Authenticator validé : on exige ensuite obligatoirement l'OTP par email.
+    if (decoded.purpose === 'LOGIN_2FA') {
+      if (!userDoc.userEmailVerified) {
+        throw new UnauthorizedException('Email non vérifié');
+      }
+      const { code } = await this.emailOtpService.createCode(
+        decoded.sub,
+        req.ip || 'unknown',
+        req.headers['user-agent'] as string,
+      );
+      await this.mailService.sendTwoFactorCodeEmail(
+        userDoc.userEmail,
+        userDoc.userName || userDoc.userEmail,
+        code,
+        10,
+      );
+      await this.logAudit(decoded.sub, AuditAction.TWO_FA_EMAIL_CODE_SENT, req);
+
+      const emailChallengeToken = this.jwtService.sign(
+        {
+          sub: decoded.sub,
+          purpose: 'LOGIN_EMAIL_OTP',
+          rememberMe: decoded.rememberMe,
+        },
+        { secret: this.jwtConfig.secret, expiresIn: '10m' as any },
+      );
+      return {
+        requireEmailOtp: true,
+        emailChallengeToken,
+      };
+    }
+
     if (decoded.rememberMe) {
       await this.logAudit(userDoc._id.toString(), AuditAction.LOGIN_REMEMBER_ME, req);
     }
