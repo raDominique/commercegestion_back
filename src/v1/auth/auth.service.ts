@@ -18,7 +18,7 @@ import { AuditAction, EntityType } from '../audit/audit-log.schema';
 import { AuthErrorMessage } from './errors/auth-error.messages';
 import { MailService } from 'src/shared/mail/mail.service';
 import { ConfigService } from '@nestjs/config';
-import { generateSecret, verify, generateURI } from 'otplib';
+import { generateSecret, verifySync, generateURI } from 'otplib';
 import * as qrcode from 'qrcode';
 import { EmailOtpService } from './email-otp.service';
 import {
@@ -166,7 +166,19 @@ export class AuthService {
       const decryptedSecret = userWithSecret?.twoFactorSecret
         ? decryptSecret(userWithSecret.twoFactorSecret)
         : undefined;
-      valid = (verify({ token: totpToken, secret: decryptedSecret as string }) as unknown as { valid: boolean }).valid;
+      const totpResult = verifySync({
+        token: totpToken,
+        secret: decryptedSecret as string,
+      });
+      valid = totpResult.valid;
+      console.debug('[2FA][TOTP]', {
+        userId: decoded.sub,
+        token: totpToken,
+        secretLength: (decryptedSecret as string)?.length,
+        valid: totpResult.valid,
+        delta: (totpResult as any).delta,
+        serverTime: new Date().toISOString(),
+      });
       if (valid) {
         await this.logAudit(decoded.sub, AuditAction.TWO_FA_CHOSEN_METHOD, req, {
           ipAddress: req.ip || 'unknown',
@@ -588,7 +600,7 @@ export class AuthService {
       throw e;
     }
     const decryptedSecret = decryptSecret(user.twoFactorSecret);
-    const valid = verify({ token, secret: decryptedSecret });
+    const valid = verifySync({ token, secret: decryptedSecret as string }).valid;
     if (!valid) {
       this.authSecurityService.recordFailedAttempt(`lockout:${userId}`);
       throw new BadRequestException('Code invalide');
@@ -617,7 +629,7 @@ export class AuthService {
       throw e;
     }
     const decryptedSecret = decryptSecret(user.twoFactorSecret);
-    const valid = verify({ token, secret: decryptedSecret });
+    const valid = verifySync({ token, secret: decryptedSecret as string }).valid;
     if (!valid) {
       this.authSecurityService.recordFailedAttempt(`lockout:${userId}`);
       throw new BadRequestException('Code invalide');
