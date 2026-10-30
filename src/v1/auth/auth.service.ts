@@ -90,7 +90,6 @@ export class AuthService {
       );
       return {
         require2FA: true,
-        requireBothFactors: true,
         loginChallenge,
         methods: ['totp', 'email-otp'],
       };
@@ -186,11 +185,7 @@ export class AuthService {
         } as any);
       }
     } else if (emailOtpToken) {
-      if (decoded.purpose !== 'LOGIN_EMAIL_OTP') {
-        throw new UnauthorizedException(
-          'Le code Authenticator doit être validé avant le code email',
-        );
-      }
+      // Choix du facteur : l'OTP email peut être utilisé directement après le login.
       valid = await this.emailOtpService.verifyCode(decoded.sub, emailOtpToken);
       if (valid) {
         await this.logAudit(decoded.sub, AuditAction.TWO_FA_CHOSEN_METHOD, req, {
@@ -210,38 +205,6 @@ export class AuthService {
     }
 
     this.authSecurityService.resetFailedAttempts(lockoutKey);
-
-    // Authenticator validé : on exige ensuite obligatoirement l'OTP par email.
-    if (decoded.purpose === 'LOGIN_2FA') {
-      if (!userDoc.userEmailVerified) {
-        throw new UnauthorizedException('Email non vérifié');
-      }
-      const { code } = await this.emailOtpService.createCode(
-        decoded.sub,
-        req.ip || 'unknown',
-        req.headers['user-agent'] as string,
-      );
-      await this.mailService.sendTwoFactorCodeEmail(
-        userDoc.userEmail,
-        userDoc.userName || userDoc.userEmail,
-        code,
-        10,
-      );
-      await this.logAudit(decoded.sub, AuditAction.TWO_FA_EMAIL_CODE_SENT, req);
-
-      const emailChallengeToken = this.jwtService.sign(
-        {
-          sub: decoded.sub,
-          purpose: 'LOGIN_EMAIL_OTP',
-          rememberMe: decoded.rememberMe,
-        },
-        { secret: this.jwtConfig.secret, expiresIn: '10m' as any },
-      );
-      return {
-        requireEmailOtp: true,
-        emailChallengeToken,
-      };
-    }
 
     if (decoded.rememberMe) {
       await this.logAudit(userDoc._id.toString(), AuditAction.LOGIN_REMEMBER_ME, req);
