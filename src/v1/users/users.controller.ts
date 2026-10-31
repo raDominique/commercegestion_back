@@ -476,6 +476,28 @@ export class UsersController {
     return this.usersService.toggleAdminRole(id);
   }
 
+  @Patch('reset-2fa/:id')
+  @AuthRole(UserAccess.ADMIN)
+  @ApiOperation({
+    summary: 'Désactiver la 2FA d’un utilisateur (ADMIN)',
+    description:
+      "Permet à un administrateur de réinitialiser la 2FA lorsqu’un membre a perdu l’accès à son Authenticator. L’utilisateur pourra ensuite régénérer un nouveau QR code.",
+  })
+  @ApiResponse({ status: 200, description: '2FA désactivée pour l’utilisateur.' })
+  @ApiResponse({ status: 404, description: 'Utilisateur introuvable.' })
+  async reset2FA(@Param('id') id: string) {
+    await this.usersService.update2FAFields(id, {
+      twoFactorEnabled: false,
+      twoFactorSecret: null,
+      twoFactorBackupCodes: [],
+    });
+    return {
+      status: 'success',
+      message:
+        '2FA désactivée. L’utilisateur peut maintenant régénérer un nouveau QR code.',
+    };
+  }
+
   @Get('select/all')
   @ApiOperation({ summary: 'Liste de tous les utilisateurs (sans pagination)' })
   findAll() {
