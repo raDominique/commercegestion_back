@@ -95,20 +95,8 @@ export class AuthService {
       };
     }
 
-    // Phase 6: 2FA obligatoire à la première connexion
-    const setupToken = this.jwtService.sign(
-      {
-        sub: user._id.toString(),
-        purpose: '2FA_SETUP',
-        iat: Math.floor(Date.now() / 1000),
-      },
-      { secret: this.jwtConfig.secret, expiresIn: '10m' as any },
-    );
-    await this.logAudit(user._id.toString(), AuditAction.TWO_FA_FORCED_SETUP, req);
-    return {
-      require2faSetup: true,
-      setupToken,
-    };
+    // 2FA non activée : le login par mot de passe suffit.
+    return this.issueSession(user, req, rememberMe);
   }
 
   /** Seconde étape du login 2FA : vérifie le challenge puis le code TOTP ou email OTP et émet la session */
