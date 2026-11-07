@@ -1,32 +1,33 @@
-import { MailModule } from 'src/shared/mail/mail.module';
-import { Module } from '@nestjs/common';
-import { RouterModule } from '@nestjs/core';
-import { MailerModule } from '@nestjs-modules/mailer';
-import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { join } from 'path';
-import { AppModuleV1 } from './v1/app.module';
-import { AppModuleV2 } from './v2/app.module';
-import { UsersModule } from './v1/users/users.module';
+import { MailModule }                   from 'src/shared/mail/mail.module';
+import { Module }                       from '@nestjs/common';
+import { RouterModule }                 from '@nestjs/core';
+import { MailerModule }                 from '@nestjs-modules/mailer';
+import { HandlebarsAdapter }            from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { ConfigModule, ConfigService }  from '@nestjs/config';
+import { join }                         from 'path';
+import { AppModuleV1 }                  from './v1/app.module';
+import { AppModuleV2 }                  from './v2/app.module';
+import { UsersModule }                  from './v1/users/users.module';
 import { UsersModule as UsersModuleV2 } from './v2/users/users.module';
-import { LedgerModule } from './v2/ledger/ledger.module';
-import { AuthModule } from './v1/auth/auth.module';
-import { AuditModule } from './v1/audit/audit.module';
-import { ExportModule } from './shared/export/export.module';
-import { ProductsModule } from './v1/products/products.module';
-import { CpcModule } from './v1/cpc/cpc.module';
-import { SiteModule } from './v1/sites/sites.module';
-import { StockModule } from './v1/stock/stock.module';
-import { NotificationsModule } from './shared/notifications/notifications.module';
-import { ActifsModule } from './v1/actifs/actifs.module';
-import { PassifsModule } from './v1/passifs/passifs.module';
-import { LedgerDisplayModule } from './v1/ledger-display';
-import { TransactionsModule } from './v1/transactions/transactions.module';
-import { DashboardModule } from './v1/dashboard/dashboard.module';
-import { ShopAvailableModule } from './v1/shop-available/shop-available.module';
-import { TenderModule } from './v1/tenders/tender.module';
-import { CartModule } from './v1/cart/cart.module';
-import { ExchangeModule } from './v1/exchange/exchange.module';
+import { LedgerModule }                 from './v2/ledger/ledger.module';
+import { AuthModule }                   from './v1/auth/auth.module';
+import { AuditModule }                  from './v1/audit/audit.module';
+import { ExportModule }                 from './shared/export/export.module';
+import { ProductsModule }               from './v1/products/products.module';
+import { CpcModule }                    from './v1/cpc/cpc.module';
+import { SiteModule }                   from './v1/sites/sites.module';
+import { StockModule }                  from './v1/stock/stock.module';
+import { NotificationsModule }          from './shared/notifications/notifications.module';
+import { ActifsModule }                 from './v1/actifs/actifs.module';
+import { PassifsModule }                from './v1/passifs/passifs.module';
+import { LedgerDisplayModule }          from './v1/ledger-display';
+import { TransactionsModule }           from './v1/transactions/transactions.module';
+import { DashboardModule }              from './v1/dashboard/dashboard.module';
+import { ShopAvailableModule }          from './v1/shop-available/shop-available.module';
+import { TenderModule }                 from './v1/tenders/tender.module';
+import { CartModule }                   from './v1/cart/cart.module';
+import { ExchangeModule }               from './v1/exchange/exchange.module';
+import { MovementsModule }              from './v2/movements/movements.module';
 
 @Module({
   imports: [
@@ -99,6 +100,10 @@ import { ExchangeModule } from './v1/exchange/exchange.module';
             path: 'ledger',
             module: LedgerModule,
           },
+          {
+            path: '',
+            module: MovementsModule
+          }
         ],
       },
     ]),
