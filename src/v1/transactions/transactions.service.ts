@@ -584,6 +584,10 @@ export class TransactionsService {
       transaction.observations = approveDto.observations;
     }
 
+    // Contrôle de couverture : on refuse une approbation qui créerait un passif
+    // sans actif suffisant correspondant.
+    await this.ensureActifCoverage(transaction);
+
     // Appliquer les mouvements d'actifs/passifs selon le type
     // (processDepot gère déjà confirmPendingActif pour les dépôts)
     await this.applyTransactionMovements(transaction);
@@ -744,6 +748,50 @@ export class TransactionsService {
       data: [updatedTransaction],
       total: 1,
     };
+  }
+
+  /**
+   * Vérifie que l'actif disponible couvre la quantité de la transaction
+   * avant d'approuver un retrait ou une vente. Empêche la création d'un passif
+   * sans actif correspondant (ticket incohérence actifs/passifs).
+   */
+  private async ensureActifCoverage(
+    transaction: TransactionDocument,
+  ): Promise<void> {
+    if (
+      transaction.type !== TransactionType.RETRAIT &&
+      transaction.type !== TransactionType.VENTE
+    ) {
+      return;
+    }
+
+    const detentaireId = transaction.detentaire.toString();
+    const ayantDroitId = transaction.ayant_droit.toString();
+    const depotId = transaction.siteOrigineId.toString();
+    const productId = transaction.productId.toString();
+
+    const actif =
+      transaction.type === TransactionType.RETRAIT
+        ? await this.actifsService.findOwnActifHeldByDetentaire({
+            userId: ayantDroitId,
+            detentaireId,
+            productId,
+            depotId,
+            minQuantite: transaction.quantite,
+          })
+        : await this.actifsService.findDepositedActif({
+            detentaireId,
+            productId,
+            ayantDroitId,
+            depotId,
+            minQuantite: transaction.quantite,
+          });
+
+    if (!actif) {
+      throw new BadRequestException(
+        `Couverture insuffisante: aucun actif de quantité ${transaction.quantite} disponible pour le produit ${productId} au dépôt ${depotId}.`,
+      );
+    }
   }
 
   /**

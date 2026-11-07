@@ -1406,6 +1406,8 @@ export class LedgerDisplayService {
           : 'N/A',
         detentaireId: tx.detentaire?._id || null,
         ayantDroitId: tx.ayant_droit?._id || null,
+        role:
+          tx.recipientId?.toString() === userId ? 'DEBITEUR' : 'CREANCIER',
         dateCreation: tx.createdAt,
         dateModification: tx.updatedAt,
         isActive: true,
@@ -1477,6 +1479,8 @@ export class LedgerDisplayService {
           : 'N/A',
         detentaireId: tx.detentaire?._id || null,
         ayantDroitId: tx.ayant_droit?._id || null,
+        role:
+          tx.recipientId?.toString() === userId ? 'DEBITEUR' : 'CREANCIER',
         dateCreation: tx.createdAt,
         dateModification: tx.updatedAt,
         isActive: true,
@@ -1557,6 +1561,8 @@ export class LedgerDisplayService {
         : 'N/A',
       detentaireId: passif.detentaire?._id || null,
       ayantDroitId: passif.ayant_droit?._id || null,
+      role:
+        passif.userId?.toString() === userId ? 'DEBITEUR' : 'CREANCIER',
       dateCreation: passif.createdAt,
       dateModification: passif.updatedAt,
       isActive: passif.isActive,

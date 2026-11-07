@@ -16,6 +16,11 @@ Le endpoint actifs (`/api/v1/ledger/actifs/:userId`) ne renvoie que les actifs d
 ## Conséquence
 Si le frontend **additionne toutes les lignes** de passifs, il additionne des dettes et des créances de bilans différents → total supérieur aux actifs.
 
+## Champ `role` fourni par l'API
+Chaque ligne de passif renvoie désormais `role` :
+- `"DEBITEUR"` : l'utilisateur est le détenteur (userId) — à additionner au total passifs.
+- `"CREANCIER"` : l'utilisateur est l'ayant droit — à afficher séparément.
+
 ## Ce que le frontend doit vérifier
 1. Les totaux affichés additionnent-ils **toutes** les lignes du tableau passifs ?
 2. Le tableau passifs distingue-t-il les lignes où l'utilisateur est **détenteur** (`userId`) de celles où il est **ayant droit** (`ayantDroitId`) ?
