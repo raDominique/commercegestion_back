@@ -3,7 +3,7 @@
 Guide exhaustif pour les développeurs prenant en charge cette API backend.
 Ce document couvre tous les aspects du projet, du dépôt à la production.
 
-> Dépôt : `api-etokisana` (nom interne) / `commercegestion_back`
+> Dépôt : `commercegestion_back`
 > En complément : [README.md](../README.md) et [WEBSOCKET_NOTIFICATIONS.md](../WEBSOCKET_NOTIFICATIONS.md).
 
 ---
@@ -861,7 +861,7 @@ Créer un fichier `.env` à la racine (modèle : `.env.example`).
 | `JWT_REFRESH_SECRET` | Secret refresh token. | `your_jwt_refresh_secret_key_change_in_production` |
 | `JWT_REFRESH_EXPIRES_IN` | Durée refresh token. | `7d` |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | Configuration SMTP. | `smtp.example.com` / `587` |
-| `SMTP_FROM` / `SMTP_FROM_NAME` | Expéditeur. | `no-reply@...` / `Etokisana` |
+| `SMTP_FROM` / `SMTP_FROM_NAME` | Expéditeur. | `no-reply@...` / `Centre de Commerce et de Gestion en Ligne` |
 | `SMTP_SECURE` | TLS (`true`/`false`). | `true` |
 | `MAIL_SEND_DELAY_MS` | Délai entre envois (ms). | `300` |
 | `MAIL_MAX_RETRIES` | Tentatives max avant abandon. | `3` |
@@ -945,8 +945,8 @@ npm run test:cov
 - **Réseau MinIO** : `commercegestion` ; conteneur MinIO `minio` (endpoint interne `minio:9190`, SSL `false`) ; bucket `commercegestion-uploads`.
 - **Rollback** : l'ancien conteneur est renommé `commercegestion-api_backup` avant démarrage du nouveau ; si le nouveau ne démarre pas après `sleep 15`, l'ancien est restauré et le job échoue.
 - **Volume** : `commercegestion-api_upload:/app/upload`.
-- **Secrets GitHub requis** : `MONGO_URI_ETOKISANA`, `JWT_SECRET_E_TAKALO`, `JWT_REFRESH_SECRET_E_TAKALO`, `SMTP_*_E_TAKALO`, `ADMIN_EMAIL_E_TAKALO`, `SUPERADMIN_*_E_TAKALO`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `SSH_HOST`, `SSH_PORT`, `SSH_USER`, `SSH_PRIVATE_KEY`.
-- **Environnement non secret** : `APP_URL=https://api.commercegestion.online`, `APP_NAME=Etokisana`, `CORS_ALLOWLIST`, `FRONTEND_URL`/`FRONT_URL=https://commercegestion.online`.
+- **Secrets GitHub requis** : `MONGO_URI_COMMERCEGESTION`, `JWT_SECRET_E_TAKALO`, `JWT_REFRESH_SECRET_E_TAKALO`, `SMTP_*_E_TAKALO`, `ADMIN_EMAIL_E_TAKALO`, `SUPERADMIN_*_E_TAKALO`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `SSH_HOST`, `SSH_PORT`, `SSH_USER`, `SSH_PRIVATE_KEY`.
+- **Environnement non secret** : `APP_URL=https://api.commercegestion.online`, `APP_NAME=Centre de Commerce et de Gestion en Ligne`, `CORS_ALLOWLIST`, `FRONTEND_URL`/`FRONT_URL=https://commercegestion.online`.
 - Fin de script : `docker image prune -a -f`.
 
 ### 17.3 Socket.io / nginx

@@ -1,4 +1,4 @@
-name: Deploy Etokisana API
+name: Deploy Centre de Commerce et de Gestion en Ligne API
 
 on:
   push:
@@ -22,10 +22,10 @@ env:
   JWT_EXPIRES_IN: 15m
   JWT_REFRESH_EXPIRES_IN: 7d
   SMTP_SECURE: 'true'
-  SMTP_FROM_NAME: Etokisana
+  SMTP_FROM_NAME: Centre de Commerce et de Gestion en Ligne
   MAIL_SEND_DELAY_MS: '300'
   MAIL_MAX_RETRIES: '3'
-  APP_NAME: Etokisana
+  APP_NAME: Centre de Commerce et de Gestion en Ligne
   APP_URL: https://api.commercegestion.online
   CORS_ALLOWLIST: http://localhost:3000,https://commercegestion.com,https://www.commercegestion.com,https://api.commercegestion.online,https://commercegestion.online,https://www.commercegestion.online
   FRONTEND_URL: https://commercegestion.online

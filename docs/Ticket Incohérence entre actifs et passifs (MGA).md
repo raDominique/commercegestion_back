@@ -4,7 +4,7 @@
 
 ## Contexte
 
-Sur la plateforme Etokisana, chaque passif doit être couvert par un actif correspondant. Les pages « Mes Actifs » et « Mes Passifs » affichent pour le produit **MGA (code 99999)** des totaux incohérents.
+Sur la plateforme Centre de Commerce et de Gestion en Ligne, chaque passif doit être couvert par un actif correspondant. Les pages « Mes Actifs » et « Mes Passifs » affichent pour le produit **MGA (code 99999)** des totaux incohérents.
 
 ## Comportement observé
 
