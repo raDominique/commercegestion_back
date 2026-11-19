@@ -11,6 +11,8 @@ import {
   ShopAvailableStatus,
 } from './shop-available.schema';
 import { CreateShopItemDto } from './dto/create-shop-item.dto';
+import { BulkCreateShopItemDto } from './dto/bulk-create-shop-item.dto';
+import { BulkResult, runBulk } from '../../shared/bulk';
 import { ActifsService } from '../actifs/actifs.service';
 import { PaginationResult } from '../../shared/interfaces/pagination.interface';
 
@@ -48,6 +50,14 @@ export class ShopAvailableService {
       description: dto.description || '',
       statut: ShopAvailableStatus.ACTIVE,
     });
+  }
+
+  /** Met plusieurs actifs en vente (mêmes contrôles que create). */
+  async createBulk(
+    userId: string,
+    dto: BulkCreateShopItemDto,
+  ): Promise<BulkResult<ShopAvailableDocument>> {
+    return runBulk(dto.items, (item) => this.create(userId, item));
   }
 
   async findAll(

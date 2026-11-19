@@ -1,5 +1,6 @@
 jest.mock('@faker-js/faker', () => ({ faker: {} }));
 
+import { BadRequestException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { TransactionsService } from './transactions.service';
 import { TransactionStatus } from './transactions.schema';
@@ -79,5 +80,91 @@ describe('TransactionsService approval', () => {
     expect(
       actifsService.confirmPendingActifAtDestination,
     ).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('TransactionsService bulk creation', () => {
+  const buildService = () =>
+    new TransactionsService(
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+
+  const item = (quantite: number): any => ({ quantite });
+
+  it('processes items sequentially and reports failures by index', async () => {
+    const service = buildService();
+    const calls: number[] = [];
+    jest
+      .spyOn(service, 'createVente')
+      .mockImplementation(async (dto: any, acheteurId: string) => {
+        calls.push(dto.quantite);
+        expect(acheteurId).toBe('buyer-id');
+        if (dto.quantite === 2) {
+          throw new BadRequestException('Quantité insuffisante');
+        }
+        return {
+          status: 'success',
+          message: 'ok',
+          data: [{ quantite: dto.quantite } as any],
+          total: 1,
+        };
+      });
+
+    const result = await service.createVenteBulk(
+      { items: [item(1), item(2), item(3)] },
+      'buyer-id',
+    );
+
+    expect(calls).toEqual([1, 2, 3]);
+    expect(result.status).toBe('partial_success');
+    expect(result.total).toBe(2);
+    expect(result.data?.map((t: any) => t.quantite)).toEqual([1, 3]);
+    expect(result.errors).toEqual([
+      { index: 1, reason: 'Quantité insuffisante' },
+    ]);
+  });
+
+  it('returns success when every item is created', async () => {
+    const service = buildService();
+    jest.spyOn(service, 'createDeposit').mockResolvedValue({
+      status: 'success',
+      message: 'ok',
+      data: [{} as any],
+      total: 1,
+    });
+
+    const result = await service.createDepositBulk({
+      items: [item(1), item(2)],
+    });
+
+    expect(result.status).toBe('success');
+    expect(result.total).toBe(2);
+    expect(result.errors).toEqual([]);
+  });
+
+  it('returns error when no item is created', async () => {
+    const service = buildService();
+    jest
+      .spyOn(service, 'createReturn')
+      .mockRejectedValue(new Error('Actif introuvable'));
+
+    const result = await service.createReturnBulk(
+      { items: [item(1)] },
+      'user-id',
+    );
+
+    expect(result.status).toBe('error');
+    expect(result.total).toBe(0);
+    expect(result.errors).toEqual([{ index: 0, reason: 'Actif introuvable' }]);
   });
 });

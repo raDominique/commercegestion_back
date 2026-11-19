@@ -30,6 +30,20 @@ import {
   ApproveTransactionDto,
   RejectTransactionDto,
 } from './dto/create-transaction.dto';
+import {
+  BulkCreateDepositDto,
+  BulkCreateReturnDto,
+  BulkCreateInitializationDto,
+  BulkCreateVenteDto,
+  BulkCreateVirementDroitDto,
+  BulkApproveTransactionsDto,
+  BulkRejectTransactionsDto,
+} from './dto/bulk-transaction.dto';
+import {
+  bulkDescription,
+  BULK_RESPONSE_OK,
+  BULK_RESPONSE_400,
+} from '../../shared/bulk';
 import { Auth } from '../auth';
 import { TransactionStatus, TransactionType } from './transactions.schema';
 import { Request } from 'express';
@@ -353,6 +367,166 @@ Flux:
   ) {
     return this.transactionsService.createVente(
       createVenteDto,
+      req.user.userId,
+    );
+  }
+
+  // ===================== OPÉRATIONS BULK =====================
+  // Un endpoint bulk par type de transaction, plus approbation/rejet en masse.
+  // Chaque élément suit exactement les règles de l'endpoint unitaire
+  // correspondant ; les éléments sont traités dans l'ordre et un échec
+  // n'arrête pas le lot.
+
+  @Post('deposit/bulk')
+  @Auth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Créer plusieurs dépôts en une requête',
+    description: bulkDescription(
+      'Body `{ items: [...] }`',
+      'POST /transactions/deposit',
+    ),
+  })
+  @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  @ApiBody({ type: BulkCreateDepositDto })
+  async createDepositBulk(@Body() dto: BulkCreateDepositDto) {
+    return this.transactionsService.createDepositBulk(dto);
+  }
+
+  @Post('return/bulk')
+  @Auth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Créer plusieurs retraits en une requête',
+    description: bulkDescription(
+      'Body `{ items: [...] }`',
+      'POST /transactions/return',
+    ),
+  })
+  @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  @ApiBody({ type: BulkCreateReturnDto })
+  async createReturnBulk(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() dto: BulkCreateReturnDto,
+  ) {
+    return this.transactionsService.createReturnBulk(dto, req.user.userId);
+  }
+
+  @Post('initialization/bulk')
+  @Auth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Créer plusieurs initialisations de stock en une requête',
+    description: bulkDescription(
+      'Body `{ items: [...] }`',
+      'POST /transactions/initialization',
+    ),
+  })
+  @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  @ApiBody({ type: BulkCreateInitializationDto })
+  async createInitializationBulk(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() dto: BulkCreateInitializationDto,
+  ) {
+    return this.transactionsService.createInitializationBulk(
+      dto,
+      req.user.userId,
+    );
+  }
+
+  @Post('virement-droit/bulk')
+  @Auth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Créer plusieurs virements de droit en une requête',
+    description: bulkDescription(
+      'Body `{ items: [...] }`',
+      'POST /transactions/virement-droit',
+    ),
+  })
+  @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  @ApiBody({ type: BulkCreateVirementDroitDto })
+  async createVirementDroitBulk(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() dto: BulkCreateVirementDroitDto,
+  ) {
+    return this.transactionsService.createVirementDroitBulk(
+      dto,
+      req.user.userId,
+    );
+  }
+
+  @Post('vente/bulk')
+  @Auth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Créer plusieurs ventes en une requête',
+    description: bulkDescription(
+      'Body `{ items: [...] }`',
+      'POST /transactions/vente',
+    ),
+  })
+  @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  @ApiBody({ type: BulkCreateVenteDto })
+  async createVenteBulk(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() dto: BulkCreateVenteDto,
+  ) {
+    return this.transactionsService.createVenteBulk(dto, req.user.userId);
+  }
+
+  @Patch('approve/bulk')
+  @Auth()
+  @ApiOperation({
+    summary: 'Approuver plusieurs transactions en une requête',
+    description: bulkDescription(
+      "Body `{ ids: [...], observations? }`. L'approbateur est l'utilisateur authentifié (pas d'`approuveurId` dans le body)",
+      'PATCH /transactions/:id/approve',
+    ),
+  })
+  @ApiResponse({ status: 200, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  @ApiBody({ type: BulkApproveTransactionsDto })
+  async approveTransactionsBulk(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() dto: BulkApproveTransactionsDto,
+  ) {
+    return this.transactionsService.approveTransactionsBulk(
+      dto,
+      req.user.userId,
+    );
+  }
+
+  @Patch('reject/bulk')
+  @Auth()
+  @ApiOperation({
+    summary: 'Rejeter plusieurs transactions en une requête',
+    description: bulkDescription(
+      "Body `{ ids: [...], motifRejet }` (même motif pour toutes). Le rejeteur est l'utilisateur authentifié",
+      'PATCH /transactions/:id/reject',
+    ),
+  })
+  @ApiResponse({ status: 200, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  @ApiBody({ type: BulkRejectTransactionsDto })
+  async rejectTransactionsBulk(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() dto: BulkRejectTransactionsDto,
+  ) {
+    return this.transactionsService.rejectTransactionsBulk(
+      dto,
       req.user.userId,
     );
   }

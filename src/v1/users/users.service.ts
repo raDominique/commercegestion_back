@@ -1,6 +1,7 @@
 import {
   Injectable,
   NotFoundException,
+  ForbiddenException,
   BadRequestException,
   ConflictException,
   forwardRef,
@@ -12,6 +13,7 @@ import { Model, Types } from 'mongoose';
 import { User, UserDocument } from './users.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { BulkResult, runBulk } from '../../shared/bulk';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { UploadService } from 'src/shared/upload/upload.service';
 import { randomBytes } from 'node:crypto';
@@ -564,6 +566,45 @@ export class UsersService implements OnModuleInit {
   }
 
   /**
+   * Active plusieurs comptes (Admin). Renvoie uniquement les ids activés.
+   */
+  async activateAccountsBulk(
+    ids: string[],
+  ): Promise<BulkResult<{ id: string }>> {
+    return runBulk(
+      ids,
+      async (id) => {
+        await this.activateAccount(id);
+        return { id };
+      },
+      { idOf: (id) => id },
+    );
+  }
+
+  /**
+   * Supprime plusieurs comptes (Admin). L'admin courant ne peut pas
+   * supprimer son propre compte : cet id est rapporté en échec.
+   */
+  async removeBulk(
+    ids: string[],
+    currentUserId: string,
+  ): Promise<BulkResult<{ id: string }>> {
+    return runBulk(
+      ids,
+      async (id) => {
+        if (id === currentUserId) {
+          throw new ForbiddenException(
+            'Vous ne pouvez pas supprimer votre propre compte admin.',
+          );
+        }
+        await this.remove(id);
+        return { id };
+      },
+      { idOf: (id) => id },
+    );
+  }
+
+  /**
    * Alterne le rôle entre ADMIN et UTILISATEUR
    */
   async toggleAdminRole(userId: string): Promise<PaginationResult<User>> {
@@ -703,13 +744,19 @@ export class UsersService implements OnModuleInit {
    */
   async findByIdWithSecret(userId: string): Promise<any> {
     return this.userModel
-      .findOne({ _id: new (require('mongoose').Types.ObjectId)(userId), deletedAt: null })
+      .findOne({
+        _id: new (require('mongoose').Types.ObjectId)(userId),
+        deletedAt: null,
+      })
       .select('+twoFactorSecret')
       .exec();
   }
 
   async update2FAFields(userId: string, fields: any): Promise<void> {
-    await this.userModel.updateOne({ _id: new (require('mongoose').Types.ObjectId)(userId) }, fields);
+    await this.userModel.updateOne(
+      { _id: new (require('mongoose').Types.ObjectId)(userId) },
+      fields,
+    );
   }
 
   async findByIdWithPassword(userId: string): Promise<PaginationResult<User>> {

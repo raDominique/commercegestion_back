@@ -36,6 +36,12 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { multerMemoryConfig } from 'src/shared/upload/multer.memory';
 import express from 'express';
 import { UsersQueryDto } from './dto/users-query.dto';
+import {
+  BulkIdsDto,
+  bulkDescription,
+  BULK_RESPONSE_OK,
+  BULK_RESPONSE_400,
+} from '../../shared/bulk';
 
 @ApiTags('Users')
 @Controller()
@@ -456,6 +462,41 @@ export class UsersController {
     return res.redirect(HttpStatus.FOUND, redirectUrl);
   }
 
+  // ========================= BULK (ADMIN) =========================
+  // Déclarés avant `activate/:id` pour que `bulk` ne soit pas pris pour un id.
+  @Patch('activate/bulk')
+  @AuthRole(UserAccess.ADMIN)
+  @ApiOperation({
+    summary: 'Activer plusieurs comptes (ADMIN)',
+    description: bulkDescription(
+      'Body `{ ids: [...] }`. `data` contient les ids activés',
+      'PATCH /users/activate/:id',
+    ),
+  })
+  @ApiBody({ type: BulkIdsDto })
+  @ApiResponse({ status: 200, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  activateAccountsBulk(@Body() dto: BulkIdsDto) {
+    return this.usersService.activateAccountsBulk(dto.ids);
+  }
+
+  @Post('delete/bulk')
+  @HttpCode(HttpStatus.OK)
+  @AuthRole(UserAccess.ADMIN)
+  @ApiOperation({
+    summary: 'Supprimer plusieurs comptes (ADMIN)',
+    description: bulkDescription(
+      "Body `{ ids: [...] }`. L'id de l'admin connecté est refusé (échec dans `errors`). `data` contient les ids supprimés",
+      'DELETE /users/delete/:id',
+    ),
+  })
+  @ApiBody({ type: BulkIdsDto })
+  @ApiResponse({ status: 200, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  removeBulk(@Req() req: any, @Body() dto: BulkIdsDto) {
+    return this.usersService.removeBulk(dto.ids, req.user.userId);
+  }
+
   // ========================= ACTIVATE ACCOUNT =========================
   @Patch('activate/:id')
   @AuthRole(UserAccess.ADMIN)
@@ -481,9 +522,12 @@ export class UsersController {
   @ApiOperation({
     summary: 'Désactiver la 2FA d’un utilisateur (ADMIN)',
     description:
-      "Permet à un administrateur de réinitialiser la 2FA lorsqu’un membre a perdu l’accès à son Authenticator. L’utilisateur pourra ensuite régénérer un nouveau QR code.",
+      'Permet à un administrateur de réinitialiser la 2FA lorsqu’un membre a perdu l’accès à son Authenticator. L’utilisateur pourra ensuite régénérer un nouveau QR code.',
   })
-  @ApiResponse({ status: 200, description: '2FA désactivée pour l’utilisateur.' })
+  @ApiResponse({
+    status: 200,
+    description: '2FA désactivée pour l’utilisateur.',
+  })
   @ApiResponse({ status: 404, description: 'Utilisateur introuvable.' })
   async reset2FA(@Param('id') id: string) {
     await this.usersService.update2FAFields(id, {

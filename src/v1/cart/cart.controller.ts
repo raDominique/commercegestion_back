@@ -20,6 +20,12 @@ import {
 } from '@nestjs/swagger';
 import { CartService } from './cart.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
+import { BulkAddCartItemDto } from './dto/bulk-add-cart-item.dto';
+import {
+  bulkDescription,
+  BULK_RESPONSE_OK,
+  BULK_RESPONSE_400,
+} from '../../shared/bulk';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { CheckoutDto } from './dto/checkout.dto';
 import { Auth } from '../auth';
@@ -57,6 +63,23 @@ export class CartController {
   @ApiResponse({ status: 404, description: 'Annonce introuvable.' })
   async addItem(@Body() dto: AddCartItemDto, @Req() req: any) {
     return this.cartService.addItem(req.user.userId, dto);
+  }
+
+  @Post('add/bulk')
+  @Auth()
+  @ApiOperation({
+    summary: 'Ajouter plusieurs articles au panier',
+    description: bulkDescription(
+      'Body `{ items: [...] }`. La réponse contient aussi `cart` : le panier final',
+      'POST /cart/add',
+    ),
+  })
+  @ApiBody({ type: BulkAddCartItemDto })
+  @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  @ApiResponse({ status: 401, description: 'Non authentifié.' })
+  async addItemsBulk(@Body() dto: BulkAddCartItemDto, @Req() req: any) {
+    return this.cartService.addItemsBulk(req.user.userId, dto);
   }
 
   @Patch('item/:shopItemId')

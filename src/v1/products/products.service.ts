@@ -23,6 +23,7 @@ import {
 import { CpcProduct } from '../cpc/cpc.schema';
 import { BulkCreateProductDto } from './dto/bulk-create-product.dto';
 import { BulkFakeProductDto } from './dto/bulk-fake-product.dto';
+import { BulkResult, runBulk } from '../../shared/bulk';
 import { faker } from '@faker-js/faker';
 import { Readable } from 'node:stream';
 import * as path from 'node:path';
@@ -611,6 +612,37 @@ export class ProductService {
   }
 
   /**
+   * Valide plusieurs produits (Admin). Un produit déjà validé est rapporté en
+   * échec, comme avec toggle-validation.
+   */
+  async validateProductsBulk(ids: string[]): Promise<BulkResult<Product>> {
+    return runBulk(
+      ids,
+      async (id) => {
+        const product = (await this.toggleProductValidation(id)).data?.[0];
+        if (!product) throw new NotFoundException('Produit introuvable');
+        return product;
+      },
+      { idOf: (id) => id },
+    );
+  }
+
+  /** Supprime plusieurs produits (Admin). Renvoie les ids supprimés. */
+  async deleteProductsBulk(
+    ids: string[],
+    userId: string,
+  ): Promise<BulkResult<{ id: string }>> {
+    return runBulk(
+      ids,
+      async (id) => {
+        await this.delete(id, userId);
+        return { id };
+      },
+      { idOf: (id) => id },
+    );
+  }
+
+  /**
    * Inverser le statut de stockage
    */
   async toggleStock(
@@ -663,16 +695,18 @@ export class ProductService {
       userId,
     });
 
-    // Notification temps réel au propriétaire
+    // Notification temps réel au propriétaire (pas à l'auteur de la
+    // suppression : un admin qui supprime en masse ne doit pas être notifié).
+    const ownerId = product.productOwnerId?.toString() ?? userId;
     await this.socketNotifications.notifyUser(
-      userId,
+      ownerId,
       'Produit supprimé',
       `Votre produit "${product.productName}" a été supprimé.`,
     );
 
     // Email de confirmation
     try {
-      const userResult = await this.usersService.findOne(userId);
+      const userResult = await this.usersService.findOne(ownerId);
       if (userResult?.data?.[0]) {
         const user = userResult.data[0];
         await this.mailService.notificationProductDeleted(

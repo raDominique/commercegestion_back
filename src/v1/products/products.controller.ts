@@ -28,6 +28,12 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { BulkCreateProductDto } from './dto/bulk-create-product.dto';
 import { BulkFakeProductDto } from './dto/bulk-fake-product.dto';
+import {
+  BulkIdsDto,
+  bulkDescription,
+  BULK_RESPONSE_OK,
+  BULK_RESPONSE_400,
+} from '../../shared/bulk';
 import { Auth, AuthRole } from '../auth';
 import { UserAccess } from '../users/users.schema';
 
@@ -155,6 +161,38 @@ export class ProductController {
   @ApiResponse({ status: 200, description: 'Produits validés.' })
   async validateAll() {
     return this.productService.validateAll();
+  }
+
+  @Patch('validate/bulk')
+  @AuthRole(UserAccess.ADMIN)
+  @ApiOperation({
+    summary: 'Valider plusieurs produits (ADMIN)',
+    description: bulkDescription(
+      'Body `{ ids: [...] }`. Un produit déjà validé est rapporté en échec',
+      'PATCH /products/toggle-validation/:id',
+    ),
+  })
+  @ApiBody({ type: BulkIdsDto })
+  @ApiResponse({ status: 200, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  async validateBulk(@Body() dto: BulkIdsDto) {
+    return this.productService.validateProductsBulk(dto.ids);
+  }
+
+  @Post('delete/bulk')
+  @AuthRole(UserAccess.ADMIN)
+  @ApiOperation({
+    summary: 'Supprimer plusieurs produits (ADMIN)',
+    description: bulkDescription(
+      'Body `{ ids: [...] }`. Chaque propriétaire est notifié. `data` contient les ids supprimés',
+      'DELETE /products/delete/:id',
+    ),
+  })
+  @ApiBody({ type: BulkIdsDto })
+  @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  async deleteBulk(@Body() dto: BulkIdsDto, @Req() req: any) {
+    return this.productService.deleteProductsBulk(dto.ids, req.user.userId);
   }
 
   // ==========================================

@@ -18,11 +18,18 @@ import {
   ApiResponse,
   ApiQuery,
   ApiParam,
+  ApiBody,
 } from '@nestjs/swagger';
 
 import { SiteService } from './sites.service';
 import { CreateSiteDto } from './dto/create-site.dto';
 import { UpdateSiteDto } from './dto/update-site.dto';
+import { BulkCreateSiteDto } from './dto/bulk-create-site.dto';
+import {
+  bulkDescription,
+  BULK_RESPONSE_OK,
+  BULK_RESPONSE_400,
+} from '../../shared/bulk';
 import { Site } from './sites.schema';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { Auth } from '../auth';
@@ -48,6 +55,20 @@ export class SiteController {
   ): Promise<PaginationResult<Site>> {
     const userId = req.user.userId;
     return this.siteService.create(createSiteDto, userId);
+  }
+
+  /* ===================== CREATE BULK ===================== */
+  @Post('bulk-create')
+  @Auth()
+  @ApiOperation({
+    summary: 'Créer plusieurs sites en une requête',
+    description: bulkDescription('Body `{ items: [...] }`', 'POST /sites'),
+  })
+  @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  @ApiBody({ type: BulkCreateSiteDto })
+  async createBulk(@Req() req: any, @Body() dto: BulkCreateSiteDto) {
+    return this.siteService.createBulk(dto, req.user.userId);
   }
 
   /* ===================== FIND ALL ===================== */

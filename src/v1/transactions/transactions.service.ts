@@ -22,6 +22,16 @@ import {
   ApproveTransactionDto,
   RejectTransactionDto,
 } from './dto/create-transaction.dto';
+import {
+  BulkCreateDepositDto,
+  BulkCreateReturnDto,
+  BulkCreateInitializationDto,
+  BulkCreateVenteDto,
+  BulkCreateVirementDroitDto,
+  BulkApproveTransactionsDto,
+  BulkRejectTransactionsDto,
+} from './dto/bulk-transaction.dto';
+import { BulkResult, runBulk } from '../../shared/bulk';
 import { ActifsService } from '../actifs/actifs.service';
 import { PassifsService } from '../passifs/passifs.service';
 import { MailService } from '../../shared/mail/mail.service';
@@ -550,6 +560,106 @@ export class TransactionsService {
       data: [savedTransaction],
       total: 1,
     };
+  }
+
+  // ===================== OPÉRATIONS BULK =====================
+  // Chaque élément passe par la méthode unitaire correspondante (mêmes règles
+  // métier, emails et notifications). Voir runBulk pour la sémantique.
+
+  async createDepositBulk(
+    dto: BulkCreateDepositDto,
+  ): Promise<BulkResult<TransactionDocument>> {
+    return runBulk(dto.items, async (item) =>
+      this.firstTransaction(await this.createDeposit(item)),
+    );
+  }
+
+  async createReturnBulk(
+    dto: BulkCreateReturnDto,
+    retrayantId: string,
+  ): Promise<BulkResult<TransactionDocument>> {
+    return runBulk(dto.items, async (item) =>
+      this.firstTransaction(await this.createReturn(item, retrayantId)),
+    );
+  }
+
+  async createInitializationBulk(
+    dto: BulkCreateInitializationDto,
+    userId: string,
+  ): Promise<BulkResult<TransactionDocument>> {
+    return runBulk(dto.items, async (item) =>
+      this.firstTransaction(await this.createInitialization(item, userId)),
+    );
+  }
+
+  async createVirementDroitBulk(
+    dto: BulkCreateVirementDroitDto,
+    initiatorId: string,
+  ): Promise<BulkResult<TransactionDocument>> {
+    return runBulk(dto.items, async (item) =>
+      this.firstTransaction(await this.createVirementDroit(item, initiatorId)),
+    );
+  }
+
+  async createVenteBulk(
+    dto: BulkCreateVenteDto,
+    acheteurId: string,
+  ): Promise<BulkResult<TransactionDocument>> {
+    return runBulk(dto.items, async (item) =>
+      this.firstTransaction(await this.createVente(item, acheteurId)),
+    );
+  }
+
+  /**
+   * Approuve plusieurs transactions PENDING. L'approbateur est l'utilisateur
+   * authentifié (jamais un id fourni dans le body).
+   */
+  async approveTransactionsBulk(
+    dto: BulkApproveTransactionsDto,
+    approuveurId: string,
+  ): Promise<BulkResult<TransactionDocument>> {
+    return runBulk(
+      dto.ids,
+      async (id) =>
+        this.firstTransaction(
+          await this.approveTransaction(id, {
+            approuveurId,
+            observations: dto.observations,
+          }),
+        ),
+      { idOf: (id) => id },
+    );
+  }
+
+  /**
+   * Rejette plusieurs transactions PENDING avec le même motif. Le rejeteur est
+   * l'utilisateur authentifié.
+   */
+  async rejectTransactionsBulk(
+    dto: BulkRejectTransactionsDto,
+    approuveurId: string,
+  ): Promise<BulkResult<TransactionDocument>> {
+    return runBulk(
+      dto.ids,
+      async (id) =>
+        this.firstTransaction(
+          await this.rejectTransaction(id, {
+            approuveurId,
+            motifRejet: dto.motifRejet,
+          }),
+        ),
+      { idOf: (id) => id },
+    );
+  }
+
+  private firstTransaction(
+    result: PaginationResult<TransactionDocument>,
+  ): TransactionDocument {
+    const transaction = result.data?.[0];
+    if (!transaction) {
+      throw new Error("L'opération n'a renvoyé aucune transaction");
+    }
+    return transaction;
   }
 
   /**

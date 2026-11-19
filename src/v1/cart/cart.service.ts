@@ -7,6 +7,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Cart, CartDocument, Order, OrderDocument } from './cart.schema';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
+import { BulkAddCartItemDto } from './dto/bulk-add-cart-item.dto';
+import { BulkResult, runBulk } from '../../shared/bulk';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { CheckoutDto } from './dto/checkout.dto';
 import { ShopAvailableService } from '../shop-available/shop-available.service';
@@ -92,6 +94,29 @@ export class CartService {
 
     await cart.save();
     return this.getCart(userId);
+  }
+
+  /**
+   * Ajoute plusieurs articles au panier (mêmes contrôles que addItem).
+   * `data` liste les articles ajoutés, `cart` est le panier final.
+   */
+  async addItemsBulk(
+    userId: string,
+    dto: BulkAddCartItemDto,
+  ): Promise<
+    BulkResult<{ shopItemId: string; quantite: number }> & {
+      cart: Awaited<ReturnType<CartService['getCart']>>;
+    }
+  > {
+    const result = await runBulk(
+      dto.items,
+      async (item) => {
+        await this.addItem(userId, item);
+        return { shopItemId: item.shopItemId, quantite: item.quantite };
+      },
+      { idOf: (item) => item.shopItemId },
+    );
+    return { ...result, cart: await this.getCart(userId) };
   }
 
   async updateItemQuantity(

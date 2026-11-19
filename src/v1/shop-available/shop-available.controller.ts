@@ -19,6 +19,12 @@ import {
 } from '@nestjs/swagger';
 import { ShopAvailableService } from './shop-available.service';
 import { CreateShopItemDto } from './dto/create-shop-item.dto';
+import { BulkCreateShopItemDto } from './dto/bulk-create-shop-item.dto';
+import {
+  bulkDescription,
+  BULK_RESPONSE_OK,
+  BULK_RESPONSE_400,
+} from '../../shared/bulk';
 import { Auth } from '../auth';
 
 @ApiTags('Shop Available')
@@ -41,6 +47,24 @@ La quantité est vérifiée par rapport à l'actif détenu.`,
     if (!userId) throw new BadRequestException('Utilisateur non authentifié');
     const item = await this.shopService.create(userId, dto);
     return { status: 'success', message: 'Annonce créée', data: [item] };
+  }
+
+  @Post('shop-items/bulk')
+  @Auth()
+  @ApiOperation({
+    summary: 'Mettre plusieurs actifs en vente en une requête',
+    description: bulkDescription(
+      'Body `{ items: [...] }`',
+      'POST /shop/shop-items',
+    ),
+  })
+  @ApiBody({ type: BulkCreateShopItemDto })
+  @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  async createBulk(@Req() req: any, @Body() dto: BulkCreateShopItemDto) {
+    const userId = req.user?.userId;
+    if (!userId) throw new BadRequestException('Utilisateur non authentifié');
+    return this.shopService.createBulk(userId, dto);
   }
 
   @Get('shop-items')

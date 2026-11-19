@@ -9,6 +9,7 @@ export * from './transactions.controller';
 
 // DTOs
 export * from './dto/create-transaction.dto';
+export * from './dto/bulk-transaction.dto';
 
 // Module
 export * from './transactions.module';

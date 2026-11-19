@@ -12,6 +12,8 @@ import { Model, Types } from 'mongoose';
 import { Site, SiteDocument } from './sites.schema';
 import { CreateSiteDto } from './dto/create-site.dto';
 import { UpdateSiteDto } from './dto/update-site.dto';
+import { BulkCreateSiteDto } from './dto/bulk-create-site.dto';
+import { BulkResult, runBulk } from '../../shared/bulk';
 
 import { AuditAction, EntityType } from '../audit/audit-log.schema';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
@@ -79,6 +81,19 @@ export class SiteService {
       message: 'Site créé avec succès',
       data: [site],
     };
+  }
+
+  /* ===================== CREATE BULK ===================== */
+  /** Crée plusieurs sites pour l'utilisateur (mêmes règles que create). */
+  async createBulk(
+    dto: BulkCreateSiteDto,
+    userId: string,
+  ): Promise<BulkResult<Site>> {
+    return runBulk(dto.items, async (item) => {
+      const site = (await this.create(item, userId)).data?.[0];
+      if (!site) throw new Error("La création du site n'a renvoyé aucun site");
+      return site;
+    });
   }
 
   /* ===================== FIND ALL ===================== */
