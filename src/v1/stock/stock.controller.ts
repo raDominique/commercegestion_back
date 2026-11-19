@@ -9,9 +9,25 @@ import {
   BadRequestException,
   StreamableFile,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiBody,
+} from '@nestjs/swagger';
 import { Auth } from '../auth';
 import { CreateMovementDto } from './dto/create-movement.dto';
+import {
+  BulkCreateMovementDto,
+  BulkFlagMovementDto,
+} from './dto/bulk-movement.dto';
+import {
+  BulkIdsDto,
+  bulkDescription,
+  BULK_RESPONSE_OK,
+  BULK_RESPONSE_400,
+} from '../../shared/bulk';
 import { MovementType } from './stock-movement.schema';
 import { StockService } from './stock.service';
 import { ActifsService } from '../actifs/actifs.service';
@@ -171,6 +187,70 @@ Erreurs possibles:
   })
   async virement(@Body() dto: CreateMovementDto, @Req() req: any) {
     return this.stockService.createMovement(
+      dto,
+      req.user.userId,
+      MovementType.VIREMENT,
+    );
+  }
+
+  // ==========================================
+  // MOUVEMENTS EN MASSE (BULK)
+  // ==========================================
+
+  @Post('depot/bulk')
+  @Auth()
+  @ApiOperation({
+    summary: 'Enregistrer plusieurs dépôts en stock',
+    description: bulkDescription(
+      'Body `{ items: [...] }`',
+      'POST /stocks/depot',
+    ),
+  })
+  @ApiBody({ type: BulkCreateMovementDto })
+  @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  async createDepositBulk(@Body() dto: BulkCreateMovementDto, @Req() req: any) {
+    return this.stockService.createMovementsBulk(
+      dto,
+      req.user.userId,
+      MovementType.DEPOT,
+    );
+  }
+
+  @Post('transfer/bulk')
+  @Auth()
+  @ApiOperation({
+    summary: 'Transférer plusieurs produits',
+    description: bulkDescription(
+      'Body `{ items: [...] }`',
+      'POST /stocks/transfer',
+    ),
+  })
+  @ApiBody({ type: BulkCreateMovementDto })
+  @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  async transferBulk(@Body() dto: BulkCreateMovementDto, @Req() req: any) {
+    return this.stockService.createMovementsBulk(
+      dto,
+      req.user.userId,
+      MovementType.TRANSFERT,
+    );
+  }
+
+  @Post('virement/bulk')
+  @Auth()
+  @ApiOperation({
+    summary: 'Effectuer plusieurs virements de propriété',
+    description: bulkDescription(
+      'Body `{ items: [...] }`',
+      'POST /stocks/virement',
+    ),
+  })
+  @ApiBody({ type: BulkCreateMovementDto })
+  @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  async virementBulk(@Body() dto: BulkCreateMovementDto, @Req() req: any) {
+    return this.stockService.createMovementsBulk(
       dto,
       req.user.userId,
       MovementType.VIREMENT,
@@ -366,6 +446,40 @@ Erreurs possibles:
   // ==========================================
   // VALIDATION DES MOUVEMENTS
   // ==========================================
+
+  // Routes bulk déclarées avant `:movementId` pour que `bulk` ne soit pas
+  // interprété comme un identifiant de mouvement.
+  @Post('flag-movement/bulk')
+  @Auth()
+  @ApiOperation({
+    summary: 'Signaler plusieurs mouvements',
+    description: bulkDescription(
+      'Body `{ ids: [...], reason }` (même motif pour tous)',
+      'POST /stocks/flag-movement/:movementId',
+    ),
+  })
+  @ApiBody({ type: BulkFlagMovementDto })
+  @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  async flagMovementsBulk(@Body() dto: BulkFlagMovementDto, @Req() req: any) {
+    return this.stockService.flagMovementsBulk(dto, req.user.userId);
+  }
+
+  @Post('validate-movement/bulk')
+  @Auth()
+  @ApiOperation({
+    summary: 'Revalider plusieurs mouvements signalés',
+    description: bulkDescription(
+      'Body `{ ids: [...] }`',
+      'POST /stocks/validate-movement/:movementId',
+    ),
+  })
+  @ApiBody({ type: BulkIdsDto })
+  @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  async validateMovementsBulk(@Body() dto: BulkIdsDto) {
+    return this.stockService.validateMovementFlagsBulk(dto.ids);
+  }
 
   @Post('flag-movement/:movementId')
   @Auth()

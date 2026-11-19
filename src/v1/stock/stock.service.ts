@@ -7,6 +7,11 @@ import { ActifsService } from '../actifs/actifs.service';
 import { PassifsService } from '../passifs/passifs.service';
 import { CreateMovementDto } from './dto/create-movement.dto';
 import {
+  BulkCreateMovementDto,
+  BulkFlagMovementDto,
+} from './dto/bulk-movement.dto';
+import { BulkResult, runBulk } from '../../shared/bulk';
+import {
   StockMovement,
   StockMovementDocument,
   MovementType,
@@ -95,6 +100,45 @@ export class StockService {
     // Mise à jour du status produit isStocker === true
     await this.productService.updateIsStocker(dto.productId, true);
     return savedMovement;
+  }
+
+  // ===================== OPÉRATIONS BULK =====================
+  // Chaque élément passe par la méthode unitaire (mêmes contrôles, mêmes
+  // effets sur actifs/passifs). Séquentiel : un mouvement peut dépendre du
+  // stock laissé par le précédent.
+
+  /** Crée plusieurs mouvements du même type (dépôt, transfert, virement). */
+  async createMovementsBulk(
+    dto: BulkCreateMovementDto,
+    userId: string,
+    type: MovementType,
+  ): Promise<BulkResult<StockMovementDocument>> {
+    return runBulk(dto.items, (item) =>
+      this.createMovement(item, userId, type),
+    );
+  }
+
+  /** Signale plusieurs mouvements avec le même motif. */
+  async flagMovementsBulk(
+    dto: BulkFlagMovementDto,
+    userId: string,
+  ): Promise<BulkResult<StockMovementDocument>> {
+    return runBulk(
+      dto.ids,
+      async (id) => (await this.flagMovement(id, userId, dto.reason)).data,
+      { idOf: (id) => id },
+    );
+  }
+
+  /** Revalide plusieurs mouvements signalés. */
+  async validateMovementFlagsBulk(
+    ids: string[],
+  ): Promise<BulkResult<StockMovementDocument>> {
+    return runBulk(
+      ids,
+      async (id) => (await this.validateMovementFlag(id)).data,
+      { idOf: (id) => id },
+    );
   }
 
   private validateMovement(dto: CreateMovementDto, type: MovementType): void {
