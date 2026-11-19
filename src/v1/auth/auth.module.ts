@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtSignOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { UsersModule } from '../users/users.module';
@@ -37,7 +37,7 @@ import { AuthSecurityService } from './security/auth-security.service';
             'your-secret-key-change-in-production',
           ),
           signOptions: {
-            expiresIn: expiresIn as any,
+            expiresIn: expiresIn as JwtSignOptions['expiresIn'],
           },
         };
       },

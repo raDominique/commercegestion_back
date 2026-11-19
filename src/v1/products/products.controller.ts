@@ -39,6 +39,7 @@ import {
 } from '../../shared/bulk';
 import { Auth, AuthRole } from '../auth';
 import { UserAccess } from '../users/users.schema';
+import type { AuthenticatedRequest } from '../auth/interfaces/authenticated-user.interface';
 
 @ApiTags('Produits')
 @Controller()
@@ -69,7 +70,7 @@ export class ProductController {
   async create(
     @Body() dto: CreateProductDto,
     @UploadedFile() file: Express.Multer.File,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.productService.create(dto, req.user.userId, file);
   }
@@ -82,7 +83,10 @@ export class ProductController {
       'Crée N produits avec des données aléatoires liés aux CPC existants. Les images sont téléchargées depuis picsum.photos.',
   })
   @ApiResponse({ status: 201, description: 'Produits factices créés.' })
-  async bulkFake(@Body() dto: BulkFakeProductDto, @Req() req: any) {
+  async bulkFake(
+    @Body() dto: BulkFakeProductDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.productService.bulkCreateFake(dto, req.user?.userId);
   }
 
@@ -99,7 +103,10 @@ export class ProductController {
     description: 'Données invalides ou erreurs de traitement.',
   })
   @ApiBody({ type: BulkCreateProductDto })
-  async bulkCreate(@Body() dto: BulkCreateProductDto, @Req() req: any) {
+  async bulkCreate(
+    @Body() dto: BulkCreateProductDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.productService.bulkCreate(dto, req.user.userId);
   }
 
@@ -140,7 +147,7 @@ export class ProductController {
   async bulkCreateWithImages(
     @Body() dto: BulkCreateProductMultipartDto,
     @UploadedFiles() files: Express.Multer.File[],
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.productService.bulkCreateWithImages(
       dto,
@@ -170,7 +177,7 @@ export class ProductController {
     @Param('id') id: string,
     @Body() dto: UpdateProductDto,
     @UploadedFile() file: Express.Multer.File,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.productService.update(id, dto, req.user.userId, file);
   }
@@ -181,7 +188,7 @@ export class ProductController {
   @ApiParam({ name: 'id', description: 'ID du produit à supprimer' })
   @ApiResponse({ status: 200, description: 'Produit supprimé.' })
   @ApiResponse({ status: 403, description: 'Action interdite.' })
-  async remove(@Param('id') id: string, @Req() req: any) {
+  async remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.productService.delete(id, req.user.userId);
   }
 
@@ -240,7 +247,7 @@ export class ProductController {
   @ApiBody({ type: BulkIdsDto })
   @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
   @ApiResponse(BULK_RESPONSE_400)
-  async deleteBulk(@Body() dto: BulkIdsDto, @Req() req: any) {
+  async deleteBulk(@Body() dto: BulkIdsDto, @Req() req: AuthenticatedRequest) {
     return this.productService.deleteProductsBulk(dto.ids, req.user.userId);
   }
 
@@ -284,7 +291,7 @@ export class ProductController {
       },
     },
   })
-  async findAll(@Query() query: any, @Req() req: any) {
+  async findAll(@Query() query: any, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.userId;
     const isAdmin = req.user?.userAccess === UserAccess.ADMIN;
     return this.productService.findAll(query, userId, isAdmin);
@@ -303,7 +310,7 @@ export class ProductController {
   @ApiQuery({ name: 'isStocker', required: false, type: Boolean })
   @ApiQuery({ name: 'validation', required: false, type: Boolean })
   @ApiResponse({ status: 200, description: 'Vos produits ont été récupérés.' })
-  async getMyProducts(@Query() query: any, @Req() req: any) {
+  async getMyProducts(@Query() query: any, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.userId;
     return this.productService.findAll(query, userId, false);
   }
@@ -314,7 +321,7 @@ export class ProductController {
   @ApiParam({ name: 'id', description: 'ID du produit' })
   @ApiResponse({ status: 200, description: 'Produit trouvé.' })
   @ApiResponse({ status: 404, description: 'Produit non trouvé.' })
-  async findById(@Param('id') id: string, @Req() req: any) {
+  async findById(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.productService.findById(id, req.user?.userId);
   }
 
@@ -360,7 +367,7 @@ export class ProductController {
   @ApiResponse({ status: 200, description: 'URL du fichier généré' })
   async exportAll(
     @Query('format') format: 'excel' | 'pdf',
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ): Promise<StreamableFile> {
     if (!format || !['excel', 'pdf'].includes(format)) {
       throw new BadRequestException(

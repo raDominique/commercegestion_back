@@ -5,13 +5,16 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { UsersService } from '../../users/users.service';
+import type { AuthenticatedRequest } from '../interfaces/authenticated-user.interface';
 
 @Injectable()
 export class TwoFactorGuard implements CanActivate {
   constructor(private readonly usersService: UsersService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
+    const request = context
+      .switchToHttp()
+      .getRequest<Partial<AuthenticatedRequest>>();
     const user = request.user;
 
     if (!user || !user.userId) {
@@ -19,7 +22,8 @@ export class TwoFactorGuard implements CanActivate {
     }
 
     // Skip for 2FA related endpoints
-    const path = request.route?.path || request.url;
+    const route = request.route as { path?: string } | undefined;
+    const path = route?.path || request.url || '';
     if (
       path.includes('/auth/2fa') ||
       path.includes('/auth/verify-token') ||
@@ -31,7 +35,7 @@ export class TwoFactorGuard implements CanActivate {
 
     try {
       const userResult = await this.usersService.findOne(user.userId);
-      const userDoc = userResult.data?.[0] as any;
+      const userDoc = userResult.data?.[0];
       if (userDoc && userDoc.twoFactorEnabled === false) {
         throw new ForbiddenException(
           'Authentification à deux facteurs requise. Veuillez activer le 2FA pour accéder à cette ressource.',

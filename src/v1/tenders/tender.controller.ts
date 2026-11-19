@@ -30,6 +30,7 @@ import { UpdateTenderDto } from './dto/update-tender.dto';
 import { UpdateBidDto } from './dto/update-bid.dto';
 import { TenderStatus } from './tender.schema';
 import { Auth } from '../auth';
+import type { AuthenticatedRequest } from '../auth/interfaces/authenticated-user.interface';
 
 @ApiTags("Appels d'offres")
 @Controller()
@@ -114,7 +115,7 @@ L'appel d'offres sera visible par tous les membres de la plateforme qui pourront
     description: "L'appel d'offres a été créé avec succès",
   })
   async create(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: CreateTenderDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
@@ -141,7 +142,7 @@ L'appel d'offres sera visible par tous les membres de la plateforme qui pourront
   @ApiBody({ type: UpdateTenderDto })
   @ApiResponse({ status: 200, description: "Appel d'offres mis à jour" })
   async update(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() dto: UpdateTenderDto,
     @UploadedFile() file?: Express.Multer.File,
@@ -208,7 +209,7 @@ L'appel d'offres sera visible par tous les membres de la plateforme qui pourront
     description: "Liste des appels d'offres récupérée avec succès",
   })
   async findAll(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
     @Query('search') search?: string,
@@ -239,7 +240,7 @@ L'appel d'offres sera visible par tous les membres de la plateforme qui pourront
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
   @ApiResponse({ status: 200, description: "Liste de vos appels d'offres" })
   async findMine(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
   ) {
@@ -268,7 +269,7 @@ L'appel d'offres sera visible par tous les membres de la plateforme qui pourront
     description: "Informations détaillées de l'appel d'offres",
   })
   @ApiResponse({ status: 404, description: "Appel d'offres introuvable" })
-  async findById(@Req() req: any, @Param('id') id: string) {
+  async findById(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     if (!id) throw new BadRequestException('ID requis');
     const userId = req.user?.userId;
     const tender = await this.tenderService.findById(id, userId);
@@ -287,7 +288,7 @@ L'appel d'offres sera visible par tous les membres de la plateforme qui pourront
     status: 200,
     description: "L'appel d'offres a été annulé avec succès",
   })
-  async cancel(@Req() req: any, @Param('id') id: string) {
+  async cancel(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     const userId = req.user?.userId;
     if (!userId) throw new BadRequestException('Utilisateur non authentifié');
     if (!id) throw new BadRequestException('ID requis');
@@ -332,7 +333,7 @@ Note : Un lanceur ne peut pas soumissionner à son propre appel d'offres. L'offr
     description: 'Votre offre a été soumise avec succès',
   })
   async submitBid(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('tenderId') tenderId: string,
     @Body() dto: SubmitBidDto,
     @UploadedFile() file?: Express.Multer.File,
@@ -362,7 +363,7 @@ Note : Un lanceur ne peut pas soumissionner à son propre appel d'offres. L'offr
   @ApiBody({ type: UpdateBidDto })
   @ApiResponse({ status: 200, description: 'Soumission mise à jour' })
   async updateBid(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('tenderId') tenderId: string,
     @Param('bidId') bidId: string,
     @Body() dto: UpdateBidDto,
@@ -389,7 +390,7 @@ Note : Un lanceur ne peut pas soumissionner à son propre appel d'offres. L'offr
   @ApiParam({ name: 'bidId', description: 'ID de la soumission' })
   @ApiResponse({ status: 200, description: 'Soumission retirée' })
   async withdrawBid(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('tenderId') tenderId: string,
     @Param('bidId') bidId: string,
   ) {
@@ -408,7 +409,10 @@ Note : Un lanceur ne peut pas soumissionner à son propre appel d'offres. L'offr
   })
   @ApiParam({ name: 'tenderId', description: "ID de l'appel d'offres" })
   @ApiResponse({ status: 200, description: 'Liste des soumissions récupérée' })
-  async getBids(@Req() req: any, @Param('tenderId') tenderId: string) {
+  async getBids(
+    @Req() req: AuthenticatedRequest,
+    @Param('tenderId') tenderId: string,
+  ) {
     const userId = req.user?.userId;
     if (!userId) throw new BadRequestException('Utilisateur non authentifié');
     if (!tenderId) throw new BadRequestException('ID requis');
@@ -433,7 +437,7 @@ Note : Un lanceur ne peut pas soumissionner à son propre appel d'offres. L'offr
   })
   @ApiResponse({ status: 200, description: 'Liste de vos soumissions' })
   async getMyBids(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
     @Query('search') search?: string,
@@ -459,7 +463,10 @@ C'est à cette étape que les soumissions deviennent officiellement visibles pou
   })
   @ApiParam({ name: 'tenderId', description: "ID de l'appel d'offres" })
   @ApiResponse({ status: 200, description: 'Dépouillement ouvert avec succès' })
-  async openSealed(@Req() req: any, @Param('tenderId') tenderId: string) {
+  async openSealed(
+    @Req() req: AuthenticatedRequest,
+    @Param('tenderId') tenderId: string,
+  ) {
     const userId = req.user?.userId;
     if (!userId) throw new BadRequestException('Utilisateur non authentifié');
     const tender = await this.tenderService.ouvrirDepouillement(
@@ -487,7 +494,7 @@ L'attribution du marché entraîne automatiquement le rejet de toutes les autres
     description: 'Le marché a été attribué avec succès',
   })
   async award(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('tenderId') tenderId: string,
     @Body() dto: AwardTenderDto,
   ) {

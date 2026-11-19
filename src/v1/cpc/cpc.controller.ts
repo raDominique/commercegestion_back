@@ -27,6 +27,7 @@ import { UpdateCpcDto } from './dto/update-cpc.dto';
 import { Auth } from '../auth';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { BulkCreateCpcDto } from './dto/bulk-create-cpc.dto';
+import type { AuthenticatedRequest } from '../auth/interfaces/authenticated-user.interface';
 
 @ApiTags('Classification CPC')
 @Controller()
@@ -42,8 +43,8 @@ export class CpcController {
   })
   @ApiResponse({ status: 400, description: 'Données invalides.' })
   @Auth()
-  create(@Body() dto: CreateCpcDto, @Req() req: any) {
-    const userId = req.user?.id || 'system';
+  create(@Body() dto: CreateCpcDto, @Req() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || 'system';
     return this.service.create(dto, userId);
   }
 
@@ -109,9 +110,9 @@ export class CpcController {
   update(
     @Param('code') code: string,
     @Body() dto: UpdateCpcDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
-    const userId = req.user?.id || 'system';
+    const userId = req.user?.userId || 'system';
     return this.service.update(code, dto, userId);
   }
 
@@ -120,8 +121,8 @@ export class CpcController {
   @ApiParam({ name: 'code', description: 'Code de la catégorie à supprimer' })
   @ApiResponse({ status: 200, description: 'Catégorie supprimée avec succès.' })
   @Auth()
-  remove(@Param('code') code: string, @Req() req: any) {
-    const userId = req.user?.id || 'system';
+  remove(@Param('code') code: string, @Req() req: AuthenticatedRequest) {
+    const userId = req.user?.userId || 'system';
     return this.service.delete(code, userId);
   }
 
@@ -177,8 +178,11 @@ export class CpcController {
   })
   @ApiConsumes('multipart/form-data')
   @Auth()
-  async importCpc(@UploadedFile() file: Express.Multer.File, @Req() req: any) {
-    const userId = req.user?.usersId || 'system';
+  async importCpc(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?.userId || 'system';
     return this.service.importCpcProduct(file, userId);
   }
 
@@ -206,8 +210,11 @@ export class CpcController {
   @ApiBody({ type: BulkCreateCpcDto })
   @ApiResponse({ status: 201, description: 'CPC créés avec succès' })
   @Auth()
-  async bulkCreate(@Body() dto: BulkCreateCpcDto, @Req() req: any) {
-    const userId = req.user?.id || 'system';
+  async bulkCreate(
+    @Body() dto: BulkCreateCpcDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?.userId || 'system';
     return this.service.bulkCreate(dto, userId);
   }
 }

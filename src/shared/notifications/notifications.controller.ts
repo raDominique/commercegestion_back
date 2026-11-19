@@ -11,6 +11,7 @@ import {
 import { NotificationsService } from './notifications.service';
 import { Auth } from 'src/v1/auth';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import type { AuthenticatedRequest } from '../../v1/auth/interfaces/authenticated-user.interface';
 
 @ApiTags('Notifications')
 @Controller()
@@ -51,7 +52,7 @@ export class NotificationsController {
     description: "Non autorisé. L'utilisateur doit être authentifié.",
   })
   @ApiResponse({ status: 500, description: 'Erreur interne du serveur.' })
-  async historiques(@Req() req: any, @Query() query: any) {
+  async historiques(@Req() req: AuthenticatedRequest, @Query() query: any) {
     return this.notificationsService.getUserNotifications(
       req.user.userId,
       query,
@@ -64,7 +65,7 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'Notification marquée comme lue.' })
   @ApiResponse({ status: 404, description: 'Notification introuvable.' })
   async markAsRead(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('notificationId') notificationId: string,
   ) {
     return this.notificationsService.markAsRead(
@@ -80,7 +81,7 @@ export class NotificationsController {
     status: 200,
     description: 'Toutes les notifications ont été marquées comme lues.',
   })
-  async markAllAsRead(@Req() req: any) {
+  async markAllAsRead(@Req() req: AuthenticatedRequest) {
     return this.notificationsService.markAllAsRead(req.user.userId);
   }
 
@@ -96,7 +97,7 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'URL du fichier généré' })
   async exportAll(
     @Query('format') format: 'excel' | 'pdf',
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ): Promise<StreamableFile> {
     if (!format || !['excel', 'pdf'].includes(format)) {
       throw new BadRequestException(

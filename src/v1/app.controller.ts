@@ -8,8 +8,7 @@ import {
 } from '@nestjs/common';
 import { AppService } from './app.service';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBody, ApiConsumes, ApiOperation } from '@nestjs/swagger';
-import { SendTestMailDto } from 'src/shared/mail/dto/send-test-mail.dto';
+import { ApiBody, ApiConsumes } from '@nestjs/swagger';
 import { MailService } from 'src/shared/mail/mail.service';
 
 @Controller()

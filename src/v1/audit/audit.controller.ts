@@ -16,6 +16,7 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 import { Auth } from '../auth/decorators/auth.decorator';
+import type { AuthenticatedRequest } from '../auth/interfaces/authenticated-user.interface';
 
 @Controller('audit')
 @ApiTags()
@@ -26,7 +27,7 @@ export class AuditController {
   @Auth()
   @ApiOperation({ summary: 'Get all audit logs for a user' })
   @ApiResponse({ status: 200, description: 'List of audit logs' })
-  findAllAuditByUserId(@Req() req: any) {
+  findAllAuditByUserId(@Req() req: AuthenticatedRequest) {
     const userId = req.user?.userId;
     if (!userId) {
       throw new UnauthorizedException('User ID not found in token');
@@ -54,7 +55,7 @@ export class AuditController {
   @ApiResponse({ status: 200, description: 'URL du fichier généré' })
   async exportAll(
     @Query('format') format: 'excel' | 'pdf',
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ): Promise<StreamableFile> {
     if (!format || !['excel', 'pdf'].includes(format)) {
       throw new BadRequestException(

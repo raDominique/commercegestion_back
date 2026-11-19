@@ -20,7 +20,9 @@ export class MovementsService {
 
   private validateQuantity(quantite: number): void {
     if (!Number.isFinite(quantite) || quantite <= 0) {
-      throw new BadRequestException('La quantité doit être strictement positive');
+      throw new BadRequestException(
+        'La quantité doit être strictement positive',
+      );
     }
   }
 

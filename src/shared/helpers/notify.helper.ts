@@ -1,4 +1,4 @@
-import { forwardRef, Global, Inject, Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { MailService } from '../mail/mail.service';
 import { AuditAction, EntityType } from 'src/v1/audit/audit-log.schema';
 import { AuditService } from 'src/v1/audit/audit.service';
@@ -9,8 +9,8 @@ export interface NotifyOptions {
   entityType: EntityType;
   entityId: string;
   userId: string;
-  previousState?: any;
-  newState?: any;
+  previousState?: unknown;
+  newState?: unknown;
   emailData?: {
     type: 'CREATE' | 'UPDATE' | 'DELETE';
     siteName?: string;
@@ -52,7 +52,7 @@ export class NotifyHelper {
     } catch (auditError) {
       this.logger.error(
         `Erreur audit pour ${action} sur ${entityType} ${entityId}`,
-        auditError.stack,
+        auditError instanceof Error ? auditError.stack : String(auditError),
       );
     }
 
@@ -88,7 +88,7 @@ export class NotifyHelper {
     } catch (mailError) {
       this.logger.error(
         `Erreur envoi email pour ${emailData?.type}`,
-        mailError.stack,
+        mailError instanceof Error ? mailError.stack : String(mailError),
       );
     }
   }

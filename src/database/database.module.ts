@@ -1,6 +1,7 @@
 import { Module, Global } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import type { Connection } from 'mongoose';
 
 @Global()
 @Module({
@@ -11,7 +12,7 @@ import { MongooseModule } from '@nestjs/mongoose';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         uri: configService.get<string>('MONGO_URI'),
-        connectionFactory: (connection) => {
+        connectionFactory: (connection: Connection) => {
           connection.on('connected', () => {
             console.log(
               `MongoDB connecté à ${configService.get<string>('MONGO_URI')}`,

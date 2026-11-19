@@ -1,8 +1,10 @@
 # Intégration frontend — Endpoints bulk
 
-Ce document décrit les endpoints « bulk » (opérations en masse) ajoutés au backend, et la façon de les intégrer côté frontend (React + Axios, voir `DOCUMENTATION-frontend.md` §7).
+Ce document décrit les endpoints « bulk » (opérations en masse) ajoutés au backend, et la façon de les intégrer côté frontend (React + Axios, voir `DOCUMENTATION-frontend.md` §7). Chaque endpoint est accompagné d'un exemple **curl**.
 
 Chaque endpoint bulk est la version « en lot » d'un endpoint unitaire existant : **mêmes champs, mêmes règles métier, mêmes emails et notifications**. Seul le format d'enveloppe change.
+
+> Le **retrait intégral** (`return/withdrawable`, `return/all`) et l'**auto-retrait** sont documentés à part : [integration-frontend-retrait.md](integration-frontend-retrait.md).
 
 ---
 
@@ -27,7 +29,7 @@ Chaque endpoint bulk est la version « en lot » d'un endpoint unitaire existant
 
 ### 1.1 Format de la requête
 
-Deux formes de body selon le type d'opération :
+Trois formes de body selon le type d'opération :
 
 | Type d'opération | Body | Exemple |
 |---|---|---|
@@ -95,6 +97,27 @@ Le préfixe `items.<index>.<champ>` indique l'élément et le champ fautifs. Il 
 | `400` | Body invalide, rien n'a été traité |
 | `401` | Non authentifié / token expiré (refresh automatique par l'intercepteur) |
 | `403` | Rôle insuffisant (endpoints ADMIN) |
+
+### 1.6 Préparer les exemples curl
+
+Les exemples sont écrits pour **bash** (Linux, macOS, Git Bash ou WSL sous Windows).
+
+```bash
+# URL de l'API (port 5000 par défaut, voir .env)
+API=http://localhost:5000/api/v1
+
+# Se connecter pour obtenir un accessToken
+curl -s -X POST "$API/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{ "userEmail": "membre@example.com", "userPassword": "motdepasse" }'
+# → { "accessToken": "eyJ...", "refreshToken": "..." }
+#   (si le compte a la 2FA : { "require2FA": true, "loginChallenge": "..." }, terminer avec /auth/2fa/complete)
+
+TOKEN=eyJ...            # jeton d'un membre
+ADMIN_TOKEN=eyJ...      # jeton d'un administrateur (§9 et §10.2)
+```
+
+Astuce : ajouter `| jq` en fin de commande pour une réponse lisible, ou `-w '\nHTTP %{http_code}\n'` pour voir le code HTTP.
 
 ---
 
@@ -226,23 +249,6 @@ Base : `/api/v1/transactions` — authentification requise.
 
 ### 3.1 Dépôts — `POST /api/v1/transactions/deposit/bulk`
 
-```json
-{
-  "items": [
-    {
-      "detentaire": "69989c5cdff25ef7fe0a460f",
-      "ayant_droit": "69989c5cdff25ef7fe0a4611",
-      "productId": "69989c5cdff25ef7fe0a4620",
-      "siteOrigineId": "69989c5cdff25ef7fe0a4610",
-      "siteDestinationId": "69989c5cdff25ef7fe0a4612",
-      "quantite": 100,
-      "prixUnitaire": 1500,
-      "observations": "Lot riz n°1"
-    }
-  ]
-}
-```
-
 | Champ | Requis | Type |
 |---|---|---|
 | `detentaire` | oui | id du membre qui gardera physiquement |
@@ -254,161 +260,122 @@ Base : `/api/v1/transactions` — authentification requise.
 | `prixUnitaire` | non | nombre ≥ 0 |
 | `observations` | non | texte |
 
+```bash
+curl -s -X POST "$API/transactions/deposit/bulk" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {
+        "detentaire": "69989c5cdff25ef7fe0a460f",
+        "ayant_droit": "69989c5cdff25ef7fe0a4611",
+        "productId": "69989c5cdff25ef7fe0a4620",
+        "siteOrigineId": "69989c5cdff25ef7fe0a4610",
+        "siteDestinationId": "69989c5cdff25ef7fe0a4612",
+        "quantite": 100,
+        "prixUnitaire": 1500,
+        "observations": "Lot riz n°1"
+      },
+      {
+        "detentaire": "69989c5cdff25ef7fe0a460f",
+        "ayant_droit": "69989c5cdff25ef7fe0a4611",
+        "productId": "69989c5cdff25ef7fe0a4621",
+        "siteOrigineId": "69989c5cdff25ef7fe0a4610",
+        "siteDestinationId": "69989c5cdff25ef7fe0a4612",
+        "quantite": 40
+      }
+    ]
+  }'
+```
+
 Chaque dépôt créé est `PENDING` et réserve la quantité (`quantiteEnAttente`). Plusieurs dépôts du même stock dans un lot se cumulent : si le stock disponible est épuisé en cours de lot, les éléments suivants échouent.
 
 ### 3.2 Retraits — `POST /api/v1/transactions/return/bulk`
 
-Mêmes champs que le dépôt (`detentaire`, `ayant_droit`, `productId`, `siteOrigineId`, `siteDestinationId`, `quantite`, `prixUnitaire?`, `observations?`). Le retrayant est l'utilisateur connecté. Chez un autre détenteur, `siteDestinationId` doit être différent de `siteOrigineId` (sinon `400`) ; en auto-retrait, le même site est accepté. Voir aussi §3.6 (retrait intégral) et §3.7 (auto-retrait).
+Mêmes champs que le dépôt (`detentaire`, `ayant_droit`, `productId`, `siteOrigineId`, `siteDestinationId`, `quantite`, `prixUnitaire?`, `observations?`). Le retrayant est l'utilisateur connecté (`ayant_droit` = son id). Chez un autre détenteur, `siteDestinationId` doit être différent de `siteOrigineId` (sinon l'élément échoue) ; en auto-retrait, le même site est accepté.
+
+```bash
+curl -s -X POST "$API/transactions/return/bulk" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {
+        "detentaire": "69989c5cdff25ef7fe0a460f",
+        "ayant_droit": "69989c5cdff25ef7fe0a4611",
+        "productId": "69989c5cdff25ef7fe0a4620",
+        "siteOrigineId": "69989c5cdff25ef7fe0a4612",
+        "siteDestinationId": "69989c5cdff25ef7fe0a4613",
+        "quantite": 30
+      }
+    ]
+  }'
+```
+
+> Pour **tout** retirer chez un détenteur sans lister les produits, ou pour l'**auto-retrait** : voir [integration-frontend-retrait.md](integration-frontend-retrait.md). Le comportement des quantités pendant l'attente d'un retrait y est aussi décrit (§5).
 
 ### 3.3 Initialisations — `POST /api/v1/transactions/initialization/bulk`
 
-```json
-{
-  "items": [
-    { "productId": "…", "siteOrigineId": "…", "quantite": 1000, "prixUnitaire": 0 }
-  ]
-}
-```
-
 Champs : `productId`, `siteOrigineId`, `quantite` (> 0), `prixUnitaire?`, `observations?`. Créées directement `APPROVED`.
+
+```bash
+curl -s -X POST "$API/transactions/initialization/bulk" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      { "productId": "69989c5cdff25ef7fe0a4620", "siteOrigineId": "69989c5cdff25ef7fe0a4610", "quantite": 1000, "prixUnitaire": 0 },
+      { "productId": "69989c5cdff25ef7fe0a4621", "siteOrigineId": "69989c5cdff25ef7fe0a4610", "quantite": 250 }
+    ]
+  }'
+```
 
 ### 3.4 Virements de droit — `POST /api/v1/transactions/virement-droit/bulk`
 
-```json
-{
-  "items": [
-    {
-      "beneficiaryId": "69989c5cdff25ef7fe0a4613",
-      "detentaireId": "69989c5cdff25ef7fe0a460f",
-      "siteId": "69989c5cdff25ef7fe0a4610",
-      "productId": "69989c5cdff25ef7fe0a4620",
-      "quantite": 10
-    }
-  ]
-}
-```
-
 Champs : `beneficiaryId`, `detentaireId`, `siteId`, `productId`, `quantite` (> 0), `observations?`. L'initiateur est l'utilisateur connecté.
+
+```bash
+curl -s -X POST "$API/transactions/virement-droit/bulk" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {
+        "beneficiaryId": "69989c5cdff25ef7fe0a4613",
+        "detentaireId": "69989c5cdff25ef7fe0a460f",
+        "siteId": "69989c5cdff25ef7fe0a4610",
+        "productId": "69989c5cdff25ef7fe0a4620",
+        "quantite": 10
+      }
+    ]
+  }'
+```
 
 ### 3.5 Ventes — `POST /api/v1/transactions/vente/bulk`
 
-```json
-{
-  "items": [
-    {
-      "vendeurId": "69989c5cdff25ef7fe0a460f",
-      "productId": "69989c5cdff25ef7fe0a4620",
-      "siteOrigineId": "69989c5cdff25ef7fe0a4610",
-      "siteDestinationId": "69989c5cdff25ef7fe0a4612",
-      "quantite": 100,
-      "rapportEchange": 500
-    }
-  ]
-}
-```
-
 Champs : `vendeurId`, `productId`, `siteOrigineId`, `siteDestinationId?`, `quantite` (> 0), `contrepartieId?` (produit reçu en échange, absent = vente monétaire), `rapportEchange` (prix unitaire ou ratio d'échange, 6 décimales max), `observations?`. L'acheteur est l'utilisateur connecté.
+
+```bash
+curl -s -X POST "$API/transactions/vente/bulk" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {
+        "vendeurId": "69989c5cdff25ef7fe0a460f",
+        "productId": "69989c5cdff25ef7fe0a4620",
+        "siteOrigineId": "69989c5cdff25ef7fe0a4610",
+        "siteDestinationId": "69989c5cdff25ef7fe0a4612",
+        "quantite": 100,
+        "rapportEchange": 500
+      }
+    ]
+  }'
+```
 
 > Pour un achat depuis le panier, utiliser `POST /cart/checkout` (inchangé), pas cet endpoint.
 
-### 3.6 Retrait intégral chez un détenteur
-
-Retire **tout ce que l'utilisateur peut retirer chez un détenteur**, sans choisir produit par produit. Le détenteur peut être un autre membre, ou l'utilisateur lui-même (auto-retrait intégral).
-
-**Étape 1 — aperçu** : `GET /api/v1/transactions/return/withdrawable?detentaireId=<id>[&siteId=<id>][&productId=<id>]`
-
-```json
-{
-  "status": "success",
-  "message": "2 position(s) retirable(s), 1 exclue(s)",
-  "data": [
-    {
-      "actifId": "…",
-      "productId": "…",
-      "productName": "Riz",
-      "siteOrigineId": "…",
-      "siteName": "Hangar Y",
-      "detentaireId": "…",
-      "disponible": 40,
-      "soldeDepose": 30,
-      "quantiteRetirable": 30,
-      "prixUnitaire": 1500
-    }
-  ],
-  "total": 2,
-  "exclues": [
-    {
-      "productName": "Café",
-      "quantiteRetirable": 0,
-      "motif": "Aucun dépôt approuvé de votre part vers ce détenteur sur ce site (actif reçu par virement ou vente) : retrait non autorisé."
-    }
-  ]
-}
-```
-
-| Champ | Description |
-|---|---|
-| `disponible` | `quantite - quantiteEnAttente` de l'actif (les retraits déjà en attente sont déduits) |
-| `soldeDepose` | Déposé chez ce détenteur moins déjà retiré. `null` en auto-retrait |
-| `quantiteRetirable` | Quantité qui sera retirée : `disponible`, plafonnée à `soldeDepose` chez un tiers |
-| `exclues[].motif` | Pourquoi une position détenue n'est pas retirable |
-
-À afficher dans une boîte de confirmation (« Vous allez retirer : … ») avec le choix du site de destination.
-
-**Étape 2 — exécution** : `POST /api/v1/transactions/return/all`
-
-```json
-{
-  "detentaireId": "69989c5cdff25ef7fe0a460f",
-  "siteDestinationId": "69989c5cdff25ef7fe0a4612",
-  "siteId": "optionnel : limiter à un site d'origine",
-  "productId": "optionnel : limiter à un produit",
-  "observations": "optionnel"
-}
-```
-
-- Crée **un retrait PENDING par position** de l'aperçu, pour toute la `quantiteRetirable`, vers `siteDestinationId`.
-- Réponse au format bulk (§1.3) **plus** `exclues`. `errors[].id` = `actifId` de la position en échec.
-- Chez un autre détenteur, une position déjà située sur `siteDestinationId` est rapportée en échec (site identique), les autres sont créées. En auto-retrait, elle est acceptée.
-- `400` si aucune position n'est retirable avec ces filtres.
-- Chaque retrait créé suit ensuite le flux normal (approbation / rejet, voir §4 pour l'approbation en masse).
-
-```js
-export const getWithdrawable = (detentaireId, filters = {}) =>
-  axiosInstance
-    .get('/api/v1/transactions/return/withdrawable', { params: { detentaireId, ...filters } })
-    .then((res) => res.data);
-
-export const withdrawAll = (body) =>
-  callBulk('post', '/api/v1/transactions/return/all', body);
-```
-
-### 3.7 Auto-retrait et comportement du retrait
-
-**Auto-retrait** = retrait où `detentaire` = `ayant_droit` = utilisateur connecté (je retire mon propre stock).
-
-- Vers un **autre** de mes sites : la marchandise passe du site d'origine au site de destination à l'approbation.
-- Vers le **même** site (accepté) : pendant l'attente, le disponible baisse de `q` (réservation) ; à l'approbation, `q` est retiré puis remis sur ce site — **solde final inchangé**, le mouvement reste dans l'historique.
-
-- Possible sur **tout son stock disponible**, y compris le stock issu d'une initialisation, d'un achat ou d'un retrait précédent (plus besoin d'un dépôt vers soi-même au préalable).
-- Reste **PENDING** jusqu'à approbation (l'utilisateur le voit dans `GET /transactions/pending/list`, une seule fois).
-- **Une seule** notification et **un seul** email à chaque étape (création, approbation, rejet) — auparavant l'utilisateur les recevait en double (comme détenteur et comme ayant droit).
-
-**Changement pour tous les retraits** (auto-retrait ou chez un tiers) :
-
-| Moment | Site d'origine | Site de destination |
-|---|---|---|
-| Création (PENDING) | `quantite` inchangée, `quantiteEnAttente += q` (disponible − q) | **rien** |
-| Approbation | `quantite − q`, `quantiteEnAttente − q` | `quantite + q` |
-| Rejet | `quantiteEnAttente − q` (disponible restauré) | rien |
-
-Auparavant la quantité apparaissait au site de destination dès la création : pendant l'attente, la marchandise était comptée sur les deux sites (total doublé). Côté front :
-
-- Calculer les totaux avec `quantite` ; le disponible avec `quantite - quantiteEnAttente`.
-- Pour afficher « à recevoir », utiliser les retraits PENDING (`GET /transactions/pending/list` ou l'historique), pas les actifs du site de destination.
-- Les retraits créés **avant** cette mise à jour gardent l'ancien comportement jusqu'à leur approbation ou rejet.
-
-### 3.8 Exemple de service
+### 3.6 Exemple de service
 
 ```js
 // src/services/transactions.bulk.js
@@ -433,6 +400,26 @@ export const createVentesBulk = (items) => callBulk('post', `${base}/vente/bulk`
 | `PATCH /api/v1/transactions/reject/bulk` | `PATCH /:id/reject` | `{ "ids": [...], "motifRejet": "..." }` |
 
 **Différence importante avec l'unitaire** : il n'y a **pas** de champ `approuveurId`. L'approbateur / rejeteur est **l'utilisateur connecté** (lu dans le token). Ne pas l'envoyer : il serait ignoré.
+
+```bash
+# Approuver plusieurs transactions
+curl -s -X PATCH "$API/transactions/approve/bulk" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ids": ["6a02a1b2c3d4e5f607182930", "6a02a1b2c3d4e5f607182931"],
+    "observations": "Contrôle physique OK"
+  }'
+
+# Rejeter plusieurs transactions avec le même motif
+curl -s -X PATCH "$API/transactions/reject/bulk" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ids": ["6a02a1b2c3d4e5f607182932"],
+    "motifRejet": "Stock insuffisant"
+  }'
+```
 
 ```js
 export const approveTransactionsBulk = (ids, observations) =>
@@ -465,23 +452,6 @@ Base : `/api/v1/stocks` — authentification requise.
 
 Les trois prennent le même body ; seul le type de mouvement change.
 
-```json
-{
-  "items": [
-    {
-      "siteOrigineId": "69989c5cdff25ef7fe0a460f",
-      "siteDestinationId": "69989c5cdff25ef7fe0a4610",
-      "productId": "69989c5cdff25ef7fe0a4620",
-      "quantite": 100,
-      "prixUnitaire": 1500,
-      "detentaire": "69989c5cdff25ef7fe0a4611",
-      "ayant_droit": "69989c5cdff25ef7fe0a4612",
-      "observations": "Cession de stock"
-    }
-  ]
-}
-```
-
 | Champ | Requis | Remarque |
 |---|---|---|
 | `siteOrigineId` | non pour `depot`, oui sinon | doit être différent de `siteDestinationId` (sauf dépôt) |
@@ -492,6 +462,36 @@ Les trois prennent le même body ; seul le type de mouvement change.
 | `detentaire` | non | gardien physique |
 | `ayant_droit` | non | nouveau propriétaire (virement) |
 | `observations` | non | |
+
+```bash
+# Dépôts en stock
+curl -s -X POST "$API/stocks/depot/bulk" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      { "siteDestinationId": "69989c5cdff25ef7fe0a4610", "productId": "69989c5cdff25ef7fe0a4620", "quantite": 100, "prixUnitaire": 1500 },
+      { "siteDestinationId": "69989c5cdff25ef7fe0a4610", "productId": "69989c5cdff25ef7fe0a4621", "quantite": 50, "prixUnitaire": 900 }
+    ]
+  }'
+
+# Transferts (même body, autre URL) — idem pour /stocks/virement/bulk
+curl -s -X POST "$API/stocks/transfer/bulk" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {
+        "siteOrigineId": "69989c5cdff25ef7fe0a460f",
+        "siteDestinationId": "69989c5cdff25ef7fe0a4610",
+        "productId": "69989c5cdff25ef7fe0a4620",
+        "quantite": 100,
+        "prixUnitaire": 1500,
+        "detentaire": "69989c5cdff25ef7fe0a4611"
+      }
+    ]
+  }'
+```
 
 `data` contient les **mouvements enregistrés**. L'opérateur est l'utilisateur connecté.
 
@@ -505,6 +505,21 @@ Les trois prennent le même body ; seul le type de mouvement change.
 - `reason` : obligatoire, **1000 caractères max**, le même pour tous les mouvements.
 - Un email est envoyé à l'opérateur de chaque mouvement signalé.
 - Échec typique dans `errors` : `Mouvement non trouvé`.
+
+```bash
+curl -s -X POST "$API/stocks/flag-movement/bulk" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ids": ["6a03b1c2d3e4f50617283940", "6a03b1c2d3e4f50617283941"],
+    "reason": "Quantité reçue inférieure à la quantité déclarée"
+  }'
+
+curl -s -X POST "$API/stocks/validate-movement/bulk" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "ids": ["6a03b1c2d3e4f50617283940"] }'
+```
 
 ```js
 const base = '/api/v1/stocks';
@@ -523,16 +538,19 @@ export const validateMovementsBulk = (ids) =>
 
 `POST /api/v1/sites/bulk-create` — authentification requise. Équivalent de `POST /api/v1/sites`.
 
-```json
-{
-  "items": [
-    { "siteName": "Site Analakely", "siteAddress": "Analakely, Antananarivo", "siteLat": -18.8792, "siteLng": 47.5079 },
-    { "siteName": "Dépôt Tamatave", "siteAddress": "Port, Toamasina", "siteLat": -18.1443, "siteLng": 49.3958 }
-  ]
-}
-```
-
 Champs : `siteName`, `siteAddress`, `siteLat` (-90 à 90), `siteLng` (-180 à 180), tous requis. Les sites sont créés pour **l'utilisateur connecté**. `data` contient les sites créés.
+
+```bash
+curl -s -X POST "$API/sites/bulk-create" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      { "siteName": "Site Analakely", "siteAddress": "Analakely, Antananarivo", "siteLat": -18.8792, "siteLng": 47.5079 },
+      { "siteName": "Dépôt Tamatave", "siteAddress": "Port, Toamasina", "siteLat": -18.1443, "siteLng": 49.3958 }
+    ]
+  }'
+```
 
 ```js
 export const createSitesBulk = (items) => callBulk('post', '/api/v1/sites/bulk-create', { items });
@@ -546,16 +564,19 @@ Cas d'usage : import d'une liste de sites (CSV/Excel parsé côté front) lors d
 
 `POST /api/v1/shop/shop-items/bulk` — authentification requise. Équivalent de `POST /api/v1/shop/shop-items`.
 
-```json
-{
-  "items": [
-    { "productId": "…", "siteId": "…", "quantite": 10, "prixUnitaire": 2500, "description": "Riz blanc" },
-    { "productId": "…", "siteId": "…", "quantite": 5, "prixUnitaire": 9000 }
-  ]
-}
-```
-
 Champs : `productId`, `siteId`, `quantite` (> 0), `prixUnitaire` (> 0), `actifId?`, `description?`. Le vendeur est l'utilisateur connecté. `data` contient les annonces créées.
+
+```bash
+curl -s -X POST "$API/shop/shop-items/bulk" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      { "productId": "69989c5cdff25ef7fe0a4620", "siteId": "69989c5cdff25ef7fe0a4610", "quantite": 10, "prixUnitaire": 2500, "description": "Riz blanc" },
+      { "productId": "69989c5cdff25ef7fe0a4621", "siteId": "69989c5cdff25ef7fe0a4610", "quantite": 5, "prixUnitaire": 9000 }
+    ]
+  }'
+```
 
 > ⚠️ La quantité n'est **pas réservée** à la création d'une annonce. Le serveur vérifie chaque annonce contre l'actif, indépendamment des autres : deux annonces du même actif dans un lot peuvent dépasser le stock. Le front doit vérifier que la somme des quantités par (produit, site) ne dépasse pas l'actif disponible.
 
@@ -569,13 +590,16 @@ export const createShopItemsBulk = (items) => callBulk('post', '/api/v1/shop/sho
 
 `POST /api/v1/cart/add/bulk` — authentification requise. Équivalent de `POST /api/v1/cart/add`.
 
-```json
-{
-  "items": [
-    { "shopItemId": "65dcf1234567890abcdef123", "quantite": 2 },
-    { "shopItemId": "65dcf1234567890abcdef456", "quantite": 1 }
-  ]
-}
+```bash
+curl -s -X POST "$API/cart/add/bulk" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      { "shopItemId": "65dcf1234567890abcdef123", "quantite": 2 },
+      { "shopItemId": "65dcf1234567890abcdef456", "quantite": 1 }
+    ]
+  }'
 ```
 
 Réponse : le format bulk habituel **plus** un champ `cart` contenant le **panier final** (même format que `GET /api/v1/cart`).
@@ -617,6 +641,20 @@ Rôle **ADMIN** requis (sinon `403`).
 | `PATCH /api/v1/users/activate/bulk` | `PATCH /users/activate/:id` | `{ "ids": [...] }` |
 | `POST /api/v1/users/delete/bulk` | `DELETE /users/delete/:id` | `{ "ids": [...] }` |
 
+```bash
+# Activer plusieurs comptes
+curl -s -X PATCH "$API/users/activate/bulk" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "ids": ["69989c5cdff25ef7fe0a4611", "69989c5cdff25ef7fe0a4613"] }'
+
+# Supprimer plusieurs comptes (POST, pas DELETE)
+curl -s -X POST "$API/users/delete/bulk" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "ids": ["69989c5cdff25ef7fe0a4614"] }'
+```
+
 - `data` contient uniquement les ids traités : `[{ "id": "…" }, …]`. Recharger la liste des utilisateurs après l'appel.
 - **Suppression** : c'est un `POST` (pas un `DELETE`), car le body contient la liste d'ids. Réponse HTTP `200`.
 - Si la sélection contient l'admin connecté, **son id est refusé** (`errors` : « Vous ne pouvez pas supprimer votre propre compte admin. ») ; les autres sont supprimés. Mieux : retirer son propre compte de la sélection côté UI.
@@ -650,6 +688,22 @@ Champs d'un produit dans `items` :
 | `productName` | oui | |
 | `productCategory` | non | Libellé ; par défaut le nom du CPC |
 | `productDescription`, `productVolume`, `productHauteur`, `productLargeur`, `productLongueur`, `productPoids` | non | Texte |
+
+```bash
+# 3 produits : photo pour le 1er (index 0) et le 3e (index 2), pas pour le 2e
+curl -s -X POST "$API/products/bulk" \
+  -H "Authorization: Bearer $TOKEN" \
+  --form-string 'items=[
+    {"codeCPC":"01111","productName":"Blé dur","productPoids":"50 kg"},
+    {"codeCPC":"01121","productName":"Maïs jaune"},
+    {"codeCPC":"01111","productName":"Blé tendre","productDescription":"Récolte 2026"}
+  ]' \
+  -F "image_0=@./photos/ble-dur.jpg;type=image/jpeg" \
+  -F "image_2=@./photos/ble-tendre.png;type=image/png"
+```
+
+- Utiliser `--form-string` pour `items` (le texte est envoyé tel quel), et `-F "image_<index>=@chemin"` pour les fichiers.
+- Ne pas ajouter `-H "Content-Type: …"` : curl génère lui-même l'en-tête multipart avec son *boundary*.
 
 Règles :
 
@@ -692,6 +746,20 @@ Rôle **ADMIN** requis (sinon `403`).
 | `PATCH /api/v1/products/validate/bulk` | `PATCH /products/toggle-validation/:id` | `{ "ids": [...] }` |
 | `POST /api/v1/products/delete/bulk` | `DELETE /products/delete/:id` | `{ "ids": [...] }` |
 
+```bash
+# Valider plusieurs produits
+curl -s -X PATCH "$API/products/validate/bulk" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "ids": ["69989c5cdff25ef7fe0a4620", "69989c5cdff25ef7fe0a4621"] }'
+
+# Supprimer plusieurs produits (POST, pas DELETE)
+curl -s -X POST "$API/products/delete/bulk" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "ids": ["69989c5cdff25ef7fe0a4622"] }'
+```
+
 - **Validation** : valide les produits sélectionnés. Un produit **déjà validé** est rapporté en échec (« Ce produit a été validé et ne peut plus être désactivé. »), comme avec l'endpoint unitaire. `data` contient les produits validés. Chaque propriétaire est notifié.
   - Pour valider **tous** les produits en attente, `PATCH /api/v1/products/validate-all` existe toujours.
 - **Suppression** : `POST` avec la liste d'ids, `data` = `[{ "id": "…" }, …]`. Chaque **propriétaire** reçoit une notification et un email.
@@ -714,6 +782,7 @@ export const deleteProductsBulk = (ids) => callBulk('post', '/api/v1/products/de
 7. **Suppressions en `POST`** : `POST /users/delete/bulk`, `POST /products/delete/bulk`.
 8. **Pas de retour arrière automatique** : ce qui a réussi reste créé même si d'autres éléments échouent. Pour « annuler », utiliser les endpoints métier (rejet de transaction, suppression…).
 9. **Désactiver le bouton pendant l'envoi** pour éviter de créer deux fois le même lot.
+10. **Multipart** (`/products/bulk`) : ne pas fixer `Content-Type` à la main, ni dans Axios ni dans curl.
 
 ---
 
@@ -726,8 +795,6 @@ export const deleteProductsBulk = (ids) => callBulk('post', '/api/v1/products/de
 | Transactions | POST | `/api/v1/transactions/initialization/bulk` | `{ items }` | connecté |
 | Transactions | POST | `/api/v1/transactions/virement-droit/bulk` | `{ items }` | connecté |
 | Transactions | POST | `/api/v1/transactions/vente/bulk` | `{ items }` | connecté |
-| Transactions | GET | `/api/v1/transactions/return/withdrawable?detentaireId=` | query | connecté |
-| Transactions | POST | `/api/v1/transactions/return/all` | `{ detentaireId, siteDestinationId, siteId?, productId?, observations? }` | connecté |
 | Transactions | PATCH | `/api/v1/transactions/approve/bulk` | `{ ids, observations? }` | connecté |
 | Transactions | PATCH | `/api/v1/transactions/reject/bulk` | `{ ids, motifRejet }` | connecté |
 | Stocks | POST | `/api/v1/stocks/depot/bulk` | `{ items }` | connecté |
@@ -743,5 +810,7 @@ export const deleteProductsBulk = (ids) => callBulk('post', '/api/v1/products/de
 | Produits | POST | `/api/v1/products/bulk` | multipart : `items` (JSON) + `image_<index>` | connecté |
 | Produits | PATCH | `/api/v1/products/validate/bulk` | `{ ids }` | ADMIN |
 | Produits | POST | `/api/v1/products/delete/bulk` | `{ ids }` | ADMIN |
+
+Retrait intégral et auto-retrait : voir [integration-frontend-retrait.md](integration-frontend-retrait.md).
 
 La documentation Swagger (`/swagger`, hors production) décrit aussi chaque endpoint avec ses schémas et exemples.

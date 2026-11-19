@@ -26,6 +26,7 @@ import {
   BULK_RESPONSE_400,
 } from '../../shared/bulk';
 import { Auth } from '../auth';
+import type { AuthenticatedRequest } from '../auth/interfaces/authenticated-user.interface';
 
 @ApiTags('Shop Available')
 @Controller()
@@ -42,7 +43,10 @@ La quantité est vérifiée par rapport à l'actif détenu.`,
   })
   @ApiBody({ type: CreateShopItemDto })
   @ApiResponse({ status: 201, description: 'Annonce créée' })
-  async create(@Req() req: any, @Body() dto: CreateShopItemDto) {
+  async create(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateShopItemDto,
+  ) {
     const userId = req.user?.userId;
     if (!userId) throw new BadRequestException('Utilisateur non authentifié');
     const item = await this.shopService.create(userId, dto);
@@ -61,7 +65,10 @@ La quantité est vérifiée par rapport à l'actif détenu.`,
   @ApiBody({ type: BulkCreateShopItemDto })
   @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
   @ApiResponse(BULK_RESPONSE_400)
-  async createBulk(@Req() req: any, @Body() dto: BulkCreateShopItemDto) {
+  async createBulk(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: BulkCreateShopItemDto,
+  ) {
     const userId = req.user?.userId;
     if (!userId) throw new BadRequestException('Utilisateur non authentifié');
     return this.shopService.createBulk(userId, dto);
@@ -138,7 +145,7 @@ La quantité est vérifiée par rapport à l'actif détenu.`,
   })
   @ApiResponse({ status: 200, description: 'Mes annonces' })
   async findMine(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
     @Query('search') search?: string,
@@ -182,7 +189,7 @@ La quantité est vérifiée par rapport à l'actif détenu.`,
   })
   @ApiParam({ name: 'id', description: "ID de l'annonce" })
   @ApiResponse({ status: 200, description: 'Annonce annulée' })
-  async cancel(@Req() req: any, @Param('id') id: string) {
+  async cancel(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     const userId = req.user?.userId;
     if (!userId) throw new BadRequestException('Utilisateur non authentifié');
     if (!id) throw new BadRequestException('ID requis');

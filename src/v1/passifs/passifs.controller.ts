@@ -10,6 +10,7 @@ import {
 import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { PassifsService } from './passifs.service';
 import { Auth } from '../auth';
+import type { AuthenticatedRequest } from '../auth/interfaces/authenticated-user.interface';
 
 @ApiTags('Passifs')
 @Controller()
@@ -129,7 +130,7 @@ Conditions:
   @ApiResponse({ status: 200, description: 'URL du fichier généré' })
   async exportAll(
     @Query('format') format: 'excel' | 'pdf',
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ): Promise<StreamableFile> {
     if (!format || !['excel', 'pdf'].includes(format)) {
       throw new BadRequestException(

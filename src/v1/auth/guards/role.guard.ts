@@ -6,13 +6,16 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserAccess } from 'src/v1/users/users.schema';
+import type { AuthenticatedRequest } from '../interfaces/authenticated-user.interface';
 
 @Injectable()
 export class RoleGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest();
+    const request = context
+      .switchToHttp()
+      .getRequest<Partial<AuthenticatedRequest>>();
     const user = request.user;
 
     if (!user) {
@@ -39,7 +42,7 @@ export class RoleGuard implements CanActivate {
       return true;
     }
 
-    const hasRole = roles.includes(user.userAccess);
+    const hasRole = !!user.userAccess && roles.includes(user.userAccess);
 
     if (!hasRole) {
       throw new ForbiddenException(

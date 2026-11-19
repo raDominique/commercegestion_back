@@ -42,6 +42,7 @@ import {
   BULK_RESPONSE_OK,
   BULK_RESPONSE_400,
 } from '../../shared/bulk';
+import type { AuthenticatedRequest } from '../auth/interfaces/authenticated-user.interface';
 
 @ApiTags('Users')
 @Controller()
@@ -427,7 +428,7 @@ export class UsersController {
       'Désactive le compte (Soft Delete). Un admin ne peut pas supprimer son propre compte.',
   })
   @ApiParam({ name: 'id', description: "ID MongoDB de l'utilisateur" })
-  async remove(@Req() req: any, @Param('id') id: string) {
+  async remove(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     // 1. Empêcher l'auto-suppression
     if (req.user.userId === id) {
       throw new ForbiddenException(
@@ -493,7 +494,7 @@ export class UsersController {
   @ApiBody({ type: BulkIdsDto })
   @ApiResponse({ status: 200, ...BULK_RESPONSE_OK })
   @ApiResponse(BULK_RESPONSE_400)
-  removeBulk(@Req() req: any, @Body() dto: BulkIdsDto) {
+  removeBulk(@Req() req: AuthenticatedRequest, @Body() dto: BulkIdsDto) {
     return this.usersService.removeBulk(dto.ids, req.user.userId);
   }
 
@@ -568,7 +569,10 @@ export class UsersController {
   @ApiQuery({ name: 'userType', required: false, enum: UserType })
   @ApiQuery({ name: 'isActive', required: false, type: Boolean })
   @ApiQuery({ name: 'isVerified', required: false, type: Boolean })
-  async findAllReferrals(@Req() req: any, @Query() query: UsersQueryDto) {
+  async findAllReferrals(
+    @Req() req: AuthenticatedRequest,
+    @Query() query: UsersQueryDto,
+  ) {
     const {
       page = '1',
       limit = '10',
@@ -592,6 +596,14 @@ export class UsersController {
     Object.keys(filter).forEach(
       (key) => filter[key] === undefined && delete filter[key],
     );
+
+    // Sans code de parrainage dans la session, le filtre deviendrait
+    // `parrain1ID: undefined` et renverrait des membres sans parrain.
+    if (!req.user.userIdPartager) {
+      throw new BadRequestException(
+        'Code de parrainage introuvable dans la session. Reconnectez-vous.',
+      );
+    }
 
     return this.usersService.findAllByFilsPaginated(
       req.user.userIdPartager,
@@ -724,7 +736,7 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'URL du fichier généré' })
   async exportAll(
     @Query('format') format: 'excel' | 'pdf',
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ): Promise<StreamableFile> {
     if (!format || !['excel', 'pdf'].includes(format)) {
       throw new BadRequestException(

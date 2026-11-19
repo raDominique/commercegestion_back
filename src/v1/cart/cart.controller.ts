@@ -29,6 +29,7 @@ import {
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { CheckoutDto } from './dto/checkout.dto';
 import { Auth } from '../auth';
+import type { AuthenticatedRequest } from '../auth/interfaces/authenticated-user.interface';
 
 @ApiTags('Panier')
 @Controller()
@@ -43,7 +44,7 @@ export class CartController {
     description: "Panier récupéré avec le total et le nombre d'articles.",
   })
   @ApiResponse({ status: 401, description: 'Non authentifié.' })
-  async getCart(@Req() req: any) {
+  async getCart(@Req() req: AuthenticatedRequest) {
     return this.cartService.getCart(req.user.userId);
   }
 
@@ -61,7 +62,7 @@ export class CartController {
   })
   @ApiResponse({ status: 401, description: 'Non authentifié.' })
   @ApiResponse({ status: 404, description: 'Annonce introuvable.' })
-  async addItem(@Body() dto: AddCartItemDto, @Req() req: any) {
+  async addItem(@Body() dto: AddCartItemDto, @Req() req: AuthenticatedRequest) {
     return this.cartService.addItem(req.user.userId, dto);
   }
 
@@ -78,7 +79,10 @@ export class CartController {
   @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
   @ApiResponse(BULK_RESPONSE_400)
   @ApiResponse({ status: 401, description: 'Non authentifié.' })
-  async addItemsBulk(@Body() dto: BulkAddCartItemDto, @Req() req: any) {
+  async addItemsBulk(
+    @Body() dto: BulkAddCartItemDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.cartService.addItemsBulk(req.user.userId, dto);
   }
 
@@ -103,7 +107,7 @@ export class CartController {
   async updateItem(
     @Param('shopItemId') shopItemId: string,
     @Body() dto: UpdateCartItemDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.cartService.updateItemQuantity(
       req.user.userId,
@@ -125,7 +129,10 @@ export class CartController {
     status: 404,
     description: 'Article introuvable dans le panier.',
   })
-  async removeItem(@Param('shopItemId') shopItemId: string, @Req() req: any) {
+  async removeItem(
+    @Param('shopItemId') shopItemId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.cartService.removeItem(req.user.userId, shopItemId);
   }
 
@@ -134,7 +141,7 @@ export class CartController {
   @ApiOperation({ summary: 'Vider le panier' })
   @ApiResponse({ status: 200, description: 'Panier vidé avec succès.' })
   @ApiResponse({ status: 401, description: 'Non authentifié.' })
-  async clearCart(@Req() req: any) {
+  async clearCart(@Req() req: AuthenticatedRequest) {
     return this.cartService.clearCart(req.user.userId);
   }
 
@@ -152,7 +159,7 @@ export class CartController {
     description: 'Panier vide ou échec de création des transactions.',
   })
   @ApiResponse({ status: 401, description: 'Non authentifié.' })
-  async checkout(@Body() dto: CheckoutDto, @Req() req: any) {
+  async checkout(@Body() dto: CheckoutDto, @Req() req: AuthenticatedRequest) {
     return this.cartService.checkout(req.user.userId, dto);
   }
 
@@ -176,7 +183,7 @@ export class CartController {
   @ApiResponse({ status: 200, description: 'Liste paginée des commandes.' })
   @ApiResponse({ status: 401, description: 'Non authentifié.' })
   async getOrders(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query('page', new ParseIntPipe({ optional: true })) page = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit = 10,
   ) {
@@ -190,7 +197,10 @@ export class CartController {
   @ApiResponse({ status: 200, description: 'Commande trouvée.' })
   @ApiResponse({ status: 401, description: 'Non authentifié.' })
   @ApiResponse({ status: 404, description: 'Commande introuvable.' })
-  async getOrderById(@Param('orderId') orderId: string, @Req() req: any) {
+  async getOrderById(
+    @Param('orderId') orderId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.cartService.getOrderById(req.user.userId, orderId);
   }
 }

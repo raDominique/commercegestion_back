@@ -24,7 +24,9 @@ export class NotificationsGateway
    */
   handleConnection(client: Socket) {
     const userId = client.handshake.query.userId as string;
-    const userAccess = client.handshake.query.userAccess as string;
+    const userAccess = client.handshake.query.userAccess as
+      | UserAccess
+      | undefined;
 
     if (!userId) {
       console.log(

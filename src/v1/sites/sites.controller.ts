@@ -34,6 +34,7 @@ import { Site } from './sites.schema';
 import { PaginationResult } from 'src/shared/interfaces/pagination.interface';
 import { Auth } from '../auth';
 import { LoggerService } from 'src/common/logger/logger.service';
+import type { AuthenticatedRequest } from '../auth/interfaces/authenticated-user.interface';
 
 @ApiTags('Sites')
 @Controller()
@@ -50,7 +51,7 @@ export class SiteController {
   @ApiResponse({ status: 404, description: 'Utilisateur introuvable' })
   @Auth()
   async create(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() createSiteDto: CreateSiteDto,
   ): Promise<PaginationResult<Site>> {
     const userId = req.user.userId;
@@ -67,7 +68,10 @@ export class SiteController {
   @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
   @ApiResponse(BULK_RESPONSE_400)
   @ApiBody({ type: BulkCreateSiteDto })
-  async createBulk(@Req() req: any, @Body() dto: BulkCreateSiteDto) {
+  async createBulk(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: BulkCreateSiteDto,
+  ) {
     return this.siteService.createBulk(dto, req.user.userId);
   }
 
@@ -104,7 +108,7 @@ export class SiteController {
   @ApiResponse({ status: 404, description: 'Site non trouvé' })
   @Auth()
   async update(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() updateSiteDto: UpdateSiteDto,
   ): Promise<PaginationResult<Site>> {
@@ -119,7 +123,7 @@ export class SiteController {
   @ApiResponse({ status: 200, description: 'Site supprimé avec succès' })
   @Auth()
   async remove(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
   ): Promise<PaginationResult<null>> {
     const userId = req.user.userId;
@@ -138,7 +142,7 @@ export class SiteController {
   })
   @Auth()
   async findMySites(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query('page', new ParseIntPipe({ optional: true })) page = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit = 10,
     @Query('search') search = '',
@@ -222,7 +226,7 @@ export class SiteController {
   @ApiResponse({ status: 200, description: 'URL du fichier généré' })
   async exportAll(
     @Query('format') format: 'excel' | 'pdf',
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ): Promise<StreamableFile> {
     if (!format || !['excel', 'pdf'].includes(format)) {
       throw new BadRequestException(

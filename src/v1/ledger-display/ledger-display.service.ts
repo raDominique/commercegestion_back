@@ -972,13 +972,9 @@ export class LedgerDisplayService {
         depotId: tx.siteDestinationId?._id || 'N/A',
         depot: tx.siteDestinationId?.siteName || 'N/A',
         depotAdresse: tx.siteDestinationId?.siteAddress || 'N/A',
-        detentaire: tx.detentaire
-          ? tx.detentaire.userEmail || 'N/A'
-          : 'N/A',
+        detentaire: tx.detentaire ? tx.detentaire.userEmail || 'N/A' : 'N/A',
         detentaireId: tx.detentaire?._id || null,
-        ayantDroit: tx.ayant_droit
-          ? tx.ayant_droit.userEmail || 'N/A'
-          : 'N/A',
+        ayantDroit: tx.ayant_droit ? tx.ayant_droit.userEmail || 'N/A' : 'N/A',
         ayantDroitId: tx.ayant_droit?._id || null,
         dateCreation: tx.createdAt,
         dateModification: tx.updatedAt,
@@ -1058,13 +1054,9 @@ export class LedgerDisplayService {
         depotId: tx.siteOrigineId?._id || 'N/A',
         depot: tx.siteOrigineId?.siteName || 'N/A',
         depotAdresse: tx.siteOrigineId?.siteAddress || 'N/A',
-        detentaire: tx.detentaire
-          ? tx.detentaire.userEmail || 'N/A'
-          : 'N/A',
+        detentaire: tx.detentaire ? tx.detentaire.userEmail || 'N/A' : 'N/A',
         detentaireId: tx.detentaire?._id || null,
-        ayantDroit: tx.ayant_droit
-          ? tx.ayant_droit.userEmail || 'N/A'
-          : 'N/A',
+        ayantDroit: tx.ayant_droit ? tx.ayant_droit.userEmail || 'N/A' : 'N/A',
         ayantDroitId: tx.ayant_droit?._id || null,
         dateCreation: tx.createdAt,
         dateModification: tx.updatedAt,
@@ -1358,7 +1350,10 @@ export class LedgerDisplayService {
         {
           path: 'siteDestinationId',
           select: 'siteId siteName siteAddress location siteUserID',
-          populate: { path: 'siteUserID', select: 'userName userFirstname userEmail userPhone' },
+          populate: {
+            path: 'siteUserID',
+            select: 'userName userFirstname userEmail userPhone',
+          },
         },
         {
           path: 'detentaire',
@@ -1398,16 +1393,11 @@ export class LedgerDisplayService {
         depotId: tx.siteDestinationId?._id || 'N/A',
         depot: tx.siteDestinationId?.siteName || 'N/A',
         depotAdresse: tx.siteDestinationId?.siteAddress || 'N/A',
-        detentaire: tx.detentaire
-          ? tx.detentaire.userEmail || 'N/A'
-          : 'N/A',
-        ayantDroit: tx.ayant_droit
-          ? tx.ayant_droit.userEmail || 'N/A'
-          : 'N/A',
+        detentaire: tx.detentaire ? tx.detentaire.userEmail || 'N/A' : 'N/A',
+        ayantDroit: tx.ayant_droit ? tx.ayant_droit.userEmail || 'N/A' : 'N/A',
         detentaireId: tx.detentaire?._id || null,
         ayantDroitId: tx.ayant_droit?._id || null,
-        role:
-          tx.recipientId?.toString() === userId ? 'DEBITEUR' : 'CREANCIER',
+        role: tx.recipientId?.toString() === userId ? 'DEBITEUR' : 'CREANCIER',
         dateCreation: tx.createdAt,
         dateModification: tx.updatedAt,
         isActive: true,
@@ -1432,7 +1422,10 @@ export class LedgerDisplayService {
         {
           path: 'siteOrigineId',
           select: 'siteId siteName siteAddress location siteUserID',
-          populate: { path: 'siteUserID', select: 'userName userFirstname userEmail ' },
+          populate: {
+            path: 'siteUserID',
+            select: 'userName userFirstname userEmail ',
+          },
         },
         {
           path: 'detentaire',
@@ -1471,16 +1464,11 @@ export class LedgerDisplayService {
         depotId: tx.siteOrigineId?._id || 'N/A',
         depot: tx.siteOrigineId?.siteName || 'N/A',
         depotAdresse: tx.siteOrigineId?.siteAddress || 'N/A',
-        detentaire: tx.detentaire
-          ? tx.detentaire.userEmail || 'N/A'
-          : 'N/A',
-        ayantDroit: tx.ayant_droit
-          ? tx.ayant_droit.userEmail || 'N/A'
-          : 'N/A',
+        detentaire: tx.detentaire ? tx.detentaire.userEmail || 'N/A' : 'N/A',
+        ayantDroit: tx.ayant_droit ? tx.ayant_droit.userEmail || 'N/A' : 'N/A',
         detentaireId: tx.detentaire?._id || null,
         ayantDroitId: tx.ayant_droit?._id || null,
-        role:
-          tx.recipientId?.toString() === userId ? 'DEBITEUR' : 'CREANCIER',
+        role: tx.recipientId?.toString() === userId ? 'DEBITEUR' : 'CREANCIER',
         dateCreation: tx.createdAt,
         dateModification: tx.updatedAt,
         isActive: true,
@@ -1561,8 +1549,7 @@ export class LedgerDisplayService {
         : 'N/A',
       detentaireId: passif.detentaire?._id || null,
       ayantDroitId: passif.ayant_droit?._id || null,
-      role:
-        passif.userId?.toString() === userId ? 'DEBITEUR' : 'CREANCIER',
+      role: passif.userId?.toString() === userId ? 'DEBITEUR' : 'CREANCIER',
       dateCreation: passif.createdAt,
       dateModification: passif.updatedAt,
       isActive: passif.isActive,

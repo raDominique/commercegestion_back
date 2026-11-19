@@ -71,11 +71,18 @@ SiteSchema.pre<SiteDocument>('save', function () {
 
 // pre-findOneAndUpdate -> query middleware
 SiteSchema.pre('findOneAndUpdate', function () {
-  const update: any = this.getUpdate();
+  type SiteCoordinates = {
+    siteLat?: number;
+    siteLng?: number;
+    location?: { type: 'Point'; coordinates: number[] };
+  };
+  const update = this.getUpdate() as SiteCoordinates | null;
+  if (!update) return;
 
   if (update.siteLat !== undefined || update.siteLng !== undefined) {
-    const lat = update.siteLat ?? this.getQuery().siteLat;
-    const lng = update.siteLng ?? this.getQuery().siteLng;
+    const query = this.getQuery() as SiteCoordinates;
+    const lat = update.siteLat ?? query.siteLat;
+    const lng = update.siteLng ?? query.siteLng;
 
     if (lat !== undefined && lng !== undefined) {
       update.location = {

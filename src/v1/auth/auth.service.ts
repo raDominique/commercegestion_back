@@ -115,7 +115,10 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Session 2FA expirée ou invalide');
     }
-    if (decoded.purpose !== 'LOGIN_2FA' && decoded.purpose !== 'LOGIN_EMAIL_OTP') {
+    if (
+      decoded.purpose !== 'LOGIN_2FA' &&
+      decoded.purpose !== 'LOGIN_EMAIL_OTP'
+    ) {
       throw new UnauthorizedException('Session 2FA invalide');
     }
 
@@ -129,7 +132,8 @@ export class AuthService {
 
     const user = await this.usersService.findOne(decoded.sub);
     const userDoc = user.data?.[0] as any;
-    if (!userDoc) throw new UnauthorizedException(AuthErrorMessage.USER_NOT_FOUND);
+    if (!userDoc)
+      throw new UnauthorizedException(AuthErrorMessage.USER_NOT_FOUND);
     if (!userDoc.twoFactorEnabled) {
       throw new UnauthorizedException('2FA non activée');
     }
@@ -167,19 +171,29 @@ export class AuthService {
         serverTime: new Date().toISOString(),
       });
       if (valid) {
-        await this.logAudit(decoded.sub, AuditAction.TWO_FA_CHOSEN_METHOD, req, {
-          ipAddress: req.ip || 'unknown',
-          userAgent: (req.headers['user-agent'] as string) || 'unknown',
-        } as any);
+        await this.logAudit(
+          decoded.sub,
+          AuditAction.TWO_FA_CHOSEN_METHOD,
+          req,
+          {
+            ipAddress: req.ip || 'unknown',
+            userAgent: (req.headers['user-agent'] as string) || 'unknown',
+          } as any,
+        );
       }
     } else if (emailOtpToken) {
       // Choix du facteur : l'OTP email peut être utilisé directement après le login.
       valid = await this.emailOtpService.verifyCode(decoded.sub, emailOtpToken);
       if (valid) {
-        await this.logAudit(decoded.sub, AuditAction.TWO_FA_CHOSEN_METHOD, req, {
-          ipAddress: req.ip || 'unknown',
-          userAgent: (req.headers['user-agent'] as string) || 'unknown',
-        } as any);
+        await this.logAudit(
+          decoded.sub,
+          AuditAction.TWO_FA_CHOSEN_METHOD,
+          req,
+          {
+            ipAddress: req.ip || 'unknown',
+            userAgent: (req.headers['user-agent'] as string) || 'unknown',
+          } as any,
+        );
       }
     } else {
       throw new BadRequestException('Code 2FA requis');
@@ -195,7 +209,11 @@ export class AuthService {
     this.authSecurityService.resetFailedAttempts(lockoutKey);
 
     if (decoded.rememberMe) {
-      await this.logAudit(userDoc._id.toString(), AuditAction.LOGIN_REMEMBER_ME, req);
+      await this.logAudit(
+        userDoc._id.toString(),
+        AuditAction.LOGIN_REMEMBER_ME,
+        req,
+      );
     }
     return this.issueSession(userDoc, req, decoded.rememberMe);
   }
@@ -312,7 +330,8 @@ export class AuthService {
 
     const user = await this.usersService.findOne(decoded.sub);
     const userDoc = user.data?.[0] as any;
-    if (!userDoc) throw new UnauthorizedException(AuthErrorMessage.USER_NOT_FOUND);
+    if (!userDoc)
+      throw new UnauthorizedException(AuthErrorMessage.USER_NOT_FOUND);
     if (!userDoc.twoFactorEnabled) {
       throw new UnauthorizedException('2FA non activée');
     }
@@ -531,8 +550,14 @@ export class AuthService {
   async enable2FA(userId: string) {
     const secret = generateSecret();
     const encryptedSecret = encryptSecret(secret);
-    await this.usersService.update2FAFields(userId, { twoFactorSecret: encryptedSecret });
-    const otpauth = generateURI({ issuer: 'CommerceGestion', label: userId, secret });
+    await this.usersService.update2FAFields(userId, {
+      twoFactorSecret: encryptedSecret,
+    });
+    const otpauth = generateURI({
+      issuer: 'CommerceGestion',
+      label: userId,
+      secret,
+    });
     const qrCodeDataUrl = await qrcode.toDataURL(otpauth);
     return { secret, qrCodeDataUrl };
   }
@@ -543,7 +568,8 @@ export class AuthService {
     this.authSecurityService.checkLockout(`lockout:verify2fa:${userId}`);
 
     const user = await this.usersService.findByIdWithSecret(userId);
-    if (!user?.twoFactorSecret) throw new BadRequestException('2FA non initialisée');
+    if (!user?.twoFactorSecret)
+      throw new BadRequestException('2FA non initialisée');
     try {
       this.authSecurityService.checkAndRecordTotpCode(userId, token);
     } catch (e) {
@@ -551,7 +577,10 @@ export class AuthService {
       throw e;
     }
     const decryptedSecret = decryptSecret(user.twoFactorSecret);
-    const valid = verifySync({ token, secret: decryptedSecret as string }).valid;
+    const valid = verifySync({
+      token,
+      secret: decryptedSecret,
+    }).valid;
     if (!valid) {
       this.authSecurityService.recordFailedAttempt(`lockout:${userId}`);
       throw new BadRequestException('Code invalide');
@@ -572,7 +601,8 @@ export class AuthService {
     this.authSecurityService.checkLockout(`lockout:disable2fa:${userId}`);
 
     const user = await this.usersService.findByIdWithSecret(userId);
-    if (!user?.twoFactorEnabled) throw new BadRequestException('2FA non activée');
+    if (!user?.twoFactorEnabled)
+      throw new BadRequestException('2FA non activée');
     try {
       this.authSecurityService.checkAndRecordTotpCode(userId, token);
     } catch (e) {
@@ -580,7 +610,10 @@ export class AuthService {
       throw e;
     }
     const decryptedSecret = decryptSecret(user.twoFactorSecret);
-    const valid = verifySync({ token, secret: decryptedSecret as string }).valid;
+    const valid = verifySync({
+      token,
+      secret: decryptedSecret,
+    }).valid;
     if (!valid) {
       this.authSecurityService.recordFailedAttempt(`lockout:${userId}`);
       throw new BadRequestException('Code invalide');
@@ -594,7 +627,11 @@ export class AuthService {
     return { enabled: false };
   }
 
-  async useBackupCode(loginChallenge: string, backupCode: string, req: Request) {
+  async useBackupCode(
+    loginChallenge: string,
+    backupCode: string,
+    req: Request,
+  ) {
     const rateLimitKey = `backupcode:${req.ip || 'unknown'}`;
     this.authSecurityService.checkRateLimit(rateLimitKey);
 
@@ -615,7 +652,8 @@ export class AuthService {
 
     const user = await this.usersService.findOne(decoded.sub);
     const userDoc = user.data?.[0] as any;
-    if (!userDoc) throw new UnauthorizedException(AuthErrorMessage.USER_NOT_FOUND);
+    if (!userDoc)
+      throw new UnauthorizedException(AuthErrorMessage.USER_NOT_FOUND);
     if (!userDoc.twoFactorEnabled) {
       throw new UnauthorizedException('2FA non activée');
     }
@@ -645,7 +683,11 @@ export class AuthService {
     } as any);
 
     if (decoded.rememberMe) {
-      await this.logAudit(userDoc._id.toString(), AuditAction.LOGIN_REMEMBER_ME, req);
+      await this.logAudit(
+        userDoc._id.toString(),
+        AuditAction.LOGIN_REMEMBER_ME,
+        req,
+      );
     }
     return this.issueSession(userDoc, req, decoded.rememberMe);
   }

@@ -32,6 +32,7 @@ import { MovementType } from './stock-movement.schema';
 import { StockService } from './stock.service';
 import { ActifsService } from '../actifs/actifs.service';
 import { PassifsService } from '../passifs/passifs.service';
+import type { AuthenticatedRequest } from '../auth/interfaces/authenticated-user.interface';
 
 @ApiTags('Stocks & Mouvements')
 @Controller()
@@ -97,7 +98,10 @@ Erreurs possibles:
 - 401: Non authentifié
 - 404: Produit ou site non trouvé`,
   })
-  async createDeposit(@Body() dto: CreateMovementDto, @Req() req: any) {
+  async createDeposit(
+    @Body() dto: CreateMovementDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.stockService.createMovement(
       dto,
       req.user.userId,
@@ -138,7 +142,10 @@ Erreurs possibles:
 - 401: Non authentifié
 - 404: Produit ou détenteur non trouvé`,
   })
-  async transfer(@Body() dto: CreateMovementDto, @Req() req: any) {
+  async transfer(
+    @Body() dto: CreateMovementDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.stockService.createMovement(
       dto,
       req.user.userId,
@@ -185,7 +192,10 @@ Erreurs possibles:
 - 403: Pas propriétaire du produit
 - 404: Produit ou propriétaire non trouvé`,
   })
-  async virement(@Body() dto: CreateMovementDto, @Req() req: any) {
+  async virement(
+    @Body() dto: CreateMovementDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.stockService.createMovement(
       dto,
       req.user.userId,
@@ -209,7 +219,10 @@ Erreurs possibles:
   @ApiBody({ type: BulkCreateMovementDto })
   @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
   @ApiResponse(BULK_RESPONSE_400)
-  async createDepositBulk(@Body() dto: BulkCreateMovementDto, @Req() req: any) {
+  async createDepositBulk(
+    @Body() dto: BulkCreateMovementDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.stockService.createMovementsBulk(
       dto,
       req.user.userId,
@@ -229,7 +242,10 @@ Erreurs possibles:
   @ApiBody({ type: BulkCreateMovementDto })
   @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
   @ApiResponse(BULK_RESPONSE_400)
-  async transferBulk(@Body() dto: BulkCreateMovementDto, @Req() req: any) {
+  async transferBulk(
+    @Body() dto: BulkCreateMovementDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.stockService.createMovementsBulk(
       dto,
       req.user.userId,
@@ -249,7 +265,10 @@ Erreurs possibles:
   @ApiBody({ type: BulkCreateMovementDto })
   @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
   @ApiResponse(BULK_RESPONSE_400)
-  async virementBulk(@Body() dto: BulkCreateMovementDto, @Req() req: any) {
+  async virementBulk(
+    @Body() dto: BulkCreateMovementDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.stockService.createMovementsBulk(
       dto,
       req.user.userId,
@@ -290,7 +309,10 @@ Erreurs possibles:
 - 403: Pas d'accès à ce site
 - 404: Site non trouvé`,
   })
-  async getSiteActifs(@Req() req: any, @Param('siteId') siteId: string) {
+  async getSiteActifs(
+    @Req() req: AuthenticatedRequest,
+    @Param('siteId') siteId: string,
+  ) {
     return this.stockService.getSiteActifs(req.user.userId, siteId);
   }
 
@@ -329,7 +351,10 @@ Erreurs possibles:
 - 403: Pas d'accès à ce site
 - 404: Site non trouvé`,
   })
-  async getSitePassifs(@Req() req: any, @Param('siteId') siteId: string) {
+  async getSitePassifs(
+    @Req() req: AuthenticatedRequest,
+    @Param('siteId') siteId: string,
+  ) {
     return this.stockService.getSitePassifs(req.user.userId, siteId);
   }
 
@@ -383,7 +408,7 @@ Erreurs possibles:
     type: Number,
     description: 'Éléments par page (défaut: 10)',
   })
-  async getDeposits(@Req() req: any, @Query() query: any) {
+  async getDeposits(@Req() req: AuthenticatedRequest, @Query() query: any) {
     return this.stockService.getDepositList(req.user.userId, query);
   }
 
@@ -439,7 +464,7 @@ Erreurs possibles:
     type: Number,
     description: 'Éléments par page (défaut: 10)',
   })
-  async getWithdrawals(@Req() req: any, @Query() query: any) {
+  async getWithdrawals(@Req() req: AuthenticatedRequest, @Query() query: any) {
     return this.stockService.getWithdrawList(req.user.userId, query);
   }
 
@@ -461,7 +486,10 @@ Erreurs possibles:
   @ApiBody({ type: BulkFlagMovementDto })
   @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
   @ApiResponse(BULK_RESPONSE_400)
-  async flagMovementsBulk(@Body() dto: BulkFlagMovementDto, @Req() req: any) {
+  async flagMovementsBulk(
+    @Body() dto: BulkFlagMovementDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.stockService.flagMovementsBulk(dto, req.user.userId);
   }
 
@@ -526,7 +554,7 @@ Erreurs possibles:
   async flagMovement(
     @Param('movementId') movementId: string,
     @Body() body: { reason: string },
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.stockService.flagMovement(
       movementId,
@@ -588,7 +616,7 @@ Erreurs possibles:
   @ApiResponse({ status: 200, description: 'URL du fichier généré' })
   async exportAll(
     @Query('format') format: 'excel' | 'pdf',
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ): Promise<StreamableFile> {
     if (!format || !['excel', 'pdf'].includes(format)) {
       throw new BadRequestException(

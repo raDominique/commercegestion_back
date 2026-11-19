@@ -48,7 +48,7 @@ socket.on('admin_event', (data) => {
 
 export function setupSwagger(
   app: INestApplication,
-  versions: SwaggerVersionConfig[],
+  _versions: SwaggerVersionConfig[],
 ) {
   // --- CONFIGURATION V1 ---
   const configV1 = new DocumentBuilder()
@@ -82,8 +82,13 @@ export function setupSwagger(
 
   // --- Endpoints JSON (pour l'explorer ou outils tiers) ---
   const httpAdapter = app.getHttpAdapter();
-  httpAdapter.get('/docs/v1-json', (_, res) => res.json(documentV1));
-  httpAdapter.get('/docs/v2-json', (_, res) => res.json(documentV2));
+  type JsonResponse = { json: (body: unknown) => void };
+  httpAdapter.get('/docs/v1-json', (_req: unknown, res: JsonResponse) =>
+    res.json(documentV1),
+  );
+  httpAdapter.get('/docs/v2-json', (_req: unknown, res: JsonResponse) =>
+    res.json(documentV2),
+  );
 
   // --- SETUP SWAGGER UI ---
   SwaggerModule.setup('swagger', app, documentV1, {

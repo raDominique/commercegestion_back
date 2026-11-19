@@ -86,7 +86,7 @@ export class AuditService {
 
   async exportAll(
     format: 'excel' | 'pdf',
-    userId?: string,
+    _userId?: string,
   ): Promise<ExportResult> {
     const items = await this.auditModel
       .find()

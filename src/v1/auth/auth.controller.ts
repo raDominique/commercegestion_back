@@ -6,16 +6,17 @@ import {
   Get,
   UnauthorizedException,
 } from '@nestjs/common';
-import { AuthService }                                 from './auth.service';
-import type { Request }                                from 'express';
+import { AuthService } from './auth.service';
+import type { Request } from 'express';
 import { ApiOperation, ApiTags, ApiBody, ApiResponse } from '@nestjs/swagger';
-import { LoginDto }                                    from './dto/login.dto';
-import { LogoutDto }                                   from './dto/logout.dto';
-import { ForgotPasswordDto }                           from './dto/forgot-password.dto';
-import { ResetPasswordDto }                            from './dto/reset-password.dto';
-import { ChangePasswordDto }                           from './dto/change-password.dto';
-import { Verify2FADto, Disable2FADto }                 from './dto/two-factor.dto';
-import { Auth }                                        from './decorators/auth.decorator';
+import { LoginDto } from './dto/login.dto';
+import { LogoutDto } from './dto/logout.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { Verify2FADto, Disable2FADto } from './dto/two-factor.dto';
+import { Auth } from './decorators/auth.decorator';
+import type { AuthenticatedRequest } from './interfaces/authenticated-user.interface';
 
 @ApiTags('Authentication')
 @Controller()
@@ -154,7 +155,7 @@ export class AuthController {
     description: 'Unauthorized - missing or invalid JWT token',
   })
   @ApiResponse({ status: 404, description: 'User not found' })
-  getProfile(@Req() req: any) {
+  getProfile(@Req() req: AuthenticatedRequest) {
     // req.user est injecté par JwtGuard et contient { userId, email, userType }
     const userId = req.user?.userId;
     if (!userId) {
@@ -206,7 +207,10 @@ export class AuthController {
   })
   @ApiResponse({ status: 400, description: 'Mot de passe actuel incorrect' })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
-  changePassword(@Body() dto: ChangePasswordDto, @Req() req: any) {
+  changePassword(
+    @Body() dto: ChangePasswordDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     const userId = req.user?.userId;
     if (!userId) {
       throw new UnauthorizedException('User ID not found in token');
@@ -229,7 +233,8 @@ export class AuthController {
       properties: {
         loginChallenge: {
           type: 'string',
-          description: 'Challenge renvoyé par /auth/login ou /auth/2fa/complete (étape TOTP)',
+          description:
+            'Challenge renvoyé par /auth/login ou /auth/2fa/complete (étape TOTP)',
         },
         totpToken: {
           type: 'string',
@@ -245,7 +250,10 @@ export class AuthController {
     },
   })
   @ApiResponse({ status: 201, description: 'Session créée' })
-  @ApiResponse({ status: 401, description: 'Code 2FA invalide ou session expirée' })
+  @ApiResponse({
+    status: 401,
+    description: 'Code 2FA invalide ou session expirée',
+  })
   complete2FA(
     @Body('loginChallenge') loginChallenge: string,
     @Req() req: Request,
@@ -262,7 +270,8 @@ export class AuthController {
 
   @Post('2fa/totp/verify')
   @ApiOperation({
-    summary: 'Étape 2 : vérifier le code TOTP et envoyer automatiquement l\'OTP par email',
+    summary:
+      "Étape 2 : vérifier le code TOTP et envoyer automatiquement l'OTP par email",
   })
   @ApiBody({
     schema: {
@@ -275,7 +284,10 @@ export class AuthController {
     },
   })
   @ApiResponse({ status: 201, description: 'TOTP valide, OTP email envoyé' })
-  @ApiResponse({ status: 401, description: 'Code TOTP invalide ou session expirée' })
+  @ApiResponse({
+    status: 401,
+    description: 'Code TOTP invalide ou session expirée',
+  })
   verifyTotpStep(
     @Body('loginChallenge') loginChallenge: string,
     @Body('totpToken') totpToken: string,
@@ -290,7 +302,9 @@ export class AuthController {
   }
 
   @Post('2fa/email/verify')
-  @ApiOperation({ summary: 'Étape 3 : vérifier l\'OTP email et créer la session' })
+  @ApiOperation({
+    summary: "Étape 3 : vérifier l'OTP email et créer la session",
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -305,7 +319,10 @@ export class AuthController {
     },
   })
   @ApiResponse({ status: 201, description: 'Session créée' })
-  @ApiResponse({ status: 401, description: 'Code OTP invalide ou session expirée' })
+  @ApiResponse({
+    status: 401,
+    description: 'Code OTP invalide ou session expirée',
+  })
   verifyEmailOtpStep(
     @Body('loginChallenge') loginChallenge: string,
     @Body('emailOtpToken') emailOtpToken: string,
@@ -338,7 +355,7 @@ export class AuthController {
   @Auth()
   @ApiOperation({ summary: 'Activer la 2FA (génère un QR code)' })
   @ApiResponse({ status: 201, description: 'QR code et secret générés' })
-  enable2FA(@Req() req: any) {
+  enable2FA(@Req() req: AuthenticatedRequest) {
     return this.authService.enable2FA(req.user.userId);
   }
 
@@ -347,7 +364,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Vérifier et activer la 2FA' })
   @ApiBody({ type: Verify2FADto })
   @ApiResponse({ status: 201, description: '2FA activée' })
-  verify2FA(@Req() req: any, @Body('token') token: string) {
+  verify2FA(@Req() req: AuthenticatedRequest, @Body('token') token: string) {
     return this.authService.verify2FA(req.user.userId, token);
   }
 
@@ -356,14 +373,17 @@ export class AuthController {
   @ApiOperation({ summary: 'Désactiver la 2FA' })
   @ApiBody({ type: Disable2FADto })
   @ApiResponse({ status: 201, description: '2FA désactivée' })
-  disable2FA(@Req() req: any, @Body('token') token: string) {
+  disable2FA(@Req() req: AuthenticatedRequest, @Body('token') token: string) {
     return this.authService.disable2FA(req.user.userId, token);
   }
 
   @Post('2fa/use-backup-code')
   @ApiOperation({ summary: 'Utiliser un code de secours pour le 2FA' })
   @ApiResponse({ status: 201, description: 'Session créée' })
-  @ApiResponse({ status: 401, description: 'Code de secours invalide ou session expirée' })
+  @ApiResponse({
+    status: 401,
+    description: 'Code de secours invalide ou session expirée',
+  })
   useBackupCode(
     @Body('loginChallenge') loginChallenge: string,
     @Body('backupCode') backupCode: string,
