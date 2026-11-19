@@ -12,8 +12,9 @@ import {
   Req,
   UseInterceptors,
   UploadedFile,
+  UploadedFiles,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { AnyFilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
@@ -28,6 +29,8 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { BulkCreateProductDto } from './dto/bulk-create-product.dto';
 import { BulkFakeProductDto } from './dto/bulk-fake-product.dto';
+import { BulkCreateProductMultipartDto } from './dto/bulk-create-product-multipart.dto';
+import { productBulkImagesMulter } from './bulk-images.multer';
 import {
   BulkIdsDto,
   bulkDescription,
@@ -98,6 +101,52 @@ export class ProductController {
   @ApiBody({ type: BulkCreateProductDto })
   async bulkCreate(@Body() dto: BulkCreateProductDto, @Req() req: any) {
     return this.productService.bulkCreate(dto, req.user.userId);
+  }
+
+  @Post('bulk')
+  @Auth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Créer plusieurs produits avec leurs photos (multipart)',
+    description: bulkDescription(
+      [
+        'Body multipart/form-data :',
+        '- `items` : tableau JSON des produits (JSON.stringify), chacun `{ codeCPC, productName, productDescription?, productCategory?, productVolume?, productHauteur?, productLargeur?, productLongueur?, productPoids? }` ; la catégorie est déduite du codeCPC.',
+        '- `image_<index>` : photo du produit `items[index]` (optionnelle, une par produit, image uniquement, 5 Mo max).',
+        '',
+        'Chaque produit suit les règles de la création unitaire (doublon nom + CPC refusé, audit, notifications)',
+      ].join('\n'),
+      'POST /products',
+    ),
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['items'],
+      properties: {
+        items: {
+          type: 'string',
+          example:
+            '[{"codeCPC":"01111","productName":"Blé dur"},{"codeCPC":"01121","productName":"Maïs"}]',
+        },
+        image_0: { type: 'string', format: 'binary' },
+        image_1: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  @UseInterceptors(AnyFilesInterceptor(productBulkImagesMulter))
+  async bulkCreateWithImages(
+    @Body() dto: BulkCreateProductMultipartDto,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Req() req: any,
+  ) {
+    return this.productService.bulkCreateWithImages(
+      dto,
+      files,
+      req.user.userId,
+    );
   }
 
   @Patch('update/:id')

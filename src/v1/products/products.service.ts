@@ -24,6 +24,8 @@ import { CpcProduct } from '../cpc/cpc.schema';
 import { BulkCreateProductDto } from './dto/bulk-create-product.dto';
 import { BulkFakeProductDto } from './dto/bulk-fake-product.dto';
 import { BulkResult, runBulk } from '../../shared/bulk';
+import { BulkCreateProductMultipartDto } from './dto/bulk-create-product-multipart.dto';
+import { BULK_IMAGE_FIELD } from './bulk-images.multer';
 import { faker } from '@faker-js/faker';
 import { Readable } from 'node:stream';
 import * as path from 'node:path';
@@ -275,6 +277,65 @@ export class ProductService {
       data: created,
       ...(errors.length > 0 && { errors }),
     };
+  }
+
+  /**
+   * CRÉATION EN MASSE AVEC PHOTOS (multipart)
+   * Chaque produit passe par `create` (mêmes règles que POST /products :
+   * doublons, audit, notifications). La catégorie est déduite du codeCPC.
+   * L'image du produit `items[i]` est le fichier du champ `image_<i>`.
+   */
+  async bulkCreateWithImages(
+    dto: BulkCreateProductMultipartDto,
+    files: Express.Multer.File[] = [],
+    userId: string,
+  ): Promise<BulkResult<Product>> {
+    if (!userId) throw new BadRequestException('Utilisateur non identifié.');
+
+    const imagesByIndex = new Map<number, Express.Multer.File>();
+    for (const file of files) {
+      const match = BULK_IMAGE_FIELD.exec(file.fieldname);
+      const index = match ? Number(match[1]) : NaN;
+      if (!Number.isInteger(index) || index >= dto.items.length) {
+        throw new BadRequestException(
+          `Fichier "${file.fieldname}" : aucun produit à cet index (items contient ${dto.items.length} produit(s), index 0 à ${dto.items.length - 1}).`,
+        );
+      }
+      if (imagesByIndex.has(index)) {
+        throw new BadRequestException(
+          `Plusieurs fichiers pour ${file.fieldname} : une seule image par produit.`,
+        );
+      }
+      imagesByIndex.set(index, file);
+    }
+
+    return runBulk(dto.items, async (item, index) => {
+      const cpc = await this.cpcModel.findOne({ code: item.codeCPC });
+      if (!cpc) {
+        throw new BadRequestException(`Code CPC "${item.codeCPC}" introuvable`);
+      }
+
+      const createDto: CreateProductDto = {
+        codeCPC: item.codeCPC,
+        productName: item.productName,
+        productDescription: item.productDescription,
+        categoryId: cpc._id.toString(),
+        productCategory: item.productCategory || cpc.nom,
+        productVolume: item.productVolume,
+        productHauteur: item.productHauteur,
+        productLargeur: item.productLargeur,
+        productLongueur: item.productLongueur,
+        productPoids: item.productPoids,
+      };
+
+      const product = (
+        await this.create(createDto, userId, imagesByIndex.get(index))
+      ).data?.[0];
+      if (!product) {
+        throw new Error("La création du produit n'a renvoyé aucun produit");
+      }
+      return product;
+    });
   }
 
   private async downloadAndSaveImage(imageUrl: string): Promise<string> {

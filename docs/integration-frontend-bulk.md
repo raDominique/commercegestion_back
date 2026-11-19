@@ -17,7 +17,7 @@ Chaque endpoint bulk est la version « en lot » d'un endpoint unitaire existant
 7. [Boutique (annonces)](#7-boutique-annonces)
 8. [Panier](#8-panier)
 9. [Administration — utilisateurs](#9-administration--utilisateurs)
-10. [Administration — produits](#10-administration--produits)
+10. [Produits — création avec photos et administration](#10-produits--création-avec-photos-et-administration)
 11. [Pièges à éviter](#11-pièges-à-éviter)
 12. [Récapitulatif des endpoints](#12-récapitulatif-des-endpoints)
 
@@ -33,6 +33,7 @@ Deux formes de body selon le type d'opération :
 |---|---|---|
 | **Créer** plusieurs éléments | `{ "items": [ ... ] }` | dépôts, ventes, sites, annonces… |
 | **Agir** sur des éléments existants | `{ "ids": [ ... ] }` (+ champs communs éventuels) | approuver, rejeter, activer, supprimer… |
+| **Créer avec fichiers** | `multipart/form-data` : `items` (JSON en texte) + fichiers | produits avec photos (§10.1) |
 
 - **Taille** : 1 à **100** éléments par requête. Au-delà, découper en plusieurs requêtes (voir `chunk` §2.3).
 - **`items`** : chaque élément a **exactement le même format** que le body de l'endpoint unitaire.
@@ -628,7 +629,61 @@ export const deleteUsersBulk = (ids) => callBulk('post', '/api/v1/users/delete/b
 
 ---
 
-## 10. Administration — produits
+## 10. Produits — création avec photos et administration
+
+### 10.1 Créer plusieurs produits avec leurs photos (multipart)
+
+`POST /api/v1/products/bulk` — authentification requise. Équivalent en lot de `POST /api/v1/products` (qui est lui aussi en multipart).
+
+**Format `multipart/form-data`** :
+
+| Champ | Type | Contenu |
+|---|---|---|
+| `items` | texte | Tableau des produits **sérialisé en JSON** (`JSON.stringify`) — 1 à 100 produits |
+| `image_<index>` | fichier | Photo du produit `items[index]` (ex: `image_0`, `image_2`). **Optionnelle**, une par produit |
+
+Champs d'un produit dans `items` :
+
+| Champ | Requis | Remarque |
+|---|---|---|
+| `codeCPC` | oui | Doit exister ; la catégorie (`categoryId`) est déduite automatiquement |
+| `productName` | oui | |
+| `productCategory` | non | Libellé ; par défaut le nom du CPC |
+| `productDescription`, `productVolume`, `productHauteur`, `productLargeur`, `productLongueur`, `productPoids` | non | Texte |
+
+Règles :
+
+- L'association photo ↔ produit se fait **par le nom du champ** : `image_3` est la photo de `items[3]`. Un produit sans photo n'a simplement pas de champ `image_<index>`.
+- Images uniquement (`image/*`), **5 Mo max** par fichier. Sinon `400` et rien n'est créé.
+- `400` aussi si `items` n'est pas un JSON valide, si un produit est mal formé (ex: `items.0.codeCPC should not be empty`), si un `image_<index>` ne correspond à aucun produit ou s'il y a deux fichiers pour le même index.
+- Chaque produit suit les règles de la création unitaire : **doublon refusé** (même nom + même CPC pour l'utilisateur, y compris deux fois dans le même lot), audit, notification aux admins, email au créateur. Les produits créés sont en attente de validation.
+- Réponse au format bulk (§1.3) : `data` = produits créés, `errors[].index` = position dans `items` (ex: `Code CPC "99999" introuvable`).
+
+```js
+// src/services/products.bulk.js
+import axiosInstance from './axios.config';
+
+/**
+ * @param {Array<{ product: object, image?: File }>} rows  lignes du formulaire
+ */
+export async function createProductsBulk(rows) {
+  const formData = new FormData();
+  formData.append('items', JSON.stringify(rows.map((r) => r.product)));
+  rows.forEach((row, index) => {
+    if (row.image) formData.append(`image_${index}`, row.image);
+  });
+
+  // Ne pas fixer Content-Type : le navigateur ajoute le boundary multipart.
+  const res = await axiosInstance.post('/api/v1/products/bulk', formData);
+  return res.data; // { status, message, data, total, errors }
+}
+```
+
+> Pour plus de 100 produits, découper `rows` en paquets de 100 et **renuméroter** les `image_<index>` dans chaque paquet (l'index est relatif au paquet envoyé). Recaler ensuite `errors[].index` avec le décalage du paquet (voir `callBulkChunked` §2.3).
+
+> L'ancien `POST /api/v1/products/bulk-create` (JSON, images par **URL**) existe toujours pour le remplissage de données ; il ignore doublons, audit et notifications. Pour les vrais utilisateurs, utiliser `POST /products/bulk`.
+
+### 10.2 Administration des produits
 
 Rôle **ADMIN** requis (sinon `403`).
 
@@ -685,6 +740,7 @@ export const deleteProductsBulk = (ids) => callBulk('post', '/api/v1/products/de
 | Panier | POST | `/api/v1/cart/add/bulk` | `{ items }` | connecté |
 | Utilisateurs | PATCH | `/api/v1/users/activate/bulk` | `{ ids }` | ADMIN |
 | Utilisateurs | POST | `/api/v1/users/delete/bulk` | `{ ids }` | ADMIN |
+| Produits | POST | `/api/v1/products/bulk` | multipart : `items` (JSON) + `image_<index>` | connecté |
 | Produits | PATCH | `/api/v1/products/validate/bulk` | `{ ids }` | ADMIN |
 | Produits | POST | `/api/v1/products/delete/bulk` | `{ ids }` | ADMIN |
 
