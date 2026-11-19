@@ -39,6 +39,7 @@ import {
   BulkApproveTransactionsDto,
   BulkRejectTransactionsDto,
 } from './dto/bulk-transaction.dto';
+import { ReturnAllDto, WithdrawableQueryDto } from './dto/return-all.dto';
 import {
   bulkDescription,
   BULK_RESPONSE_OK,
@@ -529,6 +530,51 @@ Flux:
       dto,
       req.user.userId,
     );
+  }
+
+  // ===================== RETRAIT INTÉGRAL PAR DÉTENTEUR =====================
+
+  @Get('return/withdrawable')
+  @Auth()
+  @ApiOperation({
+    summary: 'Aperçu du retrait intégral chez un détenteur',
+    description: `Liste tout ce que l'utilisateur connecté peut retirer chez un détenteur (son propre id = auto-retrait).
+
+- \`data\` : positions retirables (produit, site d'origine, \`disponible\`, \`soldeDepose\`, \`quantiteRetirable\`).
+- \`exclues\` : positions détenues mais non retirables, avec \`motif\` (ex: actif reçu par virement ou vente, sans dépôt de votre part).
+
+Quantité retirable = disponible (quantite - quantiteEnAttente), plafonnée au solde déposé non retiré quand le détenteur est un tiers.`,
+  })
+  @ApiResponse({ status: 200, description: 'Positions retirables et exclues' })
+  @ApiResponse({
+    status: 400,
+    description: 'detentaireId manquant ou invalide',
+  })
+  async getWithdrawable(
+    @Req() req: Request & { user: { userId: string } },
+    @Query() query: WithdrawableQueryDto,
+  ) {
+    return this.transactionsService.getWithdrawable(req.user.userId, query);
+  }
+
+  @Post('return/all')
+  @Auth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Retrait intégral chez un détenteur',
+    description: bulkDescription(
+      "Body `{ detentaireId, siteDestinationId, siteId?, productId?, observations? }`. Crée un RETRAIT (PENDING) par position retirable (voir `GET return/withdrawable`), pour toute la quantité retirable, vers `siteDestinationId`. Chez un autre détenteur, les positions déjà situées sur le site de destination sont rapportées en échec (accepté en auto-retrait). La réponse contient aussi `exclues`. 400 si aucune position n'est retirable",
+      'POST /transactions/return',
+    ),
+  })
+  @ApiResponse({ status: 201, ...BULK_RESPONSE_OK })
+  @ApiResponse(BULK_RESPONSE_400)
+  @ApiBody({ type: ReturnAllDto })
+  async createReturnAll(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() dto: ReturnAllDto,
+  ) {
+    return this.transactionsService.createReturnAll(dto, req.user.userId);
   }
 
   /**

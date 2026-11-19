@@ -257,7 +257,7 @@ Chaque dépôt créé est `PENDING` et réserve la quantité (`quantiteEnAttente
 
 ### 3.2 Retraits — `POST /api/v1/transactions/return/bulk`
 
-Mêmes champs que le dépôt (`detentaire`, `ayant_droit`, `productId`, `siteOrigineId`, `siteDestinationId`, `quantite`, `prixUnitaire?`, `observations?`). Le retrayant est l'utilisateur connecté.
+Mêmes champs que le dépôt (`detentaire`, `ayant_droit`, `productId`, `siteOrigineId`, `siteDestinationId`, `quantite`, `prixUnitaire?`, `observations?`). Le retrayant est l'utilisateur connecté. Chez un autre détenteur, `siteDestinationId` doit être différent de `siteOrigineId` (sinon `400`) ; en auto-retrait, le même site est accepté. Voir aussi §3.6 (retrait intégral) et §3.7 (auto-retrait).
 
 ### 3.3 Initialisations — `POST /api/v1/transactions/initialization/bulk`
 
@@ -310,7 +310,104 @@ Champs : `vendeurId`, `productId`, `siteOrigineId`, `siteDestinationId?`, `quant
 
 > Pour un achat depuis le panier, utiliser `POST /cart/checkout` (inchangé), pas cet endpoint.
 
-### 3.6 Exemple de service
+### 3.6 Retrait intégral chez un détenteur
+
+Retire **tout ce que l'utilisateur peut retirer chez un détenteur**, sans choisir produit par produit. Le détenteur peut être un autre membre, ou l'utilisateur lui-même (auto-retrait intégral).
+
+**Étape 1 — aperçu** : `GET /api/v1/transactions/return/withdrawable?detentaireId=<id>[&siteId=<id>][&productId=<id>]`
+
+```json
+{
+  "status": "success",
+  "message": "2 position(s) retirable(s), 1 exclue(s)",
+  "data": [
+    {
+      "actifId": "…",
+      "productId": "…",
+      "productName": "Riz",
+      "siteOrigineId": "…",
+      "siteName": "Hangar Y",
+      "detentaireId": "…",
+      "disponible": 40,
+      "soldeDepose": 30,
+      "quantiteRetirable": 30,
+      "prixUnitaire": 1500
+    }
+  ],
+  "total": 2,
+  "exclues": [
+    {
+      "productName": "Café",
+      "quantiteRetirable": 0,
+      "motif": "Aucun dépôt approuvé de votre part vers ce détenteur sur ce site (actif reçu par virement ou vente) : retrait non autorisé."
+    }
+  ]
+}
+```
+
+| Champ | Description |
+|---|---|
+| `disponible` | `quantite - quantiteEnAttente` de l'actif (les retraits déjà en attente sont déduits) |
+| `soldeDepose` | Déposé chez ce détenteur moins déjà retiré. `null` en auto-retrait |
+| `quantiteRetirable` | Quantité qui sera retirée : `disponible`, plafonnée à `soldeDepose` chez un tiers |
+| `exclues[].motif` | Pourquoi une position détenue n'est pas retirable |
+
+À afficher dans une boîte de confirmation (« Vous allez retirer : … ») avec le choix du site de destination.
+
+**Étape 2 — exécution** : `POST /api/v1/transactions/return/all`
+
+```json
+{
+  "detentaireId": "69989c5cdff25ef7fe0a460f",
+  "siteDestinationId": "69989c5cdff25ef7fe0a4612",
+  "siteId": "optionnel : limiter à un site d'origine",
+  "productId": "optionnel : limiter à un produit",
+  "observations": "optionnel"
+}
+```
+
+- Crée **un retrait PENDING par position** de l'aperçu, pour toute la `quantiteRetirable`, vers `siteDestinationId`.
+- Réponse au format bulk (§1.3) **plus** `exclues`. `errors[].id` = `actifId` de la position en échec.
+- Chez un autre détenteur, une position déjà située sur `siteDestinationId` est rapportée en échec (site identique), les autres sont créées. En auto-retrait, elle est acceptée.
+- `400` si aucune position n'est retirable avec ces filtres.
+- Chaque retrait créé suit ensuite le flux normal (approbation / rejet, voir §4 pour l'approbation en masse).
+
+```js
+export const getWithdrawable = (detentaireId, filters = {}) =>
+  axiosInstance
+    .get('/api/v1/transactions/return/withdrawable', { params: { detentaireId, ...filters } })
+    .then((res) => res.data);
+
+export const withdrawAll = (body) =>
+  callBulk('post', '/api/v1/transactions/return/all', body);
+```
+
+### 3.7 Auto-retrait et comportement du retrait
+
+**Auto-retrait** = retrait où `detentaire` = `ayant_droit` = utilisateur connecté (je retire mon propre stock).
+
+- Vers un **autre** de mes sites : la marchandise passe du site d'origine au site de destination à l'approbation.
+- Vers le **même** site (accepté) : pendant l'attente, le disponible baisse de `q` (réservation) ; à l'approbation, `q` est retiré puis remis sur ce site — **solde final inchangé**, le mouvement reste dans l'historique.
+
+- Possible sur **tout son stock disponible**, y compris le stock issu d'une initialisation, d'un achat ou d'un retrait précédent (plus besoin d'un dépôt vers soi-même au préalable).
+- Reste **PENDING** jusqu'à approbation (l'utilisateur le voit dans `GET /transactions/pending/list`, une seule fois).
+- **Une seule** notification et **un seul** email à chaque étape (création, approbation, rejet) — auparavant l'utilisateur les recevait en double (comme détenteur et comme ayant droit).
+
+**Changement pour tous les retraits** (auto-retrait ou chez un tiers) :
+
+| Moment | Site d'origine | Site de destination |
+|---|---|---|
+| Création (PENDING) | `quantite` inchangée, `quantiteEnAttente += q` (disponible − q) | **rien** |
+| Approbation | `quantite − q`, `quantiteEnAttente − q` | `quantite + q` |
+| Rejet | `quantiteEnAttente − q` (disponible restauré) | rien |
+
+Auparavant la quantité apparaissait au site de destination dès la création : pendant l'attente, la marchandise était comptée sur les deux sites (total doublé). Côté front :
+
+- Calculer les totaux avec `quantite` ; le disponible avec `quantite - quantiteEnAttente`.
+- Pour afficher « à recevoir », utiliser les retraits PENDING (`GET /transactions/pending/list` ou l'historique), pas les actifs du site de destination.
+- Les retraits créés **avant** cette mise à jour gardent l'ancien comportement jusqu'à leur approbation ou rejet.
+
+### 3.8 Exemple de service
 
 ```js
 // src/services/transactions.bulk.js
@@ -574,6 +671,8 @@ export const deleteProductsBulk = (ids) => callBulk('post', '/api/v1/products/de
 | Transactions | POST | `/api/v1/transactions/initialization/bulk` | `{ items }` | connecté |
 | Transactions | POST | `/api/v1/transactions/virement-droit/bulk` | `{ items }` | connecté |
 | Transactions | POST | `/api/v1/transactions/vente/bulk` | `{ items }` | connecté |
+| Transactions | GET | `/api/v1/transactions/return/withdrawable?detentaireId=` | query | connecté |
+| Transactions | POST | `/api/v1/transactions/return/all` | `{ detentaireId, siteDestinationId, siteId?, productId?, observations? }` | connecté |
 | Transactions | PATCH | `/api/v1/transactions/approve/bulk` | `{ ids, observations? }` | connecté |
 | Transactions | PATCH | `/api/v1/transactions/reject/bulk` | `{ ids, motifRejet }` | connecté |
 | Stocks | POST | `/api/v1/stocks/depot/bulk` | `{ items }` | connecté |

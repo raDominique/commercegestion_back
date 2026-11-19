@@ -87,6 +87,16 @@ export class Transaction {
   @Prop({ type: Types.ObjectId, ref: 'User', default: null })
   ayant_droit: Types.ObjectId; // Qui possède légalement l'actif
 
+  /**
+   * RETRAIT uniquement : la quantité a-t-elle été provisionnée au site de
+   * destination dès la création ?
+   * - absent (retraits créés avant la correction) : oui, ancienne logique ;
+   * - false : non, le site de destination n'est alimenté qu'à l'approbation.
+   * Pas de valeur par défaut : l'absence identifie les anciens retraits.
+   */
+  @Prop({ type: Boolean })
+  destinationProvisioned?: boolean;
+
   // Validation et dates
   @Prop({ type: Date, default: null })
   approvedAt: Date; // Date d'approbation

@@ -303,10 +303,15 @@ export class ActifsService {
     productId: string,
     quantite: number,
   ) {
+    // Ligne propre du retrayant (détenteur = ayant droit = lui) : sans ce
+    // filtre, une ligne miroir qu'il détient pour un autre membre sur le même
+    // site pouvait être modifiée à la place.
     const actif = await this.actifModel.findOne({
       userId: new Types.ObjectId(userId),
       depotId: new Types.ObjectId(depotId),
       productId: new Types.ObjectId(productId),
+      detentaire: new Types.ObjectId(userId),
+      ayant_droit: new Types.ObjectId(userId),
       isActive: true,
     });
 
@@ -518,7 +523,10 @@ export class ActifsService {
     detentaireId: string;
     productId: string;
     depotId?: string;
+    /** Quantité totale minimale (réservations comprises). */
     minQuantite?: number;
+    /** Quantité disponible minimale : quantite - quantiteEnAttente. */
+    minDisponible?: number;
   }) {
     const {
       userId,
@@ -526,6 +534,7 @@ export class ActifsService {
       productId,
       depotId,
       minQuantite = 0,
+      minDisponible = 0,
     } = params;
 
     const filter: any = {
@@ -537,8 +546,53 @@ export class ActifsService {
     };
     if (depotId) filter.depotId = new Types.ObjectId(depotId);
     if (minQuantite > 0) filter.quantite = { $gte: minQuantite };
+    if (minDisponible > 0) {
+      filter.$expr = {
+        $gte: [
+          { $subtract: ['$quantite', { $ifNull: ['$quantiteEnAttente', 0] }] },
+          minDisponible,
+        ],
+      };
+    }
 
     return this.actifModel.findOne(filter);
+  }
+
+  /**
+   * Actifs propres de `userId` (ayant droit = lui) détenus par `detentaireId`
+   * avec une quantité disponible (quantite - quantiteEnAttente) > 0.
+   * Base du retrait intégral par détenteur.
+   */
+  async findWithdrawableActifs(
+    userId: string,
+    detentaireId: string,
+    filters: { siteId?: string; productId?: string } = {},
+  ) {
+    const userObjectId = new Types.ObjectId(userId);
+    return this.actifModel
+      .find({
+        userId: userObjectId,
+        ayant_droit: userObjectId,
+        detentaire: new Types.ObjectId(detentaireId),
+        isActive: true,
+        $expr: {
+          $gt: [
+            {
+              $subtract: ['$quantite', { $ifNull: ['$quantiteEnAttente', 0] }],
+            },
+            0,
+          ],
+        },
+        ...(filters.siteId
+          ? { depotId: new Types.ObjectId(filters.siteId) }
+          : {}),
+        ...(filters.productId
+          ? { productId: new Types.ObjectId(filters.productId) }
+          : {}),
+      })
+      .sort({ createdAt: 1 })
+      .populate([{ path: 'productId' }, { path: 'depotId' }])
+      .exec();
   }
 
   /**

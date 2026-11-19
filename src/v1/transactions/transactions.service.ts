@@ -31,6 +31,7 @@ import {
   BulkApproveTransactionsDto,
   BulkRejectTransactionsDto,
 } from './dto/bulk-transaction.dto';
+import { ReturnAllDto, WithdrawableQueryDto } from './dto/return-all.dto';
 import { BulkResult, runBulk } from '../../shared/bulk';
 import { ActifsService } from '../actifs/actifs.service';
 import { PassifsService } from '../passifs/passifs.service';
@@ -47,6 +48,22 @@ import {
   ExportResult,
 } from '../../shared/export/export.service';
 import { NotificationsService } from '../../shared/notifications/notifications.service';
+
+/** Position retirable chez un détenteur (retrait intégral). */
+export interface WithdrawablePosition {
+  actifId: string;
+  productId: string;
+  productName: string | null;
+  siteOrigineId: string;
+  siteName: string | null;
+  detentaireId: string;
+  /** quantite - quantiteEnAttente de l'actif */
+  disponible: number;
+  /** Solde déposé non retiré (null en auto-retrait) */
+  soldeDepose: number | null;
+  quantiteRetirable: number;
+  prixUnitaire: number;
+}
 
 @Injectable()
 export class TransactionsService {
@@ -162,6 +179,21 @@ export class TransactionsService {
       );
     }
 
+    // Même site d'origine et de destination :
+    // - auto-retrait (détenteur = retrayant) : accepté. Le site de destination
+    //   n'étant plus provisionné à la création, seule la réservation porte sur
+    //   la ligne (disponible -q pendant l'attente) et l'approbation retire puis
+    //   remet q sur ce site (solde inchangé, mouvement historisé) ;
+    // - chez un tiers : refusé, la marchandise doit quitter le site du détenteur.
+    if (
+      createReturnDto.siteOrigineId === createReturnDto.siteDestinationId &&
+      createReturnDto.detentaire !== retrayantId
+    ) {
+      throw new BadRequestException(
+        "Retrait impossible: chez un autre détenteur, le site de destination doit être différent du site d'origine.",
+      );
+    }
+
     // Validation métier préalable à tout retrait:
     // 1. Un dépôt approuvé doit exister vers le même membre (detentaire)
     // 2. Seuls les éléments déposés (produit & quantité) peuvent être retirés
@@ -171,15 +203,10 @@ export class TransactionsService {
     // Réservation PENDING pour le retrait:
     // - Retrayant: réserve sa créance chez le détenteur (site origine)
     // - Détenteur: réserve son stock détenu (site origine) + son passif
-    // - Retrayant: crée ligne "en attente" au site destination (il va détenir)
-    const {
-      detentaire,
-      productId,
-      siteOrigineId,
-      siteDestinationId,
-      quantite,
-      prixUnitaire,
-    } = createReturnDto;
+    // Le site de destination n'est alimenté qu'à l'approbation : le provisionner
+    // dès la création comptait la marchandise sur les deux sites pendant
+    // l'attente (total doublé).
+    const { detentaire, productId, siteOrigineId, quantite } = createReturnDto;
 
     // 1. Réserve sur l'actif du retrayant chez le détenteur (siteOrigineId)
     await this.actifsService.reserveActif(
@@ -211,18 +238,6 @@ export class TransactionsService {
       );
     }
 
-    // 4. Crée/augmente l'actif "en attente" du retrayant au site de destination
-    //    (il va physiquement détenir la marchandise après approbation)
-    await this.actifsService.addOrIncreaseActifEnAttente(
-      retrayantId,
-      siteDestinationId,
-      productId,
-      quantite,
-      prixUnitaire || 0,
-      retrayantId, // detentaire = lui-même après retrait
-      retrayantId, // ayant_droit = lui-même
-    );
-
     const transactionNumber = this.generateTransactionNumber();
 
     const transaction = new this.transactionModel({
@@ -239,6 +254,7 @@ export class TransactionsService {
       detentaire: new Types.ObjectId(createReturnDto.detentaire),
       ayant_droit: new Types.ObjectId(createReturnDto.ayant_droit),
       observations: createReturnDto.observations || null,
+      destinationProvisioned: false,
       isActive: true,
     });
 
@@ -279,62 +295,40 @@ export class TransactionsService {
     const ayant_droit = retrayantId;
 
     // --- Règles 1 & 2: dépôt préalable + plafond "déposé non retiré" ---
-    // Pour un retrait, les marchandises sont prélevées du site d'origine
-    // (siteOrigineId), qui correspond au site de dépôt (siteDestinationId
-    // de la transaction DÉPÔT qui a créé l'actif).
-    const [depots, retraits] = await Promise.all([
-      this.transactionModel
-        .find({
-          type: TransactionType.DEPOT,
-          status: TransactionStatus.APPROVED,
-          ayant_droit: new Types.ObjectId(ayant_droit),
-          detentaire: new Types.ObjectId(detentaire),
-          productId: new Types.ObjectId(productId),
-          siteDestinationId: new Types.ObjectId(siteOrigineId),
-          isActive: true,
-        })
-        .select('quantite')
-        .lean()
-        .exec(),
-      this.transactionModel
-        .find({
-          type: TransactionType.RETRAIT,
-          status: TransactionStatus.APPROVED,
-          ayant_droit: new Types.ObjectId(ayant_droit),
-          detentaire: new Types.ObjectId(detentaire),
-          productId: new Types.ObjectId(productId),
-          siteOrigineId: new Types.ObjectId(siteOrigineId),
-          isActive: true,
-        })
-        .select('quantite')
-        .lean()
-        .exec(),
-    ]);
-
-    const totalDepose = depots.reduce((sum, d) => sum + (d.quantite || 0), 0);
-    const totalRetire = retraits.reduce((sum, r) => sum + (r.quantite || 0), 0);
-    const soldeDepose = totalDepose - totalRetire;
-
-    if (totalDepose <= 0) {
-      throw new BadRequestException(
-        `Retrait impossible: aucun dépôt approuvé de ce produit vers le membre ${detentaire} sur ce site. Un dépôt préalable vers ce membre est requis avant tout retrait.`,
+    // Ne concernent que le retrait chez un tiers. En auto-retrait (détenteur =
+    // retrayant), le stock peut venir d'une initialisation, d'un achat ou d'un
+    // retrait précédent : seule la disponibilité (règle 3) compte.
+    if (detentaire !== retrayantId) {
+      const { totalDepose, soldeDepose } = await this.getSoldeDepose(
+        ayant_droit,
+        detentaire,
+        productId,
+        siteOrigineId,
       );
-    }
 
-    if (quantite > soldeDepose) {
-      throw new BadRequestException(
-        `Quantité à retirer (${quantite}) supérieure au solde déposé et non encore retiré (${soldeDepose}). Seuls les éléments déposés (produit & quantité) peuvent faire l'objet d'un retrait.`,
-      );
+      if (totalDepose <= 0) {
+        throw new BadRequestException(
+          `Retrait impossible: aucun dépôt approuvé de ce produit vers le membre ${detentaire} sur ce site. Un dépôt préalable vers ce membre est requis avant tout retrait.`,
+        );
+      }
+
+      if (quantite > soldeDepose) {
+        throw new BadRequestException(
+          `Quantité à retirer (${quantite}) supérieure au solde déposé et non encore retiré (${soldeDepose}). Seuls les éléments déposés (produit & quantité) peuvent faire l'objet d'un retrait.`,
+        );
+      }
     }
 
     // --- Règle 3: disponibilité dans les actifs de la personne qui retire ---
+    // Disponible = quantite - quantiteEnAttente (les réservations des retraits
+    // déjà en attente ne sont pas retirables une seconde fois).
     const actifDisponible =
       await this.actifsService.findOwnActifHeldByDetentaire({
         userId: ayant_droit,
         detentaireId: detentaire,
         productId,
         depotId: siteOrigineId,
-        minQuantite: quantite,
+        minDisponible: quantite,
       });
 
     if (!actifDisponible) {
@@ -344,10 +338,209 @@ export class TransactionsService {
         productId,
         depotId: siteOrigineId,
       });
+      const disponible = actif
+        ? actif.quantite - (actif.quantiteEnAttente ?? 0)
+        : 0;
       throw new BadRequestException(
-        `Quantité insuffisante dans vos actifs auprès de ce membre. Disponible: ${actif?.quantite ?? 0}, Demandé: ${quantite}.`,
+        `Quantité insuffisante dans vos actifs auprès de ce membre. Disponible: ${disponible}, Demandé: ${quantite}.`,
       );
     }
+  }
+
+  /**
+   * Solde déposé et non encore retiré par `ayantDroitId` chez `detentaireId`
+   * pour un produit sur un site (dépôts APPROVED - retraits APPROVED).
+   * Pour un retrait, le site d'origine correspond au site de destination de
+   * la transaction DÉPÔT qui a créé l'actif.
+   */
+  private async getSoldeDepose(
+    ayantDroitId: string,
+    detentaireId: string,
+    productId: string,
+    siteId: string,
+  ): Promise<{ totalDepose: number; soldeDepose: number }> {
+    const [depots, retraits] = await Promise.all([
+      this.transactionModel
+        .find({
+          type: TransactionType.DEPOT,
+          status: TransactionStatus.APPROVED,
+          ayant_droit: new Types.ObjectId(ayantDroitId),
+          detentaire: new Types.ObjectId(detentaireId),
+          productId: new Types.ObjectId(productId),
+          siteDestinationId: new Types.ObjectId(siteId),
+          isActive: true,
+        })
+        .select('quantite')
+        .lean()
+        .exec(),
+      this.transactionModel
+        .find({
+          type: TransactionType.RETRAIT,
+          status: TransactionStatus.APPROVED,
+          ayant_droit: new Types.ObjectId(ayantDroitId),
+          detentaire: new Types.ObjectId(detentaireId),
+          productId: new Types.ObjectId(productId),
+          siteOrigineId: new Types.ObjectId(siteId),
+          isActive: true,
+        })
+        .select('quantite')
+        .lean()
+        .exec(),
+    ]);
+
+    const totalDepose = depots.reduce((sum, d) => sum + (d.quantite || 0), 0);
+    const totalRetire = retraits.reduce((sum, r) => sum + (r.quantite || 0), 0);
+    return { totalDepose, soldeDepose: totalDepose - totalRetire };
+  }
+
+  // ===================== RETRAIT INTÉGRAL PAR DÉTENTEUR =====================
+
+  /**
+   * Positions que `userId` peut retirer chez `detentaireId` (lui-même compris).
+   * Quantité retirable = disponible de l'actif, plafonnée au solde déposé non
+   * retiré quand le détenteur est un tiers (règles 1 & 2 du retrait).
+   */
+  async computeWithdrawable(
+    userId: string,
+    detentaireId: string,
+    filters: { siteId?: string; productId?: string } = {},
+  ): Promise<{
+    retirables: WithdrawablePosition[];
+    exclues: (WithdrawablePosition & { motif: string })[];
+  }> {
+    const actifs = await this.actifsService.findWithdrawableActifs(
+      userId,
+      detentaireId,
+      filters,
+    );
+    const isSelf = detentaireId === userId;
+    const retirables: WithdrawablePosition[] = [];
+    const exclues: (WithdrawablePosition & { motif: string })[] = [];
+
+    // productId / depotId sont peuplés par findWithdrawableActifs.
+    type Populated = {
+      _id: Types.ObjectId;
+      productName?: string;
+      siteName?: string;
+    };
+    const refOf = (ref: unknown): Populated => {
+      if (ref instanceof Types.ObjectId) return { _id: ref };
+      return ref as Populated;
+    };
+
+    for (const actif of actifs) {
+      const product = refOf(actif.productId);
+      const site = refOf(actif.depotId);
+      const productId = product._id.toString();
+      const siteId = site._id.toString();
+      const disponible = actif.quantite - (actif.quantiteEnAttente ?? 0);
+
+      let soldeDepose: number | null = null;
+      let motif: string | null = null;
+      let quantiteRetirable = disponible;
+
+      if (!isSelf) {
+        const solde = await this.getSoldeDepose(
+          userId,
+          detentaireId,
+          productId,
+          siteId,
+        );
+        soldeDepose = solde.soldeDepose;
+        quantiteRetirable = Math.min(disponible, Math.max(0, soldeDepose));
+        if (solde.totalDepose <= 0) {
+          motif =
+            'Aucun dépôt approuvé de votre part vers ce détenteur sur ce site (actif reçu par virement ou vente) : retrait non autorisé.';
+        } else if (quantiteRetirable <= 0) {
+          motif = 'Le solde déposé a déjà été entièrement retiré.';
+        }
+      }
+
+      const position: WithdrawablePosition = {
+        actifId: String(actif._id),
+        productId,
+        productName: product.productName ?? null,
+        siteOrigineId: siteId,
+        siteName: site.siteName ?? null,
+        detentaireId,
+        disponible,
+        soldeDepose,
+        quantiteRetirable: Math.max(0, quantiteRetirable),
+        prixUnitaire: actif.prixUnitaire ?? 0,
+      };
+
+      if (motif || position.quantiteRetirable <= 0) {
+        exclues.push({ ...position, motif: motif ?? 'Rien à retirer.' });
+      } else {
+        retirables.push(position);
+      }
+    }
+
+    return { retirables, exclues };
+  }
+
+  /** Aperçu du retrait intégral (GET return/withdrawable). */
+  async getWithdrawable(userId: string, query: WithdrawableQueryDto) {
+    const { retirables, exclues } = await this.computeWithdrawable(
+      userId,
+      query.detentaireId,
+      { siteId: query.siteId, productId: query.productId },
+    );
+    return {
+      status: 'success',
+      message: `${retirables.length} position(s) retirable(s), ${exclues.length} exclue(s)`,
+      data: retirables,
+      total: retirables.length,
+      exclues,
+    };
+  }
+
+  /**
+   * Retrait intégral : crée un RETRAIT (PENDING) par position retirable chez
+   * le détenteur, pour toute la quantité retirable, vers le site choisi.
+   */
+  async createReturnAll(
+    dto: ReturnAllDto,
+    userId: string,
+  ): Promise<
+    BulkResult<TransactionDocument> & {
+      exclues: (WithdrawablePosition & { motif: string })[];
+    }
+  > {
+    const { retirables, exclues } = await this.computeWithdrawable(
+      userId,
+      dto.detentaireId,
+      { siteId: dto.siteId, productId: dto.productId },
+    );
+
+    if (!retirables.length) {
+      throw new BadRequestException(
+        'Aucune position retirable chez ce détenteur avec ces filtres.',
+      );
+    }
+
+    const result = await runBulk(
+      retirables,
+      async (position) =>
+        this.firstTransaction(
+          await this.createReturn(
+            {
+              detentaire: dto.detentaireId,
+              ayant_droit: userId,
+              productId: position.productId,
+              siteOrigineId: position.siteOrigineId,
+              siteDestinationId: dto.siteDestinationId,
+              quantite: position.quantiteRetirable,
+              prixUnitaire: position.prixUnitaire,
+              observations: dto.observations,
+            },
+            userId,
+          ),
+        ),
+      { idOf: (position) => position.actifId },
+    );
+
+    return { ...result, exclues };
   }
 
   /**
@@ -792,19 +985,22 @@ export class TransactionsService {
         );
       }
 
-      // 4. Annuler le provisionnement de retour au site destination.
-      try {
-        await this.actifsService.releasePendingIncomingActif(
-          ayantDroitId,
-          siteDestinationId,
-          productId,
-          quantite,
-        );
-      } catch (err) {
-        // Ignorer si l'actif n'existe pas encore
-        console.warn(
-          `[rejectTransaction] Impossible de libérer actif en attente destination: ${err.message}`,
-        );
+      // 4. Annuler le provisionnement de retour au site destination
+      //    (uniquement pour les retraits créés avant la correction).
+      if (transaction.destinationProvisioned !== false) {
+        try {
+          await this.actifsService.releasePendingIncomingActif(
+            ayantDroitId,
+            siteDestinationId,
+            productId,
+            quantite,
+          );
+        } catch (err) {
+          // Ignorer si l'actif n'existe pas encore
+          console.warn(
+            `[rejectTransaction] Impossible de libérer actif en attente destination: ${err.message}`,
+          );
+        }
       }
     } else if (transaction.type === TransactionType.VENTE) {
       // Restaurer la quantite du produit chez le vendeur
@@ -1032,14 +1228,28 @@ export class TransactionsService {
         );
       }
 
-      // 4. Confirmer l'actif "en attente" du retrayant au site destination
-      //    Convertit quantiteEnAttente -> quantite (AJOUTE au stock réel)
-      await this.actifsService.confirmPendingActifAtDestination(
-        ayantDroitId,
-        destinationSiteId,
-        productId,
-        quantity,
-      );
+      // 4. Alimenter le site de destination (le retrayant détient désormais).
+      if (transaction.destinationProvisioned === false) {
+        // Nouveau flux : rien n'a été provisionné à la création.
+        await this.actifsService.addOrIncreaseActif(
+          ayantDroitId,
+          destinationSiteId,
+          productId,
+          quantity,
+          unitPrice,
+          ayantDroitId, // détenteur = lui-même après retrait
+          ayantDroitId, // ayant droit = lui-même
+        );
+      } else {
+        // Retraits créés avant la correction : la quantité a déjà été ajoutée
+        // à la création, on retire seulement le marqueur d'attente.
+        await this.actifsService.confirmPendingActifAtDestination(
+          ayantDroitId,
+          destinationSiteId,
+          productId,
+          quantity,
+        );
+      }
 
       console.log(
         'Return movements applied for transaction:',
@@ -1619,47 +1829,52 @@ export class TransactionsService {
       const approverUser = await this.usersService.getById(approverId);
       const approverName = approverUser.userName;
 
-      // Récupérer les infos du destinataire via la base de données
-      const recipientUser = await this.usersService.getById(
-        transaction.recipientId?.toString(),
-      );
-      const recipientEmail = recipientUser.userEmail;
       // Récupérer le nom du produit
       const product = await this.productService.findById(
         transaction.productId.toString(),
       );
       const productName = product?.data?.[0]?.productName || 'Produit';
 
-      const recipientType = this.getTransactionTypeLabel(
-        transaction.type,
-        false,
-      );
+      // Initiateur = destinataire (ex: auto-retrait) : une seule notification,
+      // envoyée plus bas côté initiateur.
+      if (!this.isSelfTransaction(transaction)) {
+        // Récupérer les infos du destinataire via la base de données
+        const recipientUser = await this.usersService.getById(
+          transaction.recipientId?.toString(),
+        );
+        const recipientEmail = recipientUser.userEmail;
 
-      await this.mailService.notificationTransactionApproved(
-        recipientEmail,
-        recipientUser.userName,
-        recipientType,
-        productName,
-        transaction.quantite,
-        transaction.transactionNumber,
-        approverName,
-      );
+        const recipientType = this.getTransactionTypeLabel(
+          transaction.type,
+          false,
+        );
 
-      console.log(
-        `Approval notification sent for transaction (destinataire): ${transaction.transactionNumber} type: ${recipientType}`,
-      );
-      // WebSocket to recipient
-      const recipientId = transaction.recipientId?.toString();
-      if (recipientId) {
-        this.notificationsService
-          .notifyUser(
-            recipientId,
-            `${recipientType} approuvé`,
-            `Votre ${recipientType.toLowerCase()} de ${transaction.quantite} ${productName} a été approuvé par ${approverName} (${transaction.transactionNumber})`,
-          )
-          .catch((e) =>
-            console.error('WS notify approval recipient failed:', e),
-          );
+        await this.mailService.notificationTransactionApproved(
+          recipientEmail,
+          recipientUser.userName,
+          recipientType,
+          productName,
+          transaction.quantite,
+          transaction.transactionNumber,
+          approverName,
+        );
+
+        console.log(
+          `Approval notification sent for transaction (destinataire): ${transaction.transactionNumber} type: ${recipientType}`,
+        );
+        // WebSocket to recipient
+        const recipientId = transaction.recipientId?.toString();
+        if (recipientId) {
+          this.notificationsService
+            .notifyUser(
+              recipientId,
+              `${recipientType} approuvé`,
+              `Votre ${recipientType.toLowerCase()} de ${transaction.quantite} ${productName} a été approuvé par ${approverName} (${transaction.transactionNumber})`,
+            )
+            .catch((e) =>
+              console.error('WS notify approval recipient failed:', e),
+            );
+        }
       }
 
       // Envoyer aussi la notification au déposant/initiator que sa transaction a été approuvée
@@ -1725,42 +1940,46 @@ export class TransactionsService {
       );
       const productName = product?.data?.[0]?.productName || 'Produit';
 
-      // Récupérer les infos du destinataire via la base de données
-      const recipientUser = await this.usersService.getById(
-        transaction.recipientId.toString(),
-      );
-      const recipientEmail = recipientUser.userEmail;
-      const recipientType = this.getTransactionTypeLabel(
-        transaction.type,
-        false,
-      );
+      // Initiateur = destinataire (ex: auto-retrait) : une seule notification,
+      // envoyée plus bas côté initiateur.
+      if (!this.isSelfTransaction(transaction)) {
+        // Récupérer les infos du destinataire via la base de données
+        const recipientUser = await this.usersService.getById(
+          transaction.recipientId.toString(),
+        );
+        const recipientEmail = recipientUser.userEmail;
+        const recipientType = this.getTransactionTypeLabel(
+          transaction.type,
+          false,
+        );
 
-      await this.mailService.notificationTransactionRejected(
-        recipientEmail,
-        recipientUser.userName,
-        recipientType,
-        productName,
-        transaction.quantite,
-        transaction.transactionNumber,
-        rejectionReason,
-        approverName,
-      );
+        await this.mailService.notificationTransactionRejected(
+          recipientEmail,
+          recipientUser.userName,
+          recipientType,
+          productName,
+          transaction.quantite,
+          transaction.transactionNumber,
+          rejectionReason,
+          approverName,
+        );
 
-      console.log(
-        `Rejection notification sent for transaction: ${transaction.transactionNumber} type: ${recipientType}`,
-      );
-      // WebSocket to recipient
-      const recipientId = transaction.recipientId?.toString();
-      if (recipientId) {
-        this.notificationsService
-          .notifyUser(
-            recipientId,
-            `${recipientType} rejeté`,
-            `Votre ${recipientType.toLowerCase()} de ${transaction.quantite} ${productName} a été rejeté par ${approverName} : ${rejectionReason} (${transaction.transactionNumber})`,
-          )
-          .catch((e) =>
-            console.error('WS notify rejection recipient failed:', e),
-          );
+        console.log(
+          `Rejection notification sent for transaction: ${transaction.transactionNumber} type: ${recipientType}`,
+        );
+        // WebSocket to recipient
+        const recipientId = transaction.recipientId?.toString();
+        if (recipientId) {
+          this.notificationsService
+            .notifyUser(
+              recipientId,
+              `${recipientType} rejeté`,
+              `Votre ${recipientType.toLowerCase()} de ${transaction.quantite} ${productName} a été rejeté par ${approverName} : ${rejectionReason} (${transaction.transactionNumber})`,
+            )
+            .catch((e) =>
+              console.error('WS notify rejection recipient failed:', e),
+            );
+        }
       }
 
       // Envoyer aussi la notification au déposant/initiator que sa transaction a été rejetée
@@ -1875,8 +2094,14 @@ export class TransactionsService {
         return; // Fin du traitement pour l'initialisation
       }
 
+      // Initiateur = destinataire (ex: auto-retrait) : une seule notification,
+      // celle de l'initiateur (étape 2).
+      const isSelf = this.isSelfTransaction(transaction);
+
       // --- ÉTAPE 1 : Mail au DESTINATAIRE (vendeur pour VENTE) ---
-      if (recipientUser) {
+      if (isSelf) {
+        // rien : traité à l'étape 2
+      } else if (recipientUser) {
         console.log(
           `[Mail Debug] Destinataire trouvé: ${recipientUser.userName}, email: ${recipientUser.userEmail || 'NON DEFINI'}`,
         );
@@ -1886,7 +2111,7 @@ export class TransactionsService {
         );
       }
 
-      if (recipientUser && recipientUser.userEmail) {
+      if (!isSelf && recipientUser && recipientUser.userEmail) {
         try {
           const recipientType = this.getTransactionTypeLabel(
             transaction.type,
@@ -1920,7 +2145,7 @@ export class TransactionsService {
             error instanceof Error ? error.message : 'Unknown error';
           console.error(`[Mail FAIL] Destinataire: ${errorMessage}`);
         }
-      } else if (recipientId) {
+      } else if (!isSelf && recipientId) {
         console.warn(
           `[Mail SKIP] Destinataire introuvable ou sans email: ${recipientId}`,
         );
@@ -1970,6 +2195,12 @@ export class TransactionsService {
         globalError instanceof Error ? globalError.message : 'Inconnue';
       console.error(`Erreur globale sendCreationNotification: ${errorMessage}`);
     }
+  }
+
+  /** L'initiateur est aussi le destinataire (auto-retrait, dépôt vers soi). */
+  private isSelfTransaction(transaction: TransactionDocument): boolean {
+    const initiatorId = transaction.initiatorId?.toString();
+    return !!initiatorId && initiatorId === transaction.recipientId?.toString();
   }
 
   /**
