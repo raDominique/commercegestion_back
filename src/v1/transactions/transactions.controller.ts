@@ -712,20 +712,24 @@ Erreurs possibles:
   }
 
   /**
-   * Récupère les dépôts de l'utilisateur détenus par d'autres membres
-   * qui n'ont pas encore fait l'objet d'un virement de droit
+   * Récupère les actifs disponibles de l'utilisateur : ceux qu'il détient
+   * lui-même et ceux qu'il a déposés chez d'autres membres.
    */
   @Get('deposit-at-others/me')
   @Auth()
   @ApiOperation({
     summary:
-      "Dépôts de l'utilisateur chez d'autres membres sans virement de droit",
-    description: `Récupère les actifs de dépôt actuellement disponibles où l'utilisateur connecté est l'ayant-droit
-et le détenteur est un autre membre. La recherche est faite dans les actifs, et non dans l'historique des transactions : un actif entièrement viré (VIREMENT_DROIT) est archivé et n'est donc pas retourné.
+      "Actifs de l'utilisateur : son propre stock et ses dépôts chez d'autres membres",
+    description: `Récupère les actifs actuellement disponibles où l'utilisateur connecté est l'ayant-droit,
+qu'il en soit lui-même le détenteur (son propre stock) ou qu'ils soient détenus par un autre membre (ses dépôts).
+La recherche est faite dans les actifs, et non dans l'historique des transactions : un actif entièrement viré (VIREMENT_DROIT) est archivé et n'est donc pas retourné.
+
+Chaque élément porte \`chezAutreMembre\` : \`false\` pour son propre stock, \`true\` pour un dépôt chez un autre membre.
+Passer \`onlyAtOthers=true\` pour ne garder que les dépôts chez d'autres membres (ancien comportement).
 
 Utilité:
-- Voir ses marchandises détenues physiquement par un autre membre
-- Identifier les dépôts disponibles pour un virement de droit
+- Voir tous ses actifs, y compris ses marchandises détenues physiquement par un autre membre
+- Identifier les actifs disponibles pour un virement de droit
 - Gérer les actifs externes
 
 Pagination:
@@ -768,10 +772,17 @@ Pagination:
     type: String,
     description: 'Filtrer par détenteur (membre qui garde physiquement)',
   })
+  @ApiQuery({
+    name: 'onlyAtOthers',
+    required: false,
+    type: Boolean,
+    description:
+      "true : uniquement les dépôts chez d'autres membres, sans son propre stock (défaut: false)",
+  })
   @ApiResponse({
     status: 200,
     description:
-      "Liste paginée des dépôts de l'utilisateur détenus par d'autres membres",
+      "Liste paginée des actifs de l'utilisateur (propre stock et dépôts chez d'autres membres)",
   })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
   async getAllDepositAtOthersMe(
@@ -782,6 +793,7 @@ Pagination:
     @Query('siteId') siteId?: string,
     @Query('productId') productId?: string,
     @Query('detentaireId') detentaireId?: string,
+    @Query('onlyAtOthers') onlyAtOthers?: string,
   ) {
     return this.transactionsService.getAllDepositAtOthersMe(
       req.user.userId,
@@ -791,6 +803,7 @@ Pagination:
       siteId,
       productId,
       detentaireId,
+      onlyAtOthers === 'true',
     );
   }
 

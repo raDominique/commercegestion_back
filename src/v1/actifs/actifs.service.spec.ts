@@ -122,6 +122,63 @@ describe('ActifsService', () => {
     );
   });
 
+  describe('getActiveDepositsAtOthers', () => {
+    const me = new Types.ObjectId();
+    const other = new Types.ObjectId();
+    const firstFindFilter = (): Record<string, unknown> =>
+      (mockModel.find.mock.calls as unknown[][])[0][0] as Record<
+        string,
+        unknown
+      >;
+    const actifLine = (detentaire: Types.ObjectId) => ({
+      _id: new Types.ObjectId(),
+      quantite: 10,
+      quantiteEnAttente: 3,
+      isActive: true,
+      detentaire: { _id: detentaire },
+      ayant_droit: { _id: me },
+      productId: { _id: new Types.ObjectId(), productName: 'Riz' },
+    });
+
+    it("returns the member's own stock as well as deposits at other members", async () => {
+      mockModel.exec.mockResolvedValue([actifLine(me), actifLine(other)]);
+
+      const result = await service.getActiveDepositsAtOthers(me.toString(), {});
+
+      const filter = firstFindFilter();
+      expect(filter).not.toHaveProperty('detentaire');
+      expect(filter).toEqual(
+        expect.objectContaining({ userId: me, ayant_droit: me }),
+      );
+      expect(result.total).toBe(2);
+      expect(result.data.map((d) => d.chezAutreMembre)).toEqual([false, true]);
+      expect(result.data[0].quantite).toBe(7);
+    });
+
+    it('keeps only deposits at other members when onlyAtOthers is set', async () => {
+      mockModel.exec.mockResolvedValue([actifLine(other)]);
+
+      await service.getActiveDepositsAtOthers(me.toString(), {
+        onlyAtOthers: true,
+      });
+
+      const filter = firstFindFilter();
+      expect(filter.detentaire).toEqual({ $ne: me });
+    });
+
+    it('filters on the requested holder', async () => {
+      mockModel.exec.mockResolvedValue([]);
+
+      await service.getActiveDepositsAtOthers(me.toString(), {
+        detenteurId: other.toString(),
+        onlyAtOthers: true,
+      });
+
+      const filter = firstFindFilter();
+      expect(filter.detentaire).toEqual(other);
+    });
+  });
+
   it('does not use a holder mirror for the standard stock decrease flow', async () => {
     mockModel.findOne.mockResolvedValue(null);
 

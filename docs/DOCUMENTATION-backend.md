@@ -354,7 +354,7 @@ flowchart LR
 | POST | `/api/v1/transactions/vente` | Auth | Crée une VENTE / échange PENDING. |
 | PATCH | `/api/v1/transactions/:id/approve` | Auth | Approuve et applique les mouvements. |
 | PATCH | `/api/v1/transactions/:id/reject` | Auth | Rejette et libère les réservations. |
-| GET | `/api/v1/transactions/deposit-at-others/me` | Auth | Mes dépôts détenus par d'autres (sans virement). |
+| GET | `/api/v1/transactions/deposit-at-others/me` | Auth | Mes actifs disponibles : mon propre stock et mes dépôts détenus par d'autres (champ `chezAutreMembre`). `onlyAtOthers=true` : dépôts chez d'autres uniquement. |
 | GET | `/api/v1/transactions/deposit-at-others-with-virement` | Auth | Dépôts chez d'autres, virements inclus. |
 | GET | `/api/v1/transactions/:id` | Auth | Détail d'une transaction. |
 | GET | `/api/v1/transactions/pending/list` | Auth | Transactions à approuver. |

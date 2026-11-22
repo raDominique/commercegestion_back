@@ -1081,9 +1081,11 @@ export class ActifsService {
   }
 
   /**
-   * Retourne l'état courant des dépôts de l'ayant-droit dans le même format
-   * qu'une liste de transactions. La source reste Actif afin de ne pas inclure
-   * les lignes historiques déjà sorties ou entièrement virées.
+   * Retourne l'état courant des actifs de l'ayant-droit dans le même format
+   * qu'une liste de transactions : ceux qu'il détient lui-même et ceux qu'il a
+   * déposés chez d'autres membres (`onlyAtOthers` pour ne garder que ces
+   * derniers). La source reste Actif afin de ne pas inclure les lignes
+   * historiques déjà sorties ou entièrement virées.
    */
   async getActiveDepositsAtOthers(
     userId: string,
@@ -1094,6 +1096,7 @@ export class ActifsService {
       page?: number;
       limit?: number;
       search?: string;
+      onlyAtOthers?: boolean;
     },
   ) {
     const {
@@ -1103,8 +1106,14 @@ export class ActifsService {
       page = 1,
       limit = 10,
       search,
+      onlyAtOthers = false,
     } = query;
     const userObjectId = new Types.ObjectId(userId);
+    const detentaireFilter = detenteurId
+      ? { detentaire: new Types.ObjectId(detenteurId) }
+      : onlyAtOthers
+        ? { detentaire: { $ne: userObjectId } }
+        : {};
     const filter = {
       userId: userObjectId,
       ayant_droit: userObjectId,
@@ -1115,9 +1124,7 @@ export class ActifsService {
           0,
         ],
       },
-      detentaire: detenteurId
-        ? new Types.ObjectId(detenteurId)
-        : { $ne: userObjectId },
+      ...detentaireFilter,
       ...(siteId ? { depotId: new Types.ObjectId(siteId) } : {}),
       ...(productId ? { productId: new Types.ObjectId(productId) } : {}),
     };
@@ -1146,16 +1153,21 @@ export class ActifsService {
     return {
       status: 'success',
       message:
-        "Dépôts actifs de l'utilisateur chez d'autres membres récupérés avec succès",
+        "Actifs de l'utilisateur (détenus par lui-même ou par d'autres membres) récupérés avec succès",
       data: searched.slice(skip, skip + limit).map((actif: any) => {
         const quantiteDisponible = Math.max(
           0,
           actif.quantite - (actif.quantiteEnAttente ?? 0),
         );
+        const detentaireId = String(
+          actif.detentaire?._id ?? actif.detentaire ?? '',
+        );
 
         return {
           _id: actif._id,
           type: 'DÉPÔT',
+          // false : l'utilisateur détient lui-même la marchandise (son propre stock).
+          chezAutreMembre: detentaireId !== userId,
           status: 'APPROVED',
           initiatorId: actif.ayant_droit,
           recipientId: actif.detentaire,

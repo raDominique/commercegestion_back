@@ -1615,6 +1615,7 @@ export class TransactionsService {
     siteId?: string,
     productId?: string,
     detentaireId?: string,
+    onlyAtOthers: boolean = false,
   ) {
     // Les transactions constituent un historique et conservent donc les dépôts
     // déjà virés. Les Actifs portent l'état courant : après un VIREMENT_DROIT,
@@ -1626,6 +1627,7 @@ export class TransactionsService {
       page,
       limit,
       search,
+      onlyAtOthers,
     });
 
     /* Legacy transaction-history lookup kept below temporarily for reference.
