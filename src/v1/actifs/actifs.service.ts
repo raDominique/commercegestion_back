@@ -12,6 +12,26 @@ import {
   ExportResult,
 } from '../../shared/export/export.service';
 
+/** Identifiant d'une référence, qu'elle soit peuplée ou non. */
+const idOf = (ref: unknown): string => {
+  const id: unknown =
+    ref && typeof ref === 'object' && '_id' in ref
+      ? (ref as { _id: unknown })._id
+      : ref;
+  return id instanceof Types.ObjectId || typeof id === 'string'
+    ? id.toString()
+    : '';
+};
+
+/** Clé d'un couple (dépôt, produit), références peuplées ou non. */
+const pairKey = (depotId: unknown, productId: unknown): string =>
+  `${idOf(depotId)}|${idOf(productId)}`;
+
+type HeldLine = Pick<
+  Actif,
+  'depotId' | 'productId' | 'quantite' | 'quantiteEnAttente'
+>;
+
 @Injectable()
 export class ActifsService {
   constructor(
@@ -1149,25 +1169,36 @@ export class ActifsService {
         )
       : actifs;
     const skip = (page - 1) * limit;
+    const pageActifs = searched.slice(skip, skip + limit);
+    const quantitesDetenues = await this.sumOwnHeldQuantities(
+      userId,
+      pageActifs.filter((actif) => idOf(actif.detentaire) === userId),
+    );
 
     return {
       status: 'success',
       message:
         "Actifs de l'utilisateur (détenus par lui-même ou par d'autres membres) récupérés avec succès",
-      data: searched.slice(skip, skip + limit).map((actif: any) => {
+      data: pageActifs.map((actif: any) => {
         const quantiteDisponible = Math.max(
           0,
           actif.quantite - (actif.quantiteEnAttente ?? 0),
         );
-        const detentaireId = String(
-          actif.detentaire?._id ?? actif.detentaire ?? '',
-        );
+        const chezAutreMembre = idOf(actif.detentaire) !== userId;
+        // Sur son propre stock, l'utilisateur détient aussi les droits déjà
+        // virés à d'autres (lignes miroir avec un autre ayant_droit) : la
+        // quantité détenue ne baisse pas après un virement de droit, seul le
+        // plafond virable (ses propres droits) diminue.
+        const quantiteDetenue = chezAutreMembre
+          ? quantiteDisponible
+          : (quantitesDetenues.get(pairKey(actif.depotId, actif.productId)) ??
+            quantiteDisponible);
 
         return {
           _id: actif._id,
           type: 'DÉPÔT',
           // false : l'utilisateur détient lui-même la marchandise (son propre stock).
-          chezAutreMembre: detentaireId !== userId,
+          chezAutreMembre,
           status: 'APPROVED',
           initiatorId: actif.ayant_droit,
           recipientId: actif.detentaire,
@@ -1175,7 +1206,8 @@ export class ActifsService {
           // L'actif ne conserve que son site courant, qui correspond à la destination.
           siteOrigineId: null,
           siteDestinationId: actif.depotId,
-          quantite: quantiteDisponible,
+          quantite: quantiteDetenue,
+          quantiteDetenue,
           // Contrat pour le formulaire de virement de droit : le front initialise
           // la saisie à 0, limite la valeur au maximum disponible, puis affiche le
           // reliquat calculé sans avoir à déduire les réservations lui-même.
@@ -1194,6 +1226,46 @@ export class ActifsService {
       limit,
       total: searched.length,
     };
+  }
+
+  /**
+   * Quantité disponible physiquement détenue par l'utilisateur, tous
+   * ayants-droit confondus, pour chaque couple (dépôt, produit) des actifs
+   * donnés. Clé : `pairKey(depotId, productId)`.
+   */
+  private async sumOwnHeldQuantities(
+    userId: string,
+    ownActifs: Pick<Actif, 'depotId' | 'productId'>[],
+  ): Promise<Map<string, number>> {
+    const totals = new Map<string, number>();
+    if (ownActifs.length === 0) return totals;
+
+    const keys = new Set(
+      ownActifs.map((actif) => pairKey(actif.depotId, actif.productId)),
+    );
+    const userObjectId = new Types.ObjectId(userId);
+    const heldLines = await this.actifModel
+      .find({
+        userId: userObjectId,
+        detentaire: userObjectId,
+        isActive: true,
+        depotId: { $in: ownActifs.map((actif) => idOf(actif.depotId)) },
+        productId: { $in: ownActifs.map((actif) => idOf(actif.productId)) },
+      })
+      .select('depotId productId quantite quantiteEnAttente')
+      .lean<HeldLine[]>()
+      .exec();
+
+    for (const line of heldLines) {
+      const key = pairKey(line.depotId, line.productId);
+      if (!keys.has(key)) continue;
+      const disponible = Math.max(
+        0,
+        line.quantite - (line.quantiteEnAttente ?? 0),
+      );
+      totals.set(key, (totals.get(key) ?? 0) + disponible);
+    }
+    return totals;
   }
 
   /**

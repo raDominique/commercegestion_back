@@ -137,11 +137,23 @@ describe('ActifsService', () => {
       isActive: true,
       detentaire: { _id: detentaire },
       ayant_droit: { _id: me },
+      depotId: { _id: new Types.ObjectId() },
       productId: { _id: new Types.ObjectId(), productName: 'Riz' },
     });
 
     it("returns the member's own stock as well as deposits at other members", async () => {
-      mockModel.exec.mockResolvedValue([actifLine(me), actifLine(other)]);
+      const own = actifLine(me);
+      mockModel.exec
+        .mockResolvedValueOnce([own, actifLine(other)])
+        // Lignes détenues par le membre sur son propre stock.
+        .mockResolvedValueOnce([
+          {
+            depotId: own.depotId._id,
+            productId: own.productId._id,
+            quantite: 10,
+            quantiteEnAttente: 3,
+          },
+        ]);
 
       const result = await service.getActiveDepositsAtOthers(me.toString(), {});
 
@@ -153,10 +165,62 @@ describe('ActifsService', () => {
       expect(result.total).toBe(2);
       expect(result.data.map((d) => d.chezAutreMembre)).toEqual([false, true]);
       expect(result.data[0].quantite).toBe(7);
+      expect(result.data[1].quantite).toBe(7);
+      expect(result.data[1].quantiteDetenue).toBe(7);
+    });
+
+    it('keeps the held quantity on own stock after a right transfer, but caps the next transfer to own rights', async () => {
+      const beneficiary = new Types.ObjectId();
+      const own = {
+        ...actifLine(me),
+        quantite: 475000,
+        quantiteEnAttente: 0,
+      };
+      mockModel.exec.mockResolvedValueOnce([own]).mockResolvedValueOnce([
+        {
+          depotId: own.depotId._id,
+          productId: own.productId._id,
+          ayant_droit: me,
+          quantite: 475000,
+          quantiteEnAttente: 0,
+        },
+        {
+          depotId: own.depotId._id,
+          productId: own.productId._id,
+          ayant_droit: beneficiary,
+          quantite: 25000,
+          quantiteEnAttente: 0,
+        },
+        // Autre produit sur le même dépôt : ne doit pas être compté.
+        {
+          depotId: own.depotId._id,
+          productId: new Types.ObjectId(),
+          ayant_droit: me,
+          quantite: 999,
+          quantiteEnAttente: 0,
+        },
+      ]);
+
+      const result = await service.getActiveDepositsAtOthers(me.toString(), {});
+
+      const heldFilter = (mockModel.find.mock.calls as unknown[][])[1][0];
+      expect(heldFilter).toEqual(
+        expect.objectContaining({ userId: me, detentaire: me }),
+      );
+      expect(heldFilter).not.toHaveProperty('ayant_droit');
+      expect(result.data[0]).toEqual(
+        expect.objectContaining({
+          chezAutreMembre: false,
+          quantite: 500000,
+          quantiteDetenue: 500000,
+          quantiteMaxTransferable: 475000,
+          quantiteRestantAVirer: 475000,
+        }),
+      );
     });
 
     it('keeps only deposits at other members when onlyAtOthers is set', async () => {
-      mockModel.exec.mockResolvedValue([actifLine(other)]);
+      mockModel.exec.mockResolvedValueOnce([actifLine(other)]);
 
       await service.getActiveDepositsAtOthers(me.toString(), {
         onlyAtOthers: true,
@@ -164,6 +228,8 @@ describe('ActifsService', () => {
 
       const filter = firstFindFilter();
       expect(filter.detentaire).toEqual({ $ne: me });
+      // Aucun stock propre : pas de requête des quantités détenues.
+      expect(mockModel.find).toHaveBeenCalledTimes(1);
     });
 
     it('filters on the requested holder', async () => {

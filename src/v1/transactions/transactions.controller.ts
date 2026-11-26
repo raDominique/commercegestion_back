@@ -727,6 +727,11 @@ La recherche est faite dans les actifs, et non dans l'historique des transaction
 Chaque élément porte \`chezAutreMembre\` : \`false\` pour son propre stock, \`true\` pour un dépôt chez un autre membre.
 Passer \`onlyAtOthers=true\` pour ne garder que les dépôts chez d'autres membres (ancien comportement).
 
+Quantités:
+- \`quantite\` / \`quantiteDetenue\` : quantité disponible. Sur son propre stock, c'est tout ce qu'il détient physiquement,
+  y compris les droits déjà virés à d'autres membres (un virement de droit ne réduit pas la quantité détenue).
+- \`quantiteMaxTransferable\` / \`quantiteRestantAVirer\` : ses propres droits disponibles, plafond d'un nouveau virement de droit.
+
 Utilité:
 - Voir tous ses actifs, y compris ses marchandises détenues physiquement par un autre membre
 - Identifier les actifs disponibles pour un virement de droit
